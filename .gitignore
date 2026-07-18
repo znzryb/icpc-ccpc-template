@@ -1,6 +1,8 @@
-## LaTeX 编译产物
-out/
+## LaTeX 编译产物（成品 PDF 保留追踪）
+out/*
 !out/template-main.pdf
+TemplateDetailedExplain/out/*
+!TemplateDetailedExplain/out/*.pdf
 auxil/
 _minted-*/
 *.synctex.gz
