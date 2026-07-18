@@ -1,0 +1,173 @@
+	\begin{center}
+		\section{梦的开始}
+	\end{center}
+
+	\subsection{ASCII表}
+	\includegraphics[width=\linewidth]{ASCII.png}
+
+	\begin{multicols*}{2} % 开始双栏，数字 2 表示分两栏
+
+		\subsection{初始化模板}
+
+		\begin{minted}{cpp}
+// teamname: Gospel_rock
+/**
+ * Problem: ${PROBLEM_NAME}
+ * Contest: ${PROBLEM_GROUP_NAME}
+ * Judge: ${ONLINE_JUDGE_NAME}
+ * URL: ${PROBLEM_URL}
+ * Created: ${YEAR}-${MONTH}-${DAY} ${HOUR}:${MINUTE}:${SECOND}
+ * Author: Gospel_rock
+ * My blog: https://znzryb.com/
+ * 
+ * Powered by AutoCp https://github.com/Pushpavel/AutoCp
+ */
+
+#include <bits/stdc++.h>
+#define all(vec) vec.begin(), vec.end()
+#define lson(o) (o << 1)
+#define rson(o) (o << 1 | 1)
+#define SZ(a) ((long long)a.size())
+#define fsp(x) fixed << setprecision(x)
+#define debug(x) cerr << "[" << #x << "]" << ": " << x << "\n"
+#define cend cerr << "\n---------------------------------------------------\n"
+#define cEnd cerr << "\n***************************************************\n"
+
+using namespace std;
+
+using ll = long long;
+using ull = unsigned long long;
+using DB = long double;
+using i128 = __int128;
+using CD = complex<double>;
+
+static constexpr ll MAXN = (ll)1e6 + 10, INF = (1ll << 61) - 1;
+static constexpr ll mod = 998244353;  // (ll)1e9+7;
+static constexpr double eps = 1e-8;
+// 不用 M_PI: 后者是 POSIX 扩展, glibc <cmath> 严格模式会 undef
+const long double PI = acosl(-1.0);
+
+ll lT, testcase;
+
+/*
+ *
+ */
+
+ll N;
+
+void Solve() {
+	cin >> N;
+}
+
+signed main() {
+	ios::sync_with_stdio(false);
+	cin.tie(nullptr);
+	cout.tie(nullptr);
+#ifdef LOCAL
+	cout.setf(ios::unitbuf); // 无缓冲流，方便我们调试
+#endif
+
+	cin >> lT;
+	for (testcase = 1; testcase <= lT; ++testcase)
+		Solve();
+	return 0;
+}
+
+/*
+
+*/
+		\end{minted}
+
+		这个 \texttt{debug(x)} 是简版宏：单参数、直接 \texttt{cerr << x}，要求 \texttt{x} 支持 \texttt{operator<<}（基本类型 / \texttt{string} 都 OK，\texttt{vector<T>} 等容器不能直接打）。不再做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，留着也无伤大雅；介意的话提交前手动把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL} 即可。容器调试请用 range-for 手写循环。
+
+		\subsection{CMake 配置}
+
+		\subsubsection{Sanitizer 小技巧}
+
+		有些越界或未定义行为问题，仅开 \texttt{address} 不一定能完整暴露。实践中建议同时开启 \texttt{address + undefined}，并保留帧指针，方便定位调用栈。
+
+		\begin{minted}[highlightlines={9,10}]{cmake}
+cmake_minimum_required(VERSION 3.31)
+project(Edu_CF_186)
+
+set(CMAKE_CXX_STANDARD 20)
+
+add_executable(Edu_CF_186 main.cpp)
+
+add_compile_definitions(LOCAL)
+add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+add_link_options(-fsanitize=address,undefined)
+
+# 这个不要随便启用，启用后可能 debug 示数不可信
+# add_compile_definitions(_GLIBCXX_DEBUG)
+
+add_executable(A_New_Year_String "src/A_New_Year_String.cpp")
+add_executable(B_New_Year_Cake "src/B_New_Year_Cake.cpp")
+add_executable(odt_callback_bench "speed test/odt_callback_bench.cpp")
+target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEASE}")
+		\end{minted}
+
+		\subsubsection{Cmake Release 配置小技巧}
+
+		这个写法的主要目的有两个：一是只给特定目标启用 \texttt{Release} 进行性能测试，二是避免在 GUI 里把全局配置切到 \texttt{Release} 后忘记切回 \texttt{Debug}，进而出现调试信息异常、断点行为不符合预期等问题。
+
+		\begin{minted}{cmake}
+add_executable(odt_callback_bench "speed test/odt_callback_bench.cpp")
+target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEASE}")
+		\end{minted}
+
+		\subsection{CLion 格式化：括号内加空格}
+
+		\textbf{Settings} → \textbf{Editor} → \textbf{Code Style} → \textbf{C/C++} → \textbf{Spaces} 标签下，下面三个开关都要勾，单独勾任何一个都不彻底——分别覆盖函数声明形参括号、表达式 grouping 括号、函数调用 / 初始化括号。
+
+		\begin{itemize}
+			\item \textbf{Within} → \textbf{Parentheses}：函数声明的形参括号内壁加空格，\mintinline{cpp}{circle_relation( const Circle<T> &a, const Circle<T> &b )}。
+			\item \textbf{In expressions} → \textbf{Within parentheses}：表达式 grouping 括号，\mintinline{cpp}{(b - a) / 2} → \mintinline{cpp}{( b - a ) / 2}。
+			\item \textbf{Within parentheses in function call and initialization}：函数调用和构造调用，\mintinline{cpp}{foo(a, b)} → \mintinline{cpp}{foo( a, b )}、\mintinline{cpp}{Circle<DB>(I, r)} → \mintinline{cpp}{Circle<DB>( I, r )}。
+		\end{itemize}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/CLion 括号内空格配置.png}
+		\end{center}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/CLion 表达式括号内空格.png}
+		\end{center}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/CLion 函数调用括号内空格.png}
+		\end{center}
+
+
+		\subsection{本地手测时怎么发 EOF}
+
+		本地跑 \mintinline{cpp}{while (cin >> x)} / \mintinline{cpp}{while (scanf("\%d",&x) != EOF)} 这类按 EOF 终止的 CP 代码，手动在终端输完样例后要发 EOF 让 stdin 关流，否则程序一直阻塞读不到末尾。**EOF 的发送键在不同系统/终端里不一样**：
+
+		\begin{itemize}
+			\item \textbf{macOS / Linux 真终端}：\texttt{Ctrl-D}（在空输入行上按）。
+			\item \textbf{Windows \texttt{cmd} / PowerShell}：\texttt{Ctrl-Z} 后按 \texttt{Enter}。
+			\item \textbf{WSL / Git Bash on Windows}：\texttt{Ctrl-D}（同 Unix）。
+			\item \textbf{CLion / VSCode Run 控制台}：跟底层 shell 走，mac/Linux $\Rightarrow$ \texttt{Ctrl-D}，Windows $\Rightarrow$ \texttt{Ctrl-Z}+\texttt{Enter}。
+		\end{itemize}
+
+		\textbf{两个坑}：
+
+		\begin{itemize}
+			\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
+			\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
+
+\begin{minted}{bash}
+./a.out << 'EOF'
+3
+1 2 3
+EOF
+\end{minted}
+		\end{itemize}
+
+
+	\end{multicols*} % 结束双栏
+
+
+
+
+

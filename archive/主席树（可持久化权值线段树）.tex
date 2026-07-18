@@ -1,0 +1,107 @@
+		\subsection{主席树（可持久化权值线段树）}
+
+		主席树即\textbf{可持久化权值线段树}，每次单点更新只新建 $O(\log n)$ 个节点，多保存一份「版本根」。处理\textbf{静态区间第 $k$ 小}问题时，第 $i$ 个版本对应前 $i$ 个数构成的权值集合，区间 $[l, r]$ 的第 $k$ 小 $=$ \verb|query(root[l-1], root[r], 1, len, k)|，按左子树差量 \verb|sum[ls[v]] - sum[ls[u]]| 决定向左还是向右走。
+
+		\textbf{由于数组开得很大，本结构体只能放在全局作用域}。
+
+		\begin{minted}{cpp}
+struct persisTree {
+    // 单点修改区间查询主席树（静态区间第 k 小）
+    // 测试 https://www.luogu.com.cn/record/218615977
+    // maxn 为点数，maxm 为版本数
+    static const int
+        maxn = static_cast<int>(5e5) + 7,
+        maxm = static_cast<int>(5e5) + 7;
+    // 版本数一般不超过 2^20 = 1048576
+    static const int LOGmxm = 20;
+    static const int
+        maxn4 = maxn * 4 + LOGmxm * maxn;
+    int ls[maxn4], rs[maxn4], L[maxn4], R[maxn4],
+        root[maxm];
+    int arr[maxn], sum[maxn4], li[maxn];
+    int n = 0, m = 0, idx = 1, Cver = 0, len = 0;
+
+    inline int initLi(int ln, int lm) {
+        idx = 1; n = ln; m = lm; Cver = 0;
+        root[0] = 1;  // 版本 0 的根是 1
+        for (int i = 1; i <= n; ++i) li[i] = arr[i];
+        sort(li + 1, li + 1 + n);
+        len = unique(li + 1, li + 1 + n) - li - 1;
+        return len;
+    }
+    inline int kth(ll x) {
+        return lower_bound(li + 1, li + 1 + len, x)
+             - li;
+    }
+    inline void clone(int node) {
+        ++idx;
+        L[idx] = L[node];   R[idx] = R[node];
+        sum[idx] = sum[node];
+        ls[idx] = ls[node]; rs[idx] = rs[node];
+    }
+    void build(int node, int l, int r) {
+        ls[node] = ++idx;  rs[node] = ++idx;
+        L[node] = l;       R[node] = r;
+        sum[node] = 0;
+        if (l == r) return;
+        build(ls[node], l, ((l + r) >> 1));
+        build(rs[node], (l + r >> 1) + 1, r);
+    }
+    // node 应填入要 clone 的版本根 root[ver]
+    void add(int node, int ver, int p, ll x) {
+        clone(node);
+        sum[idx] += x;
+        if (root[ver] == node) {
+            ++Cver;
+            root[Cver] = idx;
+        }
+        if (p == L[node] && p == R[node]) return;
+        if (p >= L[ls[node]]
+            && p <= R[ls[node]]) {
+            int nals = ls[idx];
+            ls[idx] = idx + 1;
+            add(nals, ver, p, x);
+        } else {
+            int nars = rs[idx];
+            rs[idx] = idx + 1;
+            add(nars, ver, p, x);
+        }
+    }
+    // u, v 为版本根；l, r 为值域
+    int query(int u, int v, int l, int r, int k) {
+        if (l == r) return l;
+        int lsum = sum[ls[v]] - sum[ls[u]];
+        int mid = l + r >> 1;
+        if (lsum >= k)
+            return query(ls[u], ls[v], l, mid, k);
+        return query(rs[u], rs[v],
+                     mid + 1, r, k - lsum);
+    }
+};
+		\end{minted}
+
+		\textbf{典型用法（P3567 KUR-Couriers，求区间是否有出现 $> \lceil \text{len} / 2 \rceil$ 次的数；\href{https://www.luogu.com.cn/record/218724163}{AC 记录}）}：
+
+		\begin{minted}{cpp}
+persisTree tr;  // 必须全局
+
+inline void solve() {
+    cin >> N >> M;
+    tr.init(N, N);
+    FOR(i, 1, N) cin >> tr.arr[i];
+    int len = tr.initLi();
+    tr.build(1, 1, len);
+    FOR(i, 1, N) {
+        tr.add(tr.root[i - 1], i - 1,
+               tr.kth(tr.arr[i]), 1);
+    }
+    FOR(_, 1, M) {
+        ll l, r; cin >> l >> r;
+        ll mid = (r - l + 1) / 2 + 1;
+        int ans = tr.li[
+            tr.query(tr.root[l - 1], tr.root[r],
+                     1, len, mid)];
+        cout << ans << "\n";
+    }
+}
+		\end{minted}

@@ -1,0 +1,129 @@
+	\begin{center}
+		\section{常见问题与错误}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{\texttt{-O2} 下的 FMA 乘加融合踩崩浮点 \texttt{ceil}}
+
+		\href{https://acm.hdu.edu.cn/contest/problem?cid=1202&pid=1003}{2026 HDU 春季联赛 6「绩点查询」}一题，坑的是一个很不起眼的浮点细节：\textbf{同一份代码在 \texttt{-O0}（CLion Debug 默认）下跑样例全对，提交到判题机却 \texttt{WA}}。最小复现如下：
+
+		\begin{minted}{cpp}
+ll s1 = 36, s2 = 96;
+ll s = ceil(0.6L * s1 + 0.4L * s2);
+// 数学真值：3*36 + 2*96 = 300，除 5 恰好 60，ceil 应为 60
+// 但 -O2 下，s = 61
+		\end{minted}
+
+		\textbf{罪魁祸首是编译器在 \texttt{-O2} 默认启用的 FMA（fused multiply-add）乘加融合}。ARM64 上对应指令 \texttt{fmadd}，x86 上对应 \texttt{vfmadd}。把表达式 \texttt{a * b + c * d} 合成一条带单次舍入的融合指令后，原本两次乘法各自产生的舍入误差无法互相抵消。
+
+		具体数值：\texttt{0.6 * 36} 真值 \texttt{21.6}，\texttt{double} 误差约 \texttt{-2.13e-15}；\texttt{0.4 * 96} 真值 \texttt{38.4}，\texttt{double} 误差约 \texttt{+5.68e-15}。分别计算再相加，两个反号误差近似抵消，落在精确的 \texttt{60.0}。一旦用 \texttt{fmadd} 融合，\texttt{0.6 * 36} 不再做中间舍入，加法也只做一次舍入，结果变成 \texttt{60.0000000000000071}，\texttt{ceil} 直接顶到 \texttt{61}。
+
+		实测不同优化等级下的行为：
+
+		\begin{center}
+			\small
+			\begin{tabular}{l|l|l}
+				\hline
+				编译参数                      & $0.6L \cdot 36 + 0.4L \cdot 96$ & \texttt{ceil} \\
+				\hline
+				\texttt{-O0} / \texttt{-O1}    & $60.0$ 精确                       & $60$（对）       \\
+				\texttt{-O2} / \texttt{-O3}    & $60.0000000000000071$           & $61$（错）       \\
+				\texttt{-O2 -ffp-contract=off} & $60.0$ 精确                       & $60$（对）       \\
+				\hline
+			\end{tabular}
+		\end{center}
+
+		\textbf{教训}：
+
+		\begin{enumerate}
+
+			\item \textbf{\texttt{ceil(浮点表达式)} 永远不要信}。只要表达式里有 \texttt{a * x + b * y} 这种结构，\texttt{-O2} 的 FMA 合并就可能让结果比真值多出约 \texttt{eps} 的误差，刚好顶过整数边界。
+			\item \textbf{本地过、判题机挂} 的经典场景：CLion / VSCode 的 Debug 构建是 \texttt{-O0}，不会触发 FMA；判题机普遍用 \texttt{-O2}。本地样例永远测不出来。
+			\item \textbf{\texttt{long double} 不是救命稻草}。Apple 平台（macOS ARM64 / Intel）的 \texttt{long double} ABI 就是 64-bit \texttt{double}；MinGW-w64 的 \texttt{long double} 宽度由发行版配置决定，不能指望一定是 80-bit。更要命的是 FMA 合并跟宽度无关，80-bit \texttt{long double} 也一样会被合并。
+		\end{enumerate}
+
+		\textbf{三种应对手段}，优先级从高到低：
+
+		\begin{enumerate}
+			\item \textbf{首选 —— 化成整数运算}。系数是有理数时，先通分成精确整数：
+
+			\begin{minted}{cpp}
+// 有理系数 0.6, 0.4 -> 3, 2，分母 5
+ll s = (3 * s1 + 2 * s2 + 4) / 5;  // 整数 ceil
+			\end{minted}
+
+			一行、零误差、对编译选项免疫。
+
+			\item \textbf{不得不用浮点时 —— 关掉 FMA 合并}。用 \texttt{\#pragma} 或 \texttt{volatile} 阻断合并：
+
+			\begin{minted}{cpp}
+// 函数级关 FMA（GCC）
+__attribute__((optimize("fp-contract=off")))
+ll calc(ll s1, ll s2) {
+    return ceil(0.6L * s1 + 0.4L * s2);
+}
+
+// 或者用 volatile 分步，强制内存来回，编译器无法融合
+volatile double a = 0.6 * s1;
+volatile double b = 0.4 * s2;
+ll s = (ll)ceil(a + b);
+			\end{minted}
+
+			\item \textbf{真的需要更高精度时 —— 上 \texttt{\_\_float128}}（GCC / Clang 扩展，128-bit IEEE 754 quad precision，精度 $\sim 10^{-34}$）：
+
+			\begin{minted}{cpp}
+// 注意：表达式里不要出现 double 字面量 0.6、0.4，
+// 那会先以 double 存储（带误差），升到 float128 也救不回来。
+// 所有系数都要用整数 / 有理构造：
+__float128 v = (__float128)3 * s1 + (__float128)2 * s2;
+v /= 5;
+ll s = (ll)v;
+if ((__float128)s < v) ++s;  // 手写 ceil
+			\end{minted}
+
+			额外限制：\texttt{0.6Q} 这种 quad 字面量后缀在 \texttt{-std=c++20} 下默认被禁用，要加 \texttt{-fext-numeric-literals} 才认，而判题机场景下你无法指定编译参数。\texttt{\_\_float128} 也没有 \texttt{std::ostream} 重载，不能直接 \texttt{cout <<}，只能把结果转回整数或 \texttt{long double} 再输出。
+
+			所以 \texttt{\_\_float128} 能用的"安全姿势"几乎等价于整数法，反而更啰嗦。除非中间必须保留非整数有理值（比如小数系数来自输入），才值得上。
+		\end{enumerate}
+
+		\subsection{\texttt{\_\_float128} 使用要点}
+
+		\begin{itemize}
+			\item \textbf{类型本身}：GCC / Clang 扩展，x86\_64 与 ARM64 均支持。\texttt{sizeof(\_\_float128) = 16}，尾数 112-bit，\texttt{eps} $\approx 2^{-112} \approx 1.9 \times 10^{-34}$。
+			\item \textbf{字面量后缀 \texttt{Q}}：需要 \texttt{-fext-numeric-literals} 编译参数，在严格 \texttt{-std=c++20} / \texttt{c++17} 下被禁用。
+			\item \textbf{头文件 \texttt{<quadmath.h>} 与 \texttt{-lquadmath}}：\texttt{ceilq}、\texttt{sqrtq}、\texttt{quadmath\_snprintf} 等函数依赖这个库，判题机不一定链接。若只做基础算术（\texttt{+ - * /} 与比较），不需要任何额外库，就能直接用。
+			\item \textbf{没有流 I/O}：\texttt{cin >> \_\_float128} 和 \texttt{cout << \_\_float128} 都不存在，必须手动转成 \texttt{double} / \texttt{long double} / 整数再输出。
+			\item \textbf{陷阱}：\texttt{(\_\_float128)0.6} 这种写法\textbf{不是}在 \texttt{\_\_float128} 里存 \texttt{0.6}——\texttt{0.6} 先以 \texttt{double} 字面量存储（带 \texttt{5.5e-17} 的误差），再升到 \texttt{\_\_float128}，误差直接继承。想保证精度要么用 \texttt{0.6Q}（需要上面那个 flag），要么干脆把系数换成整数比例构造。
+		\end{itemize}
+
+		\subsection{DP 不可达状态必须用 \texttt{INF/-INF} 显式标识}
+
+		线性 DP 形如 $f[r{+}1] = \max\{f[l] + 1 : (l, r)\ \text{合法转移}\}$ 时，\textbf{不可达的前缀}（即 $a[0..l{-}1]$ 没有合法划分的状态）\textbf{必须用 \texttt{-INF} 标记}，不能图省事用 \texttt{vector<ll> dp(N + 1)}（默认初值 0）。
+
+		\textbf{反例}：\href{https://vjudge.net/problem/CodeForces-2222C}{CF 1094C \emph{Median Partition}} 写成
+		\begin{minted}{cpp}
+vector<ll> dp(N + 1);   // 全 0，BUG！
+dp[0] = 0;
+for (int r = 0; r < N; ++r)
+    for (int l = 0; l <= r; ++l)
+        if (checkLr(l, r))
+            dp[r + 1] = max(dp[r + 1], 1 + dp[l]);
+		\end{minted}
+		会让"不可达的 $a[0..l{-}1]$"被误读成 "0 段已成功"，从而 $\texttt{dp}[r{+}1] = 1 + 0 = 1$ ——这等价于\textbf{凭空跳过}前面无法划分的部分、把 $a[l..r]$ 当作整个数组的合法第一段。最大段数被高估。
+
+		\textbf{正解}：
+		\begin{minted}{cpp}
+vector<ll> dp(N + 1, -INF);   // 不可达 = -INF
+dp[0] = 0;                    // 空前缀是唯一 base
+// 转移时 dp[l] = -INF 自动让 1 + dp[l] 落败
+		\end{minted}
+
+		\textbf{记忆口诀}：\textbf{base 之外一律 \texttt{-INF}}（求 max）/ \texttt{INF}（求 min）。\texttt{0} 只能用于"求计数 / 默认无贡献"语义，不能用于"段数 / 长度"语义——后者 0 是合法答案值，与"不可达"撞车。
+
+		\subsection{大网格 DFS 遇到障碍要跳过，不要继续标记递归}
+
+		\href{https://vjudge.net/problem/CodeForces-106532M}{2026 陕西省赛 M \emph{Group Effect}} 一题，$n \cdot m = 4 \times 10^6$。如果为了实现方便，遇到障碍不跳过而是继续标记已访问递归，会爆栈。\textbf{这里 RE 不是代码写错了，是 C++ 爆栈了}。
+
+	\end{multicols*}
+

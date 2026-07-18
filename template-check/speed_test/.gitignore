@@ -1,0 +1,3 @@
+# 编译产物（Mach-O 可执行文件）
+map_bench
+gp_cc_hash/bench

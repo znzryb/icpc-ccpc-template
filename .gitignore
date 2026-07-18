@@ -1,0 +1,17 @@
+## LaTeX 编译产物
+out/
+!out/template-main.pdf
+auxil/
+_minted-*/
+*.synctex.gz
+*.aux
+*.log
+*.toc
+
+## IDE / 系统
+.idea/
+.DS_Store
+cmake-build-*/
+
+## Claude Code 本地配置
+.claude/settings.local.json

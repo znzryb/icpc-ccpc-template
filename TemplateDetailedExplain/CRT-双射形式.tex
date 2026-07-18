@@ -1,0 +1,109 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{csquotes}
+\usepackage{xeCJK}
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}, ItalicFont={Kaiti SC}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans CJK SC}
+\usepackage[table]{xcolor}
+\usepackage{diagbox}
+\usepackage{tikz}
+\usetikzlibrary{matrix, positioning, arrows.meta, backgrounds}
+\usepackage[a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage[colorlinks=true, linkcolor=black, urlcolor=blue]{hyperref}
+
+\title{CRT 双射形式（一维循环 $\leftrightarrow$ 二维网格）}
+\author{znzryb}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{结论}
+
+设 $n, m$ 是正整数，定义映射
+$$\varphi: \mathbb{Z}/(nm) \longrightarrow \mathbb{Z}/n \times \mathbb{Z}/m, \qquad i \longmapsto (i \bmod n,\; i \bmod m).$$
+则
+$$\varphi \text{ 是双射} \iff \gcd(n, m) = 1.$$
+
+换句话说，\textbf{当 $n, m$ 互质时，让 $i$ 跑遍 $[0, nm)$，二元组 $(i \bmod n, i \bmod m)$ 恰好覆盖网格 $[0, n) \times [0, m)$ 的每一个格点一次}。这是\textbf{中国剩余定理（CRT）的双射形式}，也叫 CRT 同构 $\mathbb{Z}/(nm) \cong \mathbb{Z}/n \times \mathbb{Z}/m$。
+
+\section{为什么叫这个名字}
+
+\textcolor{blue}{\textbf{中国剩余定理}}的原始陈述是「给定余数 $(r_1, r_2)$ 求 $x$」——也就是\textbf{逆方向}的存在唯一性：
+
+\begin{itemize}
+    \item \textbf{正向}：每个 $i \in [0, nm)$ 映成一个余数对 $(i \bmod n, i \bmod m)$。
+    \item \textbf{逆向（CRT 本体）}：每个余数对 $(r_1, r_2) \in [0, n) \times [0, m)$ 都对应唯一一个 $i \in [0, nm)$，满足 $i \equiv r_1 \pmod n$ 且 $i \equiv r_2 \pmod m$。
+\end{itemize}
+
+两个方向都是双射，所以叫\textbf{双射形式}。代数上写作环同构 $\mathbb{Z}/(nm) \cong \mathbb{Z}/n \times \mathbb{Z}/m$（CRT 本质上是说，互素模数下，模 $nm$ 的算术 = 在模 $n$ 和模 $m$ 上分别独立做算术）。
+
+\section{证明}
+
+两个有限集 $|\mathbb{Z}/(nm)| = nm = |\mathbb{Z}/n \times \mathbb{Z}/m|$ 等势，所以\textbf{双射} $\iff$ \textbf{单射} $\iff$ \textbf{满射}，证一边即可。证单射最快：
+
+设 $\varphi(i) = \varphi(j)$，即 $i \equiv j \pmod n$ 且 $i \equiv j \pmod m$。
+则 $n \mid (i - j)$ 且 $m \mid (i - j)$，于是
+$$\mathrm{lcm}(n, m) \mid (i - j).$$
+而 $\gcd(n, m) = 1$ 时 $\mathrm{lcm}(n, m) = nm$，所以 $nm \mid (i - j)$，在 $\mathbb{Z}/(nm)$ 里 $i = j$。$\square$
+
+反过来，若 $\gcd(n, m) = d > 1$，则 $i = nm / d$ 满足 $i \bmod n = nm/d \bmod n$ 但 $i \ne 0$ 时仍能让 $\varphi(i) = \varphi(0)$（例：$n = m = 2$ 时 $\varphi(2) = (0, 0) = \varphi(0)$），单射失败。
+
+\section{几何直觉：把一维绕圈展成二维网格}
+
+把 $i \in [0, nm)$ 想成沿着一条长度为 $nm$ 的链一个个走过去，每走一步同时在两个独立的「时钟」上推进：一个周期 $n$ 的小时钟、一个周期 $m$ 的小时钟。$(i \bmod n, i \bmod m)$ 就是当前两个时钟的读数。
+
+\subsection*{具体表格}
+
+下表把 $i \in [0, nm)$ 对应的 $(i \bmod n, i \bmod m)$ 填进网格——单元格 $(a, b)$ 里写的就是满足 $i \bmod n = a$ 且 $i \bmod m = b$ 的所有 $i$：
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\setlength{\tabcolsep}{10pt}
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{$n = 3,\ m = 5,\ \gcd = 1$（双射 ✓）}\par\vspace{4pt}
+\begin{tabular}{c|ccccc}
+    \diagbox[width=3em, height=2.2em]{$a$}{$b$} & 0 & 1 & 2 & 3 & 4 \\ \hline
+    0 & \cellcolor{green!20}0  & \cellcolor{green!20}6  & \cellcolor{green!20}12 & \cellcolor{green!20}3  & \cellcolor{green!20}9  \\
+    1 & \cellcolor{green!20}10 & \cellcolor{green!20}1  & \cellcolor{green!20}7  & \cellcolor{green!20}13 & \cellcolor{green!20}4  \\
+    2 & \cellcolor{green!20}5  & \cellcolor{green!20}11 & \cellcolor{green!20}2  & \cellcolor{green!20}8  & \cellcolor{green!20}14 \\
+\end{tabular}
+\end{minipage}%
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\textbf{$n = 2,\ m = 4,\ \gcd = 2$（不是双射 ✗）}\par\vspace{4pt}
+\begin{tabular}{c|cccc}
+    \diagbox[width=3em, height=2.2em]{$a$}{$b$} & 0 & 1 & 2 & 3 \\ \hline
+    0 & \cellcolor{green!20}0,\,4 & \cellcolor{gray!18}—    & \cellcolor{green!20}2,\,6 & \cellcolor{gray!18}—    \\
+    1 & \cellcolor{gray!18}—      & \cellcolor{green!20}1,\,5 & \cellcolor{gray!18}—    & \cellcolor{green!20}3,\,7 \\
+\end{tabular}
+\end{minipage}
+
+\vspace{6pt}
+{\footnotesize\sffamily\color{gray}图注：左表 $\gcd(3, 5) = 1$，$i = 0, 1, \dots, 14$ 恰好把 $3 \times 5$ 网格每格填一次——\textbf{每格恰一个 $i$，无重复无遗漏}，这就是双射。右表 $\gcd(2, 4) = 2$，只有 $a \equiv b \pmod 2$ 的 4 格被打到、每格被两个 $i$ 重复覆盖（如 $(0,0)$ 被 $i = 0$ 和 $i = 4$ 共占），另外 4 个灰色格 $(0,1), (0,3), (1,0), (1,2)$ 永远到不了——\textbf{双射失败，像集只是 $\{(a, b) : a \equiv b \bmod d\}$}。}
+\end{center}
+
+\textbf{怎么读这张表}：把行号 $a$ 看作"小时钟 $n$ 的读数"、列号 $b$ 看作"小时钟 $m$ 的读数"。$i$ 从 0 走到 $nm - 1$ 时，两个时钟独立走步——互质就把网格走遍一次，不互质就只能在一个"对角线子格图"里转圈。
+
+\section{扩展：$\gcd(n, m) = d > 1$ 时像集是什么}
+
+像集 $\varphi([0, nm))$ 不再覆盖整个网格，而是
+$$\mathrm{Im}\,\varphi = \{(a, b) : a \equiv b \pmod d\} \subseteq [0, n) \times [0, m),$$
+大小为 $nm / d = \mathrm{lcm}(n, m)$，每个像点被打到的次数都是 $d$。互质情况是 $d = 1$ 的特例。
+
+\section{典型应用}
+
+\begin{itemize}
+    \item \textbf{把一维循环拆成两个独立小循环}：序列长度 $nm$ 但行为只依赖 $i \bmod n$ 和 $i \bmod m$ 时，用 CRT 把规模 $O(nm)$ 的枚举换成 $O(n + m)$ 的两个独立循环（再 CRT 还原）。
+    \item \textbf{乘法分量化}：$a \cdot b \bmod nm$ 在 $\gcd(n, m) = 1$ 时等价于「$(a \bmod n) \cdot (b \bmod n) \bmod n$ 与 $(a \bmod m) \cdot (b \bmod m) \bmod m$」两个分量乘法。\href{https://vjudge.net/problem/qoj-9799}{QOJ 9799 Magical Palette} 让 $n m$ 个乘积 $a_i b_j \bmod nm$ 两两不同，构造正是用 CRT 拆成两个分量上各自的「乘以非零数 = 置换」。
+    \item \textbf{行列循环位移}：\href{https://vjudge.net/problem/qoj-2735}{QOJ 2735 Shifty Grid} 把 $[0, nm)$ 填回 $n \times m$ 标准位，行循环右移对应模 $m$ 平移、列循环下移对应模 $n$ 平移，两个方向独立可解的条件就是 $\gcd(n, m) = 1$。
+    \item \textbf{欧拉函数积性}：$\varphi(nm) = \varphi(n) \varphi(m)$（$\gcd(n, m) = 1$）的标准证明就走双射：与 $nm$ 互质的 $i$ 一一对应于「与 $n$ 互质」$\times$「与 $m$ 互质」的二元组。
+    \item \textbf{大模数拆小模数}：对若干两两互质的小质数 $p_1, \dots, p_k$ 分别算答案，最后 CRT 合并——这条性质保证了「每组小余数」恰好对应「一个大余数」，不会丢解也不会多解。
+\end{itemize}
+
+\end{document}

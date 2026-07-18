@@ -1,0 +1,166 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath} % bmatrix、cases、aligned 等数学环境
+\usepackage{amssymb} % 数学符号宏包，支持 \mathbb 等
+\usepackage{bm} % \bm{...} 让数学公式整体加粗（\textcolor{blue}{\bm{...}} 用）
+\usepackage{csquotes} % \enquote{...} 排版正确的引号
+\usepackage{xeCJK} % 核心：添加这个宏包以支持中文
+% 显式指定 CJK 字体（macOS 系统字体）。
+% 原因：xeCJK 默认选到的字体对 GBK 外冷僻字（如「啰」U+5570）覆盖不全，
+% 会 fallback 成方框里一个怪字形。苹方 / 宋体 / 楷体均为 macOS 预装，
+% 对 CJK 扩展区支持较好。
+% 正文用 Noto Serif CJK SC（思源宋体的 Google 发行版，书籍级衬线），
+% 粗体自动用 Bold 字重；无衬线/等宽用 Noto Sans CJK SC（思源黑体）；
+% 斜体借系统楷体（Apple 预装，Noto 无斜体）。
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}, ItalicFont={Kaiti SC}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans CJK SC}
+\usepackage{multicol} % 引入分栏宏包
+\usepackage{tocloft} % 支持目录引导点
+\usepackage{xcolor}   % 用于设置颜色；须先于 minted 以便 bgcolor 等生效
+\usepackage[cachedir=_minted-template-main]{minted} % Pygments 高亮，需 -shell-escape + pygmentize
+\usepackage{tikz}
+\usetikzlibrary{matrix, positioning, arrows.meta, backgrounds, decorations.pathreplacing} % matrix of nodes 让字符序列 spacing 自动化
+\usepackage{forest} % 画树结构，语法 [root [A [B]]]
+\usepackage[a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm]{geometry}
+
+% 与原先 listings 外观大致对齐；
+\setminted{
+% 风格可用莫兰迪系
+% style=stata-light,
+% 允许长行换行
+	breaklines=true,
+% 允许在任意位置换行，防止长 URL 戳出去
+	breakanywhere=true,
+	fontsize=\small,
+	frame=single,
+	bgcolor=gray!5,
+% -8bit 以后，xelatex 才对制表符有反应
+	tabsize=2,
+}
+
+% --- 目录样式修改 ---
+\usepackage{tocloft}
+\renewcommand{\cftsecleader}
+{\cftdotfill{\cftdotsep}} % 让 section 也有点点
+% ------------------
+\usepackage[colorlinks=true, linkcolor=black, anchorcolor=black, citecolor=black, filecolor=black, menucolor=black, runcolor=black, urlcolor=blue]{hyperref} % 添加超链接和PDF书签支持
+
+% \title{template-of-algorithm}
+% \author{znzryb}
+% \date{April 2026}
+
+
+\begin{document}
+
+
+	\begin{titlepage}
+		\centering
+
+		% --- 顶部：校徽 + 学校名称 + 赛事名称 ---
+		\begin{minipage}[c]{0.45\textwidth}
+			\includegraphics[width=\linewidth]{校徽横版.png}
+		\end{minipage}
+		% \begin{minipage}[c]{0.45\textwidth}
+		%     \centering
+		%     {\Large \textbf{上海交通大学}} \\
+		%     {\footnotesize SHANGHAI JIAO TONG UNIVERSITY}
+		% \end{minipage}
+		\begin{minipage}[c]{0.45\textwidth}
+			\raggedleft
+			{\huge ICPC\ /\ CCPC } \\
+			{\huge Standard Code Library}
+		\end{minipage}
+
+		\vspace{2.5cm}
+
+		% --- 队伍名称（大字） ---
+		{\Huge \textbf{Gospel\_rock}}
+
+		\vspace{1.5cm}
+
+		% --- 队伍头像 ---
+		\includegraphics[width=0.4\textwidth]{"image/ChatGPT Image 2026年4月28日 13_11_28.png"}
+
+		\vspace{2cm}
+
+		% --- 单列成员信息布局 ---
+
+		{\large
+			\begin{minipage}{0.4\textwidth}
+				\centering
+				% 教练部分
+				{\Large \textbf{Coach}} \\
+				\vspace{0.2cm}
+				老黄畅谈 \\
+
+				\vspace{0.8cm} % 身份组之间的间距
+
+				% 队员部分
+				{\Large \textbf{Contestants}} \\
+				% \vspace{0.0cm}
+				\rule{3cm}{0.4pt} \\ % 装饰性短横线
+				\vspace{0.3cm}
+				ZnZrYb \\
+				\vspace{0.1cm}
+				xixii\_ \\
+				\vspace{0.1cm}
+				47523
+			\end{minipage}
+		}
+
+
+		% --- 成员信息表格 ---
+		% \begin{table}[h]
+		%     \centering
+		%     \large
+		%     \begin{tabular}{p{4cm} p{3cm}}
+		%         \textbf{Coach} & \textbf{教练} \\
+		%         \hline
+		%         Yong Yu & 俞勇 \\
+		%         \vspace{0.5cm} \\
+		%         \textbf{Contestant} & \textbf{队员} \\
+		%         \hline
+		%         Zonghan Yang & 杨宗翰 \\
+		%         Mingchi Zhang & 张明驰 \\
+		%         Jianjun Zhang & 张建军 \\
+		%     \end{tabular}
+		% \end{table}
+
+		\vfill
+
+		% --- 底部时间 ---
+		{\large Build Time: \today \ by ZnZrYb}
+
+	\end{titlepage}
+
+% 封面结束后强制换页，保证目录从新的一页开始
+	\newpage
+
+% \maketitle
+
+	\newpage
+
+% 目录
+	\tableofcontents
+
+	\newpage % 强制换页
+
+	\input{sections/01_dream_start.tex}
+	\input{sections/02_basic_math.tex}
+	\input{sections/03_count_combinatorics.tex}
+	\input{sections/04_game_theory.tex}
+	\input{sections/05_bitwise_identities.tex}
+	\input{sections/06_basic_algorithm.tex}
+	\input{sections/07_data_structure.tex}
+	\input{sections/08_graph.tex}
+	\input{sections/09_string_algorithm.tex}
+	\input{sections/10_dp.tex}
+	\input{sections/11_geometry.tex}
+	\input{sections/12_stl.tex}
+	\input{sections/13_common_pitfalls.tex}
+	\input{sections/14_debug_tricks.tex}
+	\input{sections/15_misc_tricks.tex}
+	\input{sections/16_env_test.tex}
+
+\end{document}

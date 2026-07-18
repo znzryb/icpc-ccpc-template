@@ -1,0 +1,125 @@
+	\begin{center}
+		\section{位运算相关恒等式}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		在处理位运算相关的数学推导时，往往需要从其本质意义出发来理解其与四则运算的关系。为了书写清晰，以下使用 $\oplus$ 表示按位异或，使用 $\mathbin{\&}$（即 \texttt{\&}）表示按位与，使用 $\mathbin{|}$（即 \texttt{|}）表示按位或，使用 $\operatorname{NOT}$ 表示按位取反。
+
+		\subsection{加法与位运算转换}
+		$$a + b = (a \oplus b) + 2 \times (a \mathbin{\&} b)$$
+		\textbf{意义解释}：\textbf{$a \oplus b$ 本质上是“不进位加法”}，它计算了每一位上独立相加的结果；而 \textbf{$a \mathbin{\&} b$ 则找出了所有产生进位的位}。\textbf{因为进位会向高位进一}（即在数值上相当于\textbf{乘以 $2$}），所以真实加法等于不进位加法加上两倍的进位值。
+
+		\textbf{推广到三个数}：令 $S = (X \oplus Y) \mathbin{\&} Z + X \mathbin{\&} Y$，则
+		$$X + Y + Z = (X \oplus Y \oplus Z) + 2S$$
+
+		\textbf{推导}：先对 $X, Y$ 使用两数恒等式得 $X + Y = (X \oplus Y) + 2(X \mathbin{\&} Y)$，再令 $a = X \oplus Y$，对 $a$ 与 $Z$ 使用恒等式得 $a + Z = (a \oplus Z) + 2(a \mathbin{\&} Z)$，合并即得。
+
+		\textbf{$S$ 的两项没有公共位}：第一阶段 $X + Y$ 产生进位 $X \mathbin{\&} Y$，同时把这些位在异或残差 $X \oplus Y$ 中清零了（两个 $1$ 对冲变为 $0$）；第二阶段拿残差与 $Z$ 相加，但那些位已经是 $0$，$(X \oplus Y) \mathbin{\&} Z$ 在那里不可能为 $1$。因此两项的加法等于按位或，不会再产生新的进位，即 $S = (X \oplus Y) \mathbin{\&} Z \mathbin{|} (X \mathbin{\&} Y)$，$S$ 是逐位运算的结果。
+
+		\textbf{应用场景}：当问题同时约束三个数的加法和与异或和时（如 CodeChef ``Sum and XOR''），该恒等式可将全局加法约束分解为逐位独立的计数问题。
+
+		\subsection{或、与、异或的关系}
+		$$a \mathbin{|} b = (a \oplus b) + (a \mathbin{\&} b)$$
+		\textbf{意义解释}：$a \mathbin{|} b$ 表示两数中至少有一个为 $1$ 的位。这些位可以拆分成两类：一类是只有其中一个数为 $1$ 的位（即 $a \oplus b$），另一类是两个数都为 $1$ 的位（即 $a \mathbin{\&} b$）。由于这两类位的集合互不相交，因此它们的加法可以直接等价于按位或（相加过程没有任何进位）。
+
+		\textbf{推论}：将上式代入加法等式，可得两数之和也等于它们的按位或与按位与之和：
+		$$a + b = (a \mathbin{|} b) + (a \mathbin{\&} b)$$
+
+		\textbf{$a \mathbin{|} b$ 相当于丢失了需要进位的位}，当然，相比于异或，只丢失了一份。因此就\textbf{加上一份这个 $a \mathbin{\&} b$ 就可以了}。
+
+		下面这个就是一个移项：
+		$$a \oplus b = (a \mathbin{|} b) - (a \mathbin{\&} b)$$
+
+		\subsection{减法与位运算}
+		$$a - b = (a \oplus b) - 2 \times ((\operatorname{NOT} a) \mathbin{\&} b)$$
+		\textbf{意义解释}：与加法同理，减法可以理解为“借位减法”。\textbf{只有当被减数 $a$ 当前位为 $0$ 且减数 $b$ 当前位为 $1$ 时}（即 $(\operatorname{NOT} a) \mathbin{\&} b$），才会产生借位。借位意味着需要向高位借一（相当于减去当前位权重的 $2$ 倍）。
+
+		\subsection{\texorpdfstring{$\mathbin{\&}$ 与 $\mathbin{|}$}{\& 与 |} 的分配律}
+		$$a \mathbin{\&} (b \mathbin{|} c) = (a \mathbin{\&} b) \mathbin{|} (a \mathbin{\&} c)$$
+		$$a \mathbin{|} (b \mathbin{\&} c) = (a \mathbin{|} b) \mathbin{\&} (a \mathbin{|} c)$$
+		\textbf{意义解释（集合观点）}：把一个整数看作它"所有为 $1$ 的位置"组成的集合，那么 $\mathbin{\&}$ 就是集合的交 $\cap$，$\mathbin{|}$ 就是集合的并 $\cup$。这两条分配律正好对应集合论里熟知的
+		$$A \cap (B \cup C) = (A \cap B) \cup (A \cap C), \quad A \cup (B \cap C) = (A \cup B) \cap (A \cup C),$$
+%		无需另证。这也顺便告诉我们\textbf{哪条"看起来像"却是错的}——凡不符合集合分配律的写法（比如 $a \mathbin{\&} (b \mathbin{|} c) = (a \mathbin{|} b) \mathbin{\&} (a \mathbin{|} c)$）都必假。
+
+%		\textbf{注意不要混淆}：常见的写错形式是 $a \mathbin{\&} (b \mathbin{|} c) = (a \mathbin{|} b) \mathbin{\&} (a \mathbin{|} c)$（把两条分配律拼在一起），这是\textbf{错的}。取 $a = 0, b = 1, c = 1$ 可得反例：左边 $= 0$，右边 $= 1$。
+
+		\textbf{常见用途}：\textbf{按位拆贡献}时，如果贡献式里混用了 $\mathbin{\&}$ 和 $\mathbin{|}$，可以用分配律把表达式转成“只含一种操作 + 其他操作套在外层”的形式，便于按位独立处理。
+
+		\subsection{lowbit 的推导}
+		$$\operatorname{lowbit}(a) = a \mathbin{\&} ((\operatorname{NOT} a) + 1) = a \mathbin{\&} (-a)$$
+		\textbf{意义解释}：由于计算机中负数采用补码表示，$-a$ 等价于 $\operatorname{NOT} a + 1$。将 $a$ 按位取反后，原来最低位的 $1$ 变成了 $0$，其右侧的所有 $0$ 都变成了 $1$。此时再加 $1$，会导致进位一直传递，直到遇到那个变为了 $0$ 的原始最低位，将其变回 $1$，且进位停止。因此，原来最低位的 $1$ 及其右侧的所有位在 $-a$ 中与在 $a$ 中完全相同，而更高位则全部相反。取按位与后，就只剩下了最低位的 $1$。
+
+		\subsection{去除最低位的 $1$}
+		$$a \mathbin{\&} (a - 1) = a - \operatorname{lowbit}(a)$$
+		\textbf{意义解释}：将 $a$ 减去 $1$，相当于把 $a$ 中最低位的 $1$ 变成 $0$，并将该位右侧所有的 $0$ 变成 $1$。更高位保持不变。因此 $a$ 和 $a - 1$ 在最低位 $1$ 的左侧完全相同，但在最低位 $1$ 及其右侧的位全都不一致。进行按位与操作后，最低位 $1$ 及其右侧被清零，达到了去除最低位 $1$ 的效果。
+
+		\subsection{连续异或前缀和}
+		定义 $F(n) = 0 \oplus 1 \oplus 2 \oplus \cdots \oplus n$，则 $F(n)$ 以 $4$ 为周期循环：
+		$$F(n) = \begin{cases}
+					 n & n \bmod 4 = 0 \\ 1 & n \bmod 4 = 1 \\ n + 1 & n \bmod 4 = 2 \\ 0 & n \bmod 4 = 3
+		\end{cases}$$
+
+		\textbf{意义解释}：每四个连续整数 $4k, 4k+1, 4k+2, 4k+3$ 的异或和为 $0$（因为 $4k$ 和 $4k+1$ 只在最低位不同，异或得 $1$；$4k+2$ 和 $4k+3$ 也只在最低位不同，异或得 $1$；$1 \oplus 1 = 0$）。因此 $F(n)$ 只取决于 $n$ 除以 $4$ 的余数：余数为 $3$ 时恰好凑满完整的四元组，结果为 $0$；余数为 $0$ 时多出一个 $n$，结果为 $n$；余数为 $1$ 时多出 $n-1$ 和 $n$，它们异或为 $1$（仅最低位不同）；余数为 $2$ 时在此基础上再异或 $n$，得 $n + 1$。
+
+		% \textbf{应用}：利用该公式，可以 $O(1)$ 计算任意区间的异或和：$a \oplus (a+1) \oplus \cdots \oplus b = F(b) \oplus F(a-1)$。
+
+		\textbf{应用}（\href{https://codeforces.com/contest/2225/problem/D}{CF2225D}）：已知 $n,x$，$1 \le x \le n \le 10^{18}$，求在序列 $[1, 2, \ldots, n]$ 中，求有多少个子段 $[l, r]$ 满足：（1）包含位置 $x$（即 $l \leq x \leq r$）；（2）异或和为 $0$（即 $l \oplus (l+1) \oplus \cdots \oplus r = 0$）。
+
+		\textbf{第一步}：区间异或和可用前缀异或表示：$l \oplus \cdots \oplus r = F(r) \oplus F(l-1)$。因此条件"区间异或和为 $0$"等价于 $F(r) = F(l-1)$。
+
+		\textbf{第二步}：约束 $l \leq x \leq r$ 意味着 $l - 1 \in [0,\, x-1]$，$r \in [x,\, n]$，两个范围不重叠（$l - 1 < x \leq r$）。回顾 $F$ 的四种取值：$\bmod\, 4 = 0$ 时 $F = n$，$\bmod\, 4 = 2$ 时 $F = n + 1$——这两种是\textbf{位置相关}的，$F$ 的值随 $n$ 变化而变化。由于 $l - 1 \neq r$，这类取值不可能跨范围匹配。而 $\bmod\, 4 = 1$ 时 $F = 1$，$\bmod\, 4 = 3$ 时 $F = 0$——这两种是\textbf{常数}，与位置无关，能够跨范围匹配。特别地，$F(0) = 0$（虽然 $0 \bmod 4 = 0$，但恰好 $F = 0$ 也是常数 $0$），也可以与 $\bmod\, 4 = 3$ 的项匹配。
+
+		\textbf{第三步}：问题化归为：分别统计 $[0,\, x-1]$ 中有多少个 $a$ 满足 $F(a) = 0$ 或 $F(a) = 1$，以及 $[x,\, n]$ 中有多少个 $b$ 满足 $F(b) = 0$ 或 $F(b) = 1$，然后将对应的计数相乘再求和。每个计数只需数区间内 $\bmod\, 4$ 各残基的个数，$O(1)$ 完成。
+
+		\subsection{对相邻元素异或的操作转化为前缀异或交换}
+		\textbf{模型}：给定数组 $A$，每次操作可以选择一个位置 $i$，同时更新：
+		$$A_{i-1} \leftarrow A_{i-1} \oplus A_i$$
+		$$A_i \leftarrow A_i$$
+		$$A_{i+1} \leftarrow A_{i+1} \oplus A_i$$
+
+		\textbf{恒等式 / 结论}：构造前缀异或数组 $B_i = A_1 \oplus A_2 \oplus \dots \oplus A_i$。每次对位置 $i$ 进行上述操作，\textbf{本质上等价于交换前缀异或数组中 $B_{i-1}$ 和 $B_i$ 的值}，而其他所有的 $B_k$ 都不变。
+
+		\textbf{意义解释}：直观来看，操作使得 $A_{i-1}$ 和 $A_{i+1}$ 都多异或了一个 $A_i$，我们直接观察前缀异或的变化：
+		\begin{itemize}
+			\item $B'_{i-1}$ 的前缀和中多出了 $1$ 个 $A_i$：$B'_{i-1} = B_{i-1} \oplus A_i = B_i$。
+			\item $B'_i$ 的前缀和中也只多出了 $1$ 个 $A_i$（来自 $A_{i-1}$）：$B'_i = B_i \oplus A_i = B_{i-1}$。
+			\item $B'_{i+1}$ 的前缀和中多出了 $2$ 个 $A_i$（分别来自 $A_{i-1}$ 和 $A_{i+1}$），两者互相抵消，故 $B'_{i+1} = B_{i+1}$ 不变。
+		\end{itemize}
+		可见只有 $B_{i-1}$ 和 $B_i$ 发生了交换，后续的前缀异或值不受影响（由于 $A_i$ 被异或了 $3$ 次，相当于异或了 $1$ 次）。
+
+		\textbf{应用场景}：若允许对 $2 \le i \le N-1$ 任意操作，那么 $B_1, \dots, B_{N-1}$ 就可以通过类似冒泡排序的方式\textbf{任意排列}，而 $B_N$ 是固定的。利用这一点可以将对原数组的复杂区间操作转化为集合元素的选择或排序问题（如 \href{https://www.codechef.com/START235B/problems/P6235?tab=statement}{CodeChef Echo}）。
+
+		\subsection{集合内两两最小异或和}
+		\textbf{结论}：在一个集合中，任意两个元素之间的最小异或和，必定出现在将该集合内的元素按从小到大排序后的\textbf{相邻元素对}中。
+
+		\textbf{意义解释}：假设将集合升序排序为 $x_1 \le x_2 \le \dots \le x_n$。考虑任意不相邻的两个数 $x_i < x_j$（即 $j - i > 1$）。设 $x_i$ 和 $x_j$ 的二进制表示在从高到低第 $k$ 位第一次出现不同，则 $x_i$ 的第 $k$ 位必然为 $0$，$x_j$ 的第 $k$ 位必然为 $1$。由于它们中间存在元素 $x_m$（$x_i \le x_m \le x_j$），$x_m$ 的第 $k$ 位要么是 $0$，要么是 $1$：
+		\begin{itemize}
+			\item 若 $x_m$ 的第 $k$ 位为 $0$，则 $x_i \oplus x_m$ 在最高差异位及以上都为 $0$，但在第 $k$ 位上也为 $0$（而 $x_i \oplus x_j$ 在第 $k$ 位为 $1$），故 $x_i \oplus x_m < x_i \oplus x_j$。
+			\item 若 $x_m$ 的第 $k$ 位为 $1$，则 $x_m \oplus x_j$ 在第 $k$ 位上为 $0$，同理可得 $x_m \oplus x_j < x_i \oplus x_j$。
+		\end{itemize}
+
+		\begin{center}
+			\begin{forest}
+				for tree={circle, draw, minimum size=1.8em, inner sep=0.5pt, s sep=12mm, l=10mm, edge={-stealth}},
+				[{公共前缀}, draw=gray, dashed, shape=rectangle, rounded corners, font=\scriptsize\sffamily
+				[0, draw=blue, edge label={node[midway, left=2pt, font=\scriptsize, text=blue] {第 $k$ 位 $=0$}}
+				[{$x_i$}, draw=blue]
+				[{$x_m$}, draw=teal, dashed, label={below:\scriptsize (情形 1)}]
+				]
+				[1, draw=orange, edge label={node[midway, right=2pt, font=\scriptsize, text=orange] {第 $k$ 位 $=1$}}
+				[{$x_m$}, draw=teal, dashed, label={below:\scriptsize (情形 2)}]
+				[{$x_j$}, draw=orange]
+				]
+				]
+			\end{forest}
+
+			\vspace{4pt}
+			{\footnotesize\sffamily\color{gray} 图注：你可以想象这个是一颗异或字典树}
+		\end{center}
+		因此，跨越元素的异或和永远不会严格优于某对距离更近（最终归结为相邻）元素的异或和。
+
+		\textbf{应用场景}：求数组中任意两数最小异或和，只需排序后遍历相邻元素计算即可，时间复杂度 $O(N \log N)$。常与"前缀异或交换"等允许任意重排的性质结合使用。
+
+	\end{multicols*} % 结束双栏
+

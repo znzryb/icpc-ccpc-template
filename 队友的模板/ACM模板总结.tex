@@ -1,0 +1,3837 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{multicol}
+\usepackage{xcolor}        % 须先于 minted
+\usepackage[cachedir=_minted-mdtex]{minted}
+\usepackage{titlesec}
+\usepackage{tocloft}
+\usepackage[colorlinks=true, linkcolor=black, urlcolor=blue]{hyperref}
+
+% ===== 字体（思源宋体覆盖广，避免冷僻字方框）=====
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}, ItalicFont={Kaiti SC}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans CJK SC}
+
+% ===== minted 全局风格 =====
+\setminted{
+  breaklines=true,
+  breakanywhere=true,
+  fontsize=\small,
+  frame=single,
+  bgcolor=gray!5,
+  tabsize=2,
+}
+
+% ===== 常见但 LaTeX 默认未定义/易冲突的数学宏，补一下保证编译 =====
+\providecommand{\abs}[1]{\left|#1\right|}
+\makeatletter
+\let\matrix\relax
+\newcommand{\matrix}[1]{\begin{smallmatrix}#1\end{smallmatrix}}
+\makeatother
+
+% ===== 章节样式（保留 md 自带编号，故用无编号 section* + 手动入目录）=====
+\setcounter{tocdepth}{2}
+\titlespacing{\section}{0pt}{8pt}{4pt}
+\titlespacing{\subsection}{0pt}{6pt}{3pt}
+\titlespacing{\subsubsection}{0pt}{4pt}{2pt}
+
+\setlength{\columnsep}{1cm}
+\setlength{\columnseprule}{0.4pt}
+
+\begin{document}
+
+\begin{center}
+    {\Huge\bfseries ACM 模板总结}\\[6pt]
+    {\large 队友的模板（鵗曦）}
+\end{center}
+
+\tableofcontents
+\vspace{1em}
+
+\begin{multicols*}{2}
+
+\section*{ACM模板总结}
+\addcontentsline{toc}{section}{ACM模板总结}
+
+
+鵗曦的板子，算法小群:1071069207 \par
+
+注意本人的板子很多都默认包含 \par
+
+using ll = long long; \par
+
+const ll INF = 4e18; \par
+
+define all(x) x.begin(), x.end() \par
+
+
+\section*{杂项}
+\addcontentsline{toc}{section}{杂项}
+
+
+\subsection*{随机数生成器}
+\addcontentsline{toc}{subsection}{随机数生成器}
+
+
+\begin{minted}{cpp}
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
+
+uint64_t x = rng();                                  // 随机 64 位整数
+uint64_t y = uniform_int_distribution<uint64_t>(1, (1ull<<60))(rng);  // 随机 [1, 2^60]
+
+
+\end{minted}
+
+
+\subsection*{重载 \_\_int128\_t 输入输出}
+\addcontentsline{toc}{subsection}{重载 \_\_int128\_t 输入输出}
+
+
+\begin{minted}{cpp}
+ostream &operator<<(ostream &os, __int128 x) {
+    if (x < 0) os << '-', x = -x;
+    if (x > 9) os << x / 10;
+    return os << (char) ('0' + x % 10);
+}
+
+istream &operator>>(istream &is, __int128 &x) {
+    string s;
+    if (!(is >> s)) return is;
+    x = 0;
+    size_t i = 0;
+    bool neg = false;
+    if (s[0] == '-') {
+        neg = true;
+        i = 1;
+    } else if (s[0] == '+') { i = 1; }
+    for (; i < s.size(); ++i) x = x * 10 + (s[i] - '0');
+    if (neg) x = -x;
+    return is;
+}
+\end{minted}
+
+
+
+
+\subsection*{ACM模板}
+\addcontentsline{toc}{subsection}{ACM模板}
+
+
+\begin{minted}{cpp}
+#include <bits/stdc++.h>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+using namespace std;
+using namespace __gnu_pbds;
+using ordered_set = tree<int, null_type, less<>, rb_tree_tag, tree_order_statistics_node_update>;
+using ll = long long;
+using ld = long double;
+using ull = unsigned long long;
+constexpr const ll INF = 1e18, MOD = 1e9 + 7;
+constexpr const ld EPS = 1e-7;
+// #define int long long
+#define all(x) x.begin(), x.end()
+#ifdef LOCAL
+#define  _GLIBCXX_DEBUG
+#endif
+#define debug1d(a) cerr << #a << " = ["; for (int i = 0; i < (int)(a).size(); i++) cerr << (i ? ", " : "") << (a)[i]; cerr << "]\n";
+#define debug2d(a) cerr << #a << " = [\n"; for (int i = 0; i < (int)(a).size(); i++){ cerr << "  ["; for (int j = 0; j < (int)(a[i]).size(); j++) cerr << (j ? ", " : "") << a[i][j]; cerr << "]\n";} cerr << "]\n";
+#define debug(x) cerr << "[" << #x << "] = " << (x) << "\n"
+static int last_res;
+
+int main()
+{
+  cin.tie(0)->sync_with_stdio(0);
+  int t = 1;
+  cin >> t;
+  while (t--)
+  {
+  }
+  return 0;
+}
+\end{minted}
+
+
+
+
+\section*{数据结构}
+\addcontentsline{toc}{section}{数据结构}
+
+
+\subsection*{字典树}
+\addcontentsline{toc}{subsection}{字典树}
+
+
+\begin{minted}{cpp}
+class Trie
+{
+    int N, idx;
+    vector<vector<int>> tree;
+    vector<int> cnt;
+    bool sensitive;
+    int alpha_size;
+
+    int char_to_index(char ch) const
+    {
+        if (!sensitive) ch = tolower(ch);
+        if (sensitive)
+        {
+            if ('a' <= ch && ch <= 'z') return ch - 'a';
+            if ('A' <= ch && ch <= 'Z') return ch - 'A' + 26;
+            if ('0' <= ch && ch <= '9') return ch - '0' + 52;
+        }
+        else
+        {
+            if ('a' <= ch && ch <= 'z') return ch - 'a';
+            if ('0' <= ch && ch <= '9') return ch - '0' + 26;
+        }
+        assert(false);
+        return -1;
+    }
+
+public:
+    Trie(bool _sensitive = false, int _N = 3e6 + 10)
+        : N(_N), idx(0), sensitive(_sensitive), cnt(N + 1, 0)
+    {
+        alpha_size = sensitive ? 62 : 36;
+        tree.assign(N + 1, vector<int>(alpha_size, 0));
+    }
+
+    void insert(const string &s)
+    {
+        int point = 0;
+        for (char ch : s)
+        {
+            int j = char_to_index(ch);
+            if (!tree[point][j]) tree[point][j] = ++idx;
+            point = tree[point][j];
+            cnt[point]++;
+        }
+    }
+
+    int query(const string &s) const
+    {
+        int point = 0;
+        for (char ch : s)
+        {
+            int j = char_to_index(ch);
+            if (!tree[point][j]) return 0;
+            point = tree[point][j];
+        }
+        return cnt[point];
+    }
+
+    void clear()
+    {
+        for (int i = 0; i <= idx; i++)
+        {
+            cnt[i] = 0;
+            fill(tree[i].begin(), tree[i].end(), 0);
+        }
+        idx = 0;
+    }
+};
+\end{minted}
+
+
+
+
+\subsection*{单调栈}
+\addcontentsline{toc}{subsection}{单调栈}
+
+
+\begin{minted}{cpp}
+vector<int> L(n + 1), R(n + 1);
+stack<int> st;
+
+// L[i]：左边第一个严格小于 a[i] 的位置
+for (int i = 1; i <= n; i++) {
+  while (!st.empty() && a[st.top()] >= a[i]) st.pop();
+  L[i] = st.empty() ? 0 : st.top();
+  st.push(i);
+}
+
+while (!st.empty()) st.pop();
+
+// R[i]：右边第一个严格小于 a[i] 的位置
+for (int i = n; i >= 1; i--) {
+  while (!st.empty() && a[st.top()] >= a[i]) st.pop();
+  R[i] = st.empty() ? n + 1 : st.top();
+  st.push(i);
+}
+\end{minted}
+
+
+
+
+\subsection*{对顶堆}
+\addcontentsline{toc}{subsection}{对顶堆}
+
+
+\begin{minted}{cpp}
+
+/*
+  对顶堆维护中位数：
+    - lo:大根堆，存较小的一半，允许比 hi 多 1 个元素
+    - hi:小根堆，存较大的一半
+    - 奇数个元素时，中位数 = lo.top()
+*/
+  priority_queue<ll> lo;                        // 大根堆（左半边）
+  priority_queue<ll, vector<ll>, greater<>> hi; // 小根堆（右半边）
+  for (int i = 1; i <= n; i++) {
+    ll x;
+    cin >> x;
+    // 1. 插入到合适的堆
+    if (lo.empty() || x <= lo.top())
+      lo.push(x);
+    else
+      hi.push(x);
+    // 2. 调整平衡：保证 lo.size() >= hi.size() 且差值不超过 1
+    if (lo.size() > hi.size() + 1) {
+      hi.push(lo.top());
+      lo.pop();
+    }
+    if (hi.size() > lo.size()) {
+      lo.push(hi.top());
+      hi.pop();
+    }
+    // 3. 奇数个时输出中位数
+    if (i & 1)
+      cout << lo.top() << "\n";
+  }
+\end{minted}
+
+
+
+
+\subsection*{并查集}
+\addcontentsline{toc}{subsection}{并查集}
+
+
+\begin{minted}{cpp}
+//基础DUS
+class DSU {
+private:
+  vector<int> fa, siz;
+public:
+  DSU(int n) {
+    fa.resize(n + 1);
+    siz.assign(n + 1, 1);
+    iota(fa.begin(), fa.end(), 0);
+  }
+
+  int find(int x) {
+    return fa[x] == x ? x : fa[x] = find(fa[x]);
+  }
+
+  bool same(int x, int y) {
+    return find(x) == find(y);
+  }
+
+  bool merge(int x, int y) {
+    x = find(x); y = find(y);
+    if (x == y) return false;
+    if (siz[x] < siz[y]) swap(x, y);
+    fa[y] = x;
+    siz[x] += siz[y];
+    return true;
+  }
+
+  int size(int x) {
+    return siz[find(x)];
+  }
+};
+
+//带权DSU维护点到父节点的距离
+class WeightedDSU
+{
+private:
+  vector<int> fa, siz;
+  vector<ll> dis; // dis[x] = value[x] - value[fa[x]]，find 后变成 value[x] - value[root]
+
+public:
+  WeightedDSU(int n)
+  {
+    fa.resize(n + 1);
+    siz.assign(n + 1, 1);
+    dis.assign(n + 1, 0);
+    iota(fa.begin(), fa.end(), 0);
+  }
+  int find(int x)
+  {
+    if (fa[x] == x)
+      return x;
+    int oldFa = fa[x];
+    int root = find(oldFa);
+    dis[x] += dis[oldFa]; // x 到旧父亲 + 旧父亲到根 = x 到根
+    fa[x] = root;
+    return root;
+  }
+  bool same(int x, int y)
+  {
+    return find(x) == find(y);
+  }
+
+  // 加入约束：value[y] - value[x] = w
+  // 返回 false 表示和已有关系矛盾
+  bool merge(int x, int y, ll w)
+  {
+    int rootX = find(x);
+    int rootY = find(y);
+
+    if (rootX == rootY)
+      return dis[y] - dis[x] == w;
+
+    // 按大小合并
+    if (siz[rootX] > siz[rootY])
+    {
+      swap(x, y);
+      swap(rootX, rootY);
+      w = -w;
+    }
+    // 让 rootX 挂到 rootY 下面
+    fa[rootX] = rootY;
+    siz[rootY] += siz[rootX];
+    // 推导：
+    // value[y] - value[x] = w
+    // value[x] = dis[x] + value[rootX]
+    // value[y] = dis[y] + value[rootY]
+    //
+    // 所以：
+    // dis[y] + value[rootY] - dis[x] - value[rootX] = w
+    //
+    // 得：
+    // value[rootX] - value[rootY] = dis[y] - dis[x] - w
+    dis[rootX] = dis[y] - dis[x] - w;
+
+    return true;
+  }
+  // 查询 value[x] - value[root]
+  ll distToRoot(int x)
+  {
+    find(x);
+    return dis[x];
+  }
+  // 查询 value[y] - value[x]
+  // 调用前最好保证 same(x, y)
+  ll query(int x, int y)
+  {
+    find(x);
+    find(y);
+    return dis[y] - dis[x];
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{bitset}
+\addcontentsline{toc}{subsection}{bitset}
+
+
+\begin{minted}{cpp}
+ // 构造
+  bitset<N> b(13);               // 用整数初始化，13 = 1101
+  bitset<N> c(string("10101"));  // 用字符串初始化，字符串右端是第 0 位
+
+  // 单点访问
+  a[3] = 1;          // 第 3 位设为 1
+  cout << a[3] << '\n';      // 访问第 3 位
+  cout << a.test(3) << '\n'; // 访问第 3 位，会检查越界
+
+  // 单点修改
+  a.set(2);        // 第 2 位设为 1
+  a.set(4, 1);     // 第 4 位设为 1
+  a.set(4, 0);     // 第 4 位设为 0
+  a.reset(2);      // 第 2 位设为 0
+  a.flip(3);       // 第 3 位取反
+
+  // 整体修改
+  a.set();         // 全部设为 1
+  a.reset();       // 全部设为 0
+  a.flip();        // 全部取反
+
+  // 统计和判断
+  cout << a.count() << '\n'; // 1 的个数
+  cout << a.size() << '\n';  // bitset 长度
+
+  cout << a.any() << '\n';   // 是否存在至少一个 1
+  cout << a.none() << '\n';  // 是否全是 0
+  cout << a.all() << '\n';   // 是否全是 1
+
+  // 位运算
+  bitset<N> x(string("101010"));
+  bitset<N> y(string("111000"));
+
+  cout << (x & y) << '\n';   // 按位与
+  cout << (x | y) << '\n';   // 按位或
+  cout << (x ^ y) << '\n';   // 按位异或
+  cout << (~x) << '\n';      // 按位取反
+
+  // 左移和右移
+  bitset<N> d(string("000101"));
+
+  cout << (d << 2) << '\n';  // 左移 2 位
+  cout << (d >> 1) << '\n';  // 右移 1 位
+
+
+  // 转换
+  string s = d.to_string();        // 转成 string
+  unsigned long v1 = d.to_ulong(); // 转成 unsigned long
+  unsigned long long v2 = d.to_ullong(); // 转成 unsigned long long
+
+  // 输入输出
+  bitset<8> inputBits;
+  cin >> inputBits;          // 输入如：10110010，左边是高位
+  cout << inputBits << '\n'; // 输出也是从高位到低位
+\end{minted}
+
+
+
+
+\subsection*{ST表}
+\addcontentsline{toc}{subsection}{ST表}
+
+
+\begin{minted}{cpp}
+template <class T, T (*Op)(T, T)>
+class ST
+{
+  int n, LOG;
+  vector<int> lg;
+  vector<vector<T>> st;
+  ST() : n(0), LOG(0) {}
+  void build(const vector<T> &a)
+  {
+    n = (int)a.size();
+    lg.assign(n + 1, 0);
+    for (int i = 2; i <= n; ++i)
+      lg[i] = lg[i >> 1] + 1;
+    LOG = lg[n] + 1;
+    st.assign(LOG, vector<T>(n));
+    st[0] = a;
+    for (int k = 1; k < LOG; ++k)
+    {
+      int len = 1 << k, half = len >> 1;
+      for (int i = 0; i + len <= n; ++i)
+      {
+        st[k][i] = Op(st[k - 1][i], st[k - 1][i + half]);
+      }
+    }
+  }
+
+public:
+  ST(const vector<T> &a) { build(a); }
+  T query(int l, int r) const
+  {
+    int k = lg[r - l + 1];
+    return Op(st[k][l], st[k][r - (1 << k) + 1]);
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{树状数组}
+\addcontentsline{toc}{subsection}{树状数组}
+
+
+\begin{minted}{cpp}
+// 树状数组：支持单点加 + 区间和查询
+inline int lowbit(int x) { return x & -x; }
+struct Fenwick {
+  int n;
+  vector<ll> bit;
+  Fenwick(int _n) : n(_n), bit(n + 1, 0) {}
+
+
+  // 单点加 delta
+  void add(int idx, ll delta) {
+    for (int i = idx; i <= n; i += lowbit(i))
+      bit[i] += delta;
+  }
+
+  // 前缀和查询 [1..idx]
+  ll sum(int idx) const {
+    ll res = 0;
+    for (int i = idx; i > 0; i -= lowbit(i))
+      res += bit[i];
+    return res;
+  }
+
+  // 区间和查询 [l..r] = sum(r) - sum(l - 1)
+  ll query(int l, int r) const {
+    return sum(r) - sum(l - 1);
+  }
+};
+\end{minted}
+
+
+\subsection*{Info线段树}
+\addcontentsline{toc}{subsection}{Info线段树}
+
+
+\begin{minted}{cpp}
+struct Tag
+{
+  ll add = 0;
+
+  bool empty() const
+  {
+    return add == 0;
+  }
+
+  void apply(const Tag &tag)
+  {
+    add += tag.add;
+  }
+};
+
+struct Info
+{
+  ll sum = 0;
+
+  void apply(const Tag &tag, int l, int r)
+  {
+    sum += 1LL * (r - l + 1) * tag.add;
+  }
+};
+
+Info operator+(const Info &a, const Info &b)
+{
+  return {a.sum + b.sum};
+}
+
+template <class InfoType = Info, class TagType = Tag>
+class LazySegmentTree
+{
+  int n;
+  vector<InfoType> tree;
+  vector<TagType> lazy;
+
+  void pushUp(int id)
+  {
+    tree[id] = tree[id << 1] + tree[id << 1 | 1];
+  }
+
+  void apply(int id, int l, int r, const TagType &tag)
+  {
+    tree[id].apply(tag, l, r);
+    lazy[id].apply(tag);
+  }
+
+  void pushDown(int id, int l, int r)
+  {
+    if (lazy[id].empty())
+    {
+      return;
+    }
+
+    int mid = (l + r) >> 1;
+    apply(id << 1, l, mid, lazy[id]);
+    apply(id << 1 | 1, mid + 1, r, lazy[id]);
+    lazy[id] = TagType();
+  }
+
+  void build(int id, int l, int r, const vector<InfoType> &a)
+  {
+    if (l == r)
+    {
+      tree[id] = a[l];
+      return;
+    }
+
+    int mid = (l + r) >> 1;
+    build(id << 1, l, mid, a);
+    build(id << 1 | 1, mid + 1, r, a);
+    pushUp(id);
+  }
+
+  void modify(int id, int l, int r, int ql, int qr, const TagType &tag)
+  {
+    if (ql <= l && r <= qr)
+    {
+      apply(id, l, r, tag);
+      return;
+    }
+
+    pushDown(id, l, r);
+
+    int mid = (l + r) >> 1;
+
+    if (ql <= mid)
+    {
+      modify(id << 1, l, mid, ql, qr, tag);
+    }
+
+    if (qr > mid)
+    {
+      modify(id << 1 | 1, mid + 1, r, ql, qr, tag);
+    }
+
+    pushUp(id);
+  }
+
+  InfoType query(int id, int l, int r, int ql, int qr)
+  {
+    if (ql <= l && r <= qr)
+    {
+      return tree[id];
+    }
+
+    pushDown(id, l, r);
+
+    int mid = (l + r) >> 1;
+
+    if (qr <= mid)
+    {
+      return query(id << 1, l, mid, ql, qr);
+    }
+
+    if (ql > mid)
+    {
+      return query(id << 1 | 1, mid + 1, r, ql, qr);
+    }
+
+    return query(id << 1, l, mid, ql, qr) +
+           query(id << 1 | 1, mid + 1, r, ql, qr);
+  }
+
+public:
+  LazySegmentTree(int n = 0)
+  {
+    init(n);
+  }
+
+  LazySegmentTree(const vector<InfoType> &a)
+  {
+    build(a);
+  }
+
+  void init(int n_)
+  {
+    n = n_;
+    tree.assign(4 * n + 5, InfoType());
+    lazy.assign(4 * n + 5, TagType());
+  }
+
+  void build(const vector<InfoType> &a)
+  {
+    init((int)a.size() - 1);
+
+    if (n > 0)
+    {
+      build(1, 1, n, a);
+    }
+  }
+
+  void modify(int l, int r, const TagType &tag)
+  {
+    if (l > r)
+    {
+      return;
+    }
+
+    modify(1, 1, n, l, r, tag);
+  }
+
+  InfoType query(int l, int r)
+  {
+    return query(1, 1, n, l, r);
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{主席树}
+\addcontentsline{toc}{subsection}{主席树}
+
+
+\begin{minted}{cpp}
+// 值域可持久化线段树，空间预分配为了25*n
+// 如果后续想在线插入元素，需要保证元素在建树的时候出现过,也就是提前把所有可能出现的数字都离线下来，就可以在线查询了
+//空间复杂度 O(C*nlogn),单次查询、插入 O(logn)
+class Segment
+{
+  struct node
+  {
+    int sum = 0;
+    int leftChild = 0, rightChild = 0;
+  };
+  vector<node> tree;
+  vector<int> root;
+  vector<ll> discreted, origin;
+
+  int idx = 0, N;
+
+  void insert(int previousVersion, int &currentVersion, int l, int r, int position)
+  {
+    currentVersion = ++idx;
+    tree.push_back(node());
+    tree[currentVersion] = tree[previousVersion];
+    tree[currentVersion].sum++;
+    if (l == r)
+    {
+      return;
+    }
+    int mid = (l + r) >> 1;
+    if (position <= mid)
+    {
+      insert(tree[previousVersion].leftChild, tree[currentVersion].leftChild, l, mid, position);
+    }
+    else
+    {
+      insert(tree[previousVersion].rightChild, tree[currentVersion].rightChild, mid + 1, r, position);
+    }
+  }
+  ll queryKthNumber(int previousVersion, int currentVersion, int l, int r, int x)
+  {
+    if (l == r)
+    {
+      return discreted[l - 1];
+    }
+    int leftSum = tree[tree[currentVersion].leftChild].sum - tree[tree[previousVersion].leftChild].sum;
+    int mid = (l + r) >> 1;
+    if (leftSum < x)
+    {
+      return queryKthNumber(tree[previousVersion].rightChild, tree[currentVersion].rightChild, mid + 1, r, x - leftSum);
+    }
+    else
+    {
+      return queryKthNumber(tree[previousVersion].leftChild, tree[currentVersion].leftChild, l, mid, x);
+    }
+  }
+  ll queryRank(int previousVersion, int currentVersion, int l, int r, int position)
+  {
+    if (position < l)
+      return 0;
+
+    if (r <= position)
+      return tree[currentVersion].sum - tree[previousVersion].sum;
+
+    int mid = (l + r) >> 1;
+    return queryRank(tree[previousVersion].leftChild, tree[currentVersion].leftChild, l, mid, position)
+     + queryRank(tree[previousVersion].rightChild, tree[currentVersion].rightChild, mid + 1, r, position);
+  }
+  int id(ll x) { return lower_bound(all(discreted), x) - discreted.begin() + 1; }
+
+public:
+  Segment(int n) : tree(1, node()), root(n + 1), origin(n + 1)
+  {
+    tree.reserve(25ll * n + 5);
+    for (int i = 1; i <= n; i++)
+    {
+      cin >> origin[i];
+      discreted.push_back(origin[i]);
+    }
+    sort(all(discreted));
+    discreted.erase(unique(all(discreted)), discreted.end());
+    N = discreted.size();
+    for (int i = 1; i <= n; i++)
+    {
+      insert(root[i - 1], root[i], 1, N, id(origin[i]));
+    }
+  }
+
+  // 查询区间第k小元素
+  ll queryKthNumber(int l, int r, int k)
+  {
+    return queryKthNumber(root[l - 1], root[r], 1, N, k);
+  }
+  // 查询 X 在区间内的rank,也就是查询区间小于等于 X 的数字个数
+  ll queryRank(int l, int r, ll x)
+  {
+    //注意x有可能未出现过，这里一定不要采用 ID
+    int position = upper_bound(all(discreted),x) - discreted.begin();
+    if (position == 0)
+      return 0;
+
+    return queryRank(root[l - 1], root[r], 1, N, position);
+  }
+};
+\end{minted}
+
+
+\subsection*{动态开点线段树}
+\addcontentsline{toc}{subsection}{动态开点线段树}
+
+
+\begin{minted}{cpp}
+struct node
+{
+  int ch[2];
+  int s;
+};
+// 动态开点线段树, 空间复杂度 m * 2 * log(n), m 是修改次数
+class Segment {
+  int cnt, n;
+  // ls, rs: 左孩子,右孩子编号  sum: 区间和  lazy: 懒标记
+  vector<int> ls, rs, lazy;
+  vector<int> sum;
+
+  void push_up(int u, int l, int r) {
+    sum[u] = sum[ls[u]] + sum[rs[u]];
+  }
+
+  void pass_down(int u, int l, int r) {
+    if (lazy[u] == -1) return;
+    if (!ls[u]) ls[u] = ++cnt;
+    if (!rs[u]) rs[u] = ++cnt;
+
+    ll mid = (l + r) >> 1;
+    sum[ls[u]] = lazy[u] * (mid - l + 1);
+    sum[rs[u]] = lazy[u] * (r - mid);
+    lazy[ls[u]] = lazy[rs[u]] = lazy[u];
+    lazy[u] = -1;
+  }
+
+  // 动态开点，动态修改，注意 root 要传引用
+  void modify(int &root, int l, int r, int t_l, int t_r, int k) {
+    if (!root) root = ++cnt;
+    if (t_l <= l && t_r >= r) {
+      sum[root] = k * (r - l + 1);
+      lazy[root] = k;
+      return;
+    }
+    pass_down(root, l, r);
+    ll mid = (l + r) >> 1;
+    if (t_l <= mid) modify(ls[root], l, mid, t_l, t_r, k);
+    if (t_r > mid) modify(rs[root], mid + 1, r, t_l, t_r, k);
+    push_up(root, l, r);
+  }
+
+public:
+  int root;
+  explicit Segment(int n_) : root(0), cnt(0), n(n_),
+    ls((ll)1e7 + 5e6, 0), rs((ll)1e7 + 5e6, 0),
+    lazy((ll)1e7 + 5e6, -1), sum((ll)1e7 + 5e6, 0) {}
+
+  void modify(int l, int r, int k) {
+    modify(root, 1, n, l, r, k);
+  }
+};
+\end{minted}
+
+
+\subsection*{可持久化数组}
+\addcontentsline{toc}{subsection}{可持久化数组}
+
+
+\begin{minted}{cpp}
+struct Node {
+  int l, r;
+  int val;
+};
+// 可持久化线段树，支持访问、修改历史版本
+class Segment {
+  vector<Node> tr;
+  vector<int> root; // 每个版本的根节点
+  int n, m, idx;
+
+  int build(int l, int r, const vector<int> &a) {
+    int x = ++idx;
+    if (l == r) {
+      tr[x].val = a[l];
+      return x;
+    }
+    int mid = (l + r) >> 1;
+    tr[x].l = build(l, mid, a);
+    tr[x].r = build(mid + 1, r, a);
+    return x;
+  }
+
+  int update(int pre, int l, int r, int pos, int val) {
+    int x = ++idx;
+    tr[x] = tr[pre];
+    if (l == r) {
+      tr[x].val = val;
+      return x;
+    }
+    int mid = (l + r) >> 1;
+    if (pos <= mid) tr[x].l = update(tr[pre].l, l, mid, pos, val);
+    else tr[x].r = update(tr[pre].r, mid + 1, r, pos, val);
+    return x;
+  }
+
+  int query(int x, int l, int r, int pos) {
+    if (l == r) return tr[x].val;
+    int mid = (l + r) >> 1;
+    if (pos <= mid) return query(tr[x].l, l, mid, pos);
+    else return query(tr[x].r, mid + 1, r, pos);
+  }
+
+public:
+  Segment(int _n, const vector<int> &a) : n(_n), idx(0) {
+    tr.resize((n + 1) * 25);  // 足够空间
+    root.resize(_n + 100);    // 至少支持 n+100 操作个版本
+    root[0] = build(1, n, a); // 版本 0
+  }
+
+  void modify(int i, int v, int p, int val) {
+    root[i] = update(root[v], 1, n, p, val);
+  }
+
+  void clone_version(int i, int v) {
+    root[i] = root[v];
+  }
+
+  int query(int v, int p) {
+    return query(root[v], 1, n, p);
+  }
+};
+\end{minted}
+
+
+\subsection*{重链剖分}
+\addcontentsline{toc}{subsection}{重链剖分}
+
+
+\begin{minted}{cpp}
+// Heavy-Light Decomposition (HLD) 重链剖分模板
+class HLD {
+
+  int n, p;
+  vector<vector<int>> g;
+
+  vector<int> siz, dep, fa;
+  vector<int> son;
+  vector<int> top;
+  int dfs_clock;
+
+  void dfs1(int u, int f) {
+    siz[u] = 1;
+    fa[u] = f;
+    dep[u] = dep[f] + 1;
+    int maxsz = -1;
+    for (int v : g[u]) {
+      if (v == f) continue;
+      dfs1(v, u);
+      siz[u] += siz[v];
+      if (siz[v] > maxsz)
+        son[u] = v, maxsz = siz[v];
+    }
+  }
+
+  void dfs2(int u, int tp) {
+    top[u] = tp;
+    dfn[u] = ++dfs_clock;
+    rnk[dfs_clock] = u;
+    if (son[u]) dfs2(son[u], tp);
+    for (int v : g[u]) {
+      if (v == fa[u] || v == son[u]) continue;
+      dfs2(v, v);
+    }
+    tout[u] = dfs_clock;
+  }
+
+public:
+  vector<int> dfn, rnk, tout;
+  void build(int root = 1) {
+    dfs1(root, 0);
+    dfs2(root, root);
+  }
+  HLD(int n, int p) : n(n), g(n + 1), p(p),
+                      siz(n + 1), dep(n + 1), fa(n + 1),
+                      son(n + 1), top(n + 1), dfn(n + 1), rnk(n + 1), tout(n + 1) {
+    dfs_clock = 0;
+  }
+
+  void add_edge(int u, int v) {
+    g[u].push_back(v);
+    g[v].push_back(u);
+  }
+
+  ll query_path(int u, int v, Segment &seg) {
+    ll res = 0;
+    while (top[u] != top[v]) {
+      if (dep[top[u]] < dep[top[v]]) swap(u, v);
+      res = (res + seg.query(dfn[top[u]], dfn[u]) % p) % p;
+      u = fa[top[u]];
+    }
+    if (dep[u] > dep[v]) swap(u, v);
+    res = (res + seg.query(dfn[u], dfn[v])) % p;
+    return res;
+  }
+
+  void add_path(int u, int v, int val, Segment &seg) {
+    while (top[u] != top[v]) {
+      if (dep[top[u]] < dep[top[v]]) swap(u, v);
+      seg.modify(dfn[top[u]], dfn[u], val);
+      u = fa[top[u]];
+    }
+    if (dep[u] > dep[v]) swap(u, v);
+    seg.modify(dfn[u], dfn[v], val);
+  }
+
+  ll query_subtree(int u, Segment &seg) {
+    return seg.query(dfn[u], dfn[u] + siz[u] - 1);
+  }
+  void modify_subtree(int u, int val, Segment &seg) {
+    seg.modify(dfn[u], dfn[u] + siz[u] - 1, val);
+  }
+
+  int LCA(int u, int v) {
+    while (top[u] != top[v]) {
+      if (dep[top[u]] < dep[top[v]]) swap(u, v);
+      u = fa[top[u]];
+    }
+    return dep[u] < dep[v] ? u : v;
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{线段树分治}
+\addcontentsline{toc}{subsection}{线段树分治}
+
+
+\begin{minted}{cpp}
+auto add = [&](this auto&& self, int id, int l, int r,
+               int ql, int qr, Edge e) -> void {
+  if (ql <= l && r <= qr) {
+    seg[id].push_back(e);
+    return;
+  }
+
+  int mid = (l + r) >> 1;
+  if (ql <= mid) self(id << 1, l, mid, ql, qr, e);
+  if (qr > mid) self(id << 1 | 1, mid + 1, r, ql, qr, e);
+};
+
+add(1, 1, q, L, R, {u, v});
+\end{minted}
+
+
+\subsection*{线段树维护线性基}
+\addcontentsline{toc}{subsection}{线段树维护线性基}
+
+
+\begin{minted}{cpp}
+// 异或线性基：维护一组数能异或出来的所有值
+class LinearBasis
+{
+  // LOG = 60 表示最高支持 61 位整数
+  static constexpr int LOG = 60;
+  vector<ll> base;
+  int rank = 0;
+public:
+  LinearBasis() : base(LOG + 1)
+  {
+  }
+  // 清空线性基
+  void clear()
+  {
+    fill(all(base), 0);
+    rank = 0;
+  }
+  // 插入一个数，返回它是否增加了线性基的秩
+  bool insert(ll x)
+  {
+    for (int bit = LOG; bit >= 0; bit--)
+    {
+      if ((x >> bit) & 1)
+      {
+        if (base[bit])
+        {
+          x ^= base[bit];
+        }
+        else
+        {
+          base[bit] = x;
+          rank++;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // 合并另一个线性基
+  void merge(const LinearBasis &other)
+  {
+    for (int bit = LOG; bit >= 0; bit--)
+    {
+      if (other.base[bit])
+      {
+        insert(other.base[bit]);
+      }
+    }
+  }
+
+  // 查询能异或出的不同数的个数，包含空集
+  ll querySetSize() const
+  {
+    return 1LL << rank;
+  }
+  // 查询能异或出的最大值
+  ll queryMaximum() const
+  {
+    ll res = 0;
+
+    for (int bit = LOG; bit >= 0; bit--)
+    {
+      if ((res ^ base[bit]) > res)
+      {
+        res ^= base[bit];
+      }
+    }
+    return res;
+  }
+};
+
+// 线段树维护区间线性基，支持单点赋值修改和区间最大异或查询
+class SegmentTreeLinearBasis
+{
+  int n;
+  vector<ll> a;
+  vector<LinearBasis> tree;
+
+  // 用左右儿子的信息更新当前节点
+  void pushUp(int id)
+  {
+    tree[id] = tree[id << 1];
+    tree[id].merge(tree[id << 1 | 1]);
+  }
+
+  // 建树，叶子节点插入单个数
+  void build(int id, int l, int r)
+  {
+    if (l == r)
+    {
+      tree[id].clear();
+      tree[id].insert(a[l]);
+      return;
+    }
+
+    int mid = (l + r) >> 1;
+
+    build(id << 1, l, mid);
+    build(id << 1 | 1, mid + 1, r);
+
+    pushUp(id);
+  }
+
+  // 单点赋值修改：a[pos] = val
+  void modify(int id, int l, int r, int pos, ll val)
+  {
+    if (l == r)
+    {
+      a[pos] = val;
+      tree[id].clear();
+      tree[id].insert(val);
+      return;
+    }
+
+    int mid = (l + r) >> 1;
+
+    if (pos <= mid)
+    {
+      modify(id << 1, l, mid, pos, val);
+    }
+    else
+    {
+      modify(id << 1 | 1, mid + 1, r, pos, val);
+    }
+
+    pushUp(id);
+  }
+
+  // 查询区间 [ql, qr] 的线性基
+  LinearBasis query(int id, int l, int r, int ql, int qr)
+  {
+    if (ql <= l && r <= qr)
+    {
+      return tree[id];
+    }
+
+    int mid = (l + r) >> 1;
+
+    if (qr <= mid)
+    {
+      return query(id << 1, l, mid, ql, qr);
+    }
+
+    if (ql > mid)
+    {
+      return query(id << 1 | 1, mid + 1, r, ql, qr);
+    }
+
+    LinearBasis leftBasis = query(id << 1, l, mid, ql, qr);
+    LinearBasis rightBasis = query(id << 1 | 1, mid + 1, r, ql, qr);
+
+    leftBasis.merge(rightBasis);
+
+    return leftBasis;
+  }
+
+public:
+  SegmentTreeLinearBasis(int n = 0)
+  {
+    init(n);
+  }
+
+  SegmentTreeLinearBasis(const vector<ll> &arr)
+  {
+    build(arr);
+  }
+
+  // 初始化长度为 n 的线段树
+  void init(int n_)
+  {
+    n = n_;
+    a.assign(n + 1, 0);
+    tree.assign(4 * n + 5, LinearBasis());
+  }
+
+  // 用 1-base 数组建树
+  void build(const vector<ll> &arr)
+  {
+    init((int)arr.size() - 1);
+
+    for (int i = 1; i <= n; i++)
+    {
+      a[i] = arr[i];
+    }
+
+    if (n > 0)
+    {
+      build(1, 1, n);
+    }
+  }
+
+  // 单点赋值修改：a[pos] = val
+  void modify(int pos, ll val)
+  {
+    modify(1, 1, n, pos, val);
+  }
+
+  // 查询区间 [l, r] 的线性基
+  LinearBasis query(int l, int r)
+  {
+    return query(1, 1, n, l, r);
+  }
+
+  // 查询区间 [l, r] 能异或出的最大值
+  ll queryMaximum(int l, int r)
+  {
+    LinearBasis res = query(l, r);
+    return res.queryMaximum();
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{珂朵莉树（ODT）}
+\addcontentsline{toc}{subsection}{珂朵莉树（ODT）}
+
+
+\begin{minted}{cpp}
+class ODT
+{
+    struct Node
+    {
+        int l, r;
+        // mutable 的作用：
+        // set 里的元素默认不能修改。
+        // 但有些 ODT 操作会直接 it->v += x，所以 v 通常写 mutable。
+        // 如果你只做区间推平，不写 mutable 也行，但建议保留。
+        mutable ll v;
+        bool operator<(const Node &other) const
+        {
+            return l < other.l;
+        }
+    };
+    int n;
+    set<Node> st;
+    public:
+    ODT(const vector<ll> &a)
+    {
+        init(a);
+    }
+    void init(const vector<ll> &a)
+    {
+        n = (int)a.size() - 1;
+        st.clear();
+        // 常规初始化：每个位置一个段
+        for (int i = 1; i <= n; i++)
+        {
+            st.insert({i, i, a[i]});
+        }
+    }
+
+    // split(pos) 的作用：
+    // 保证存在一个左端点为 pos 的区间，并返回它的迭代器。
+    // 例如当前有 [1, 10] = 5
+    // split(4) 后变成：
+    // [1, 3] = 5
+    // [4, 10] = 5
+    auto split(int pos)
+    {
+        // 易错点 1：
+        // pos = n + 1 时，表示切在数组末尾之后。
+        // 这时不需要真的插入 [n+1, ?]，直接返回 end。
+        if (pos > n)
+            return st.end();
+        // 找到第一个左端点 > pos 的段，然后 prev 得到左端点 <= pos 的最后一个段。
+        // 因为 ODT 始终覆盖 [1, n]，这个段一定包含 pos。
+        auto it = prev(st.upper_bound({pos, 0, 0}));
+        int L = it->l;
+        int R = it->r;
+        ll V = it->v;
+
+        // 如果 pos 本来就是一个段的左端点，直接返回。
+        if (L == pos)
+            return it;
+        // 否则把 [L, R] 切成 [L, pos - 1] 和 [pos, R]。
+        st.erase(it);
+        st.insert({L, pos - 1, V});
+
+        return st.insert({pos, R, V}).first;
+    }
+
+    // 区间推平：
+    // 把 [l, r] 全部赋值成 v。
+    void assignRange(int l, int r, ll v)
+    {
+        // 易错点 2：
+        // 一定要先 split(r + 1)，再 split(l)。
+        // 原因：如果先 split(l)，set 结构会改变。
+        auto itr = split(r + 1);
+        auto itl = split(l);
+        // 现在 [l, r] 内部的所有段都完整落在 [itl, itr) 里。
+        st.erase(itl, itr);
+        st.insert({l, r, v});
+    }
+
+    // 查询 [l, r] 的区间和。
+    ll querySum(int l, int r)
+    {
+        auto itr = split(r + 1);
+        auto itl = split(l);
+        ll ans = 0;
+        for (auto it = itl; it != itr; ++it)
+        {
+            ans += 1LL * (it->r - it->l + 1) * it->v;
+        }
+
+        return ans;
+    }
+};
+\end{minted}
+
+
+\begin{minted}{cpp}
+//这里补充一个维护区间值为[D,D + 1,D + 2 ,……，D + R - L]的实际应用例子
+const int V = 2 * n + 1;
+    set<tuple<int, int, int>> st;
+    auto split = [&](int l, int r, int d)
+    {
+        vector<tuple<int, int, int>> del;
+        auto p = prev(st.upper_bound({l, V, V}));
+        while (p != st.end())
+        {
+            auto [L, R, D] = *p;
+            if (L > r)
+                break;
+            seg.add(D, D + (R - L), -1);
+            del.push_back({L, R, D});
+            p++;
+        }
+        for (auto [L, R, D] : del)
+        {
+            st.erase({L, R, D});
+            // 左残段：[L, l - 1]
+            if (L < l)
+            {
+                st.insert({L, l - 1, D});
+                seg.add(D, D + l - 1 - L, 1);
+            }
+
+            // 右残段：[r + 1, R]
+            if (R > r)
+            {
+                int newD = D + r + 1 - L;
+
+                st.insert({r + 1, R, newD});
+                seg.add(newD, D + R - L, 1);
+            }
+        }
+        // 注意原段要是和旧段一样就会被erase掉，所以这里插入新段一定要在删完旧段后进行
+        st.insert({l, r, d});
+        seg.add(d, d + (r - l), 1);
+    };
+\end{minted}
+
+
+
+
+\noindent\rule{\linewidth}{0.4pt}\par
+
+
+
+
+\section*{数学}
+\addcontentsline{toc}{section}{数学}
+
+
+\subsection*{重要式子}
+\addcontentsline{toc}{subsection}{重要式子}
+
+
+1. $max(a,b) = \frac{a + b + \abs{a - b}}{2}$ \par
+
+$min(a,b) = \frac{a + b - \abs{a - b}}{2}$ \par
+
+2. $x + y  = (x\oplus y )+ 2*(x \ \&\ y)$ \par
+
+其实就是异或负责不进位部分，按位与负责进位部分 \par
+
+3. 变换 $ u = x + y,v = x - y$ \par
+
+- 旧坐标系曼哈顿距离即为新坐标系的切比雪夫距离 \par
+
+- 旧坐标系切比雪夫距离即为新坐标系的曼哈顿距离的一半 \par
+
+- 新坐标系两点的欧几里得距离是旧坐标系的 $\sqrt2$ 倍 \par
+
+- 切比雪夫距离：$max(|x1 - x2|, |y1 - y2|)$ \par
+
+- 曼哈顿距离：$|u1 - u2| + |v1 - v2|$ \par
+
+4. 斐波那契矩阵  $\matrix{10\\11}$ \par
+
+性质：$a_{n +2}  -1= s_n$ \par
+
+5. 整数相除精确四舍五入：$a/b = (a + b / 2)/b$ \par
+
+6. 坐标旋转公式： \par
+
+- 新坐标系相对原坐标系逆时针旋转 \texttt{θ}，同一个点在新坐标系下的坐标为： \par
+
+\begin{minted}{cpp}
+   X = x cosθ + y sinθ
+   Y = -x sinθ + y cosθ
+\end{minted}
+
+
+这等价于对点做了 \texttt{-θ} 的旋转。 \par
+
+- 点绕原点逆时针旋转 θ，点本身旋转，坐标系不动： \par
+
+\begin{minted}{cpp}
+   X = x cosθ - y sinθ
+   Y = x sinθ + y cosθ
+\end{minted}
+
+
+7. $p$ 进制下，$\frac{a}{b}$ 能写成有限小数当且仅当化成最简分数形式之后的分母只包含p的质因子 \par
+
+8. \par
+
+\subsection*{公平博弈}
+\addcontentsline{toc}{subsection}{公平博弈}
+
+
+\subsubsection*{基本概念}
+\addcontentsline{toc}{subsubsection}{基本概念}
+
+
+公平组合游戏通常满足： \par
+
+- 两人轮流操作,且\textbf{进行的操作一致}。 \par
+- 游戏状态有限。 \par
+- 双方\textbf{失败条件一致} \par
+- 双方都采取最优策略。 \par
+
+状态分类： \par
+
+- 必胜态：存在一步走到必败态。 \par
+- 必败态：所有后继状态都是必胜态。 \par
+
+\noindent\rule{\linewidth}{0.4pt}\par
+
+
+\subsubsection*{Bash 博弈}
+\addcontentsline{toc}{subsubsection}{Bash 博弈}
+
+
+模型： \par
+
+一堆石子有 \texttt{n} 个，每次可以取 \texttt{a \textasciitilde{} b} 个，取到最后者胜。 \par
+
+结论： \par
+
+\begin{minted}{cpp}
+n % (a + b) == 0  // 先手必败
+n % (a + b) != 0  // 先手必胜
+\end{minted}
+
+
+\subsubsection*{Nim 博弈}
+\addcontentsline{toc}{subsubsection}{Nim 博弈}
+
+
+模型： \par
+
+有多堆石子，每次选择一堆取任意正整数个，取到最后者胜。 \par
+
+结论： \par
+
+\begin{minted}{cpp}
+xor_sum = a[1] ^ a[2] ^ ... ^ a[n];
+
+xor_sum == 0  // 先手必败
+xor_sum != 0  // 先手必胜
+\end{minted}
+
+
+\subsubsection*{反 Nim 博弈}
+\addcontentsline{toc}{subsubsection}{反 Nim 博弈}
+
+
+模型： \par
+
+和 Nim 相同，但是取到最后一个石子的人输。 \par
+
+结论： \par
+
+\begin{minted}{cpp}
+如果所有堆都是 1：
+    堆数为奇数，先手必败
+    堆数为偶数，先手必胜
+否则：
+    xor_sum == 0，先手必败
+    xor_sum != 0，先手必胜
+\end{minted}
+
+
+\subsubsection*{SG 函数}
+\addcontentsline{toc}{subsubsection}{SG 函数}
+
+
+定义： \par
+
+\begin{minted}{cpp}
+SG(u) = mex({SG(v) | v 是 u 的后继状态})
+\end{minted}
+
+
+其中 \texttt{mex} 表示最小的没有出现的非负整数。 \par
+
+结论： \par
+
+\begin{minted}{cpp}
+SG(state) == 0  // 先手必败
+SG(state) != 0  // 先手必胜
+\end{minted}
+
+
+多个独立游戏合并： \par
+
+\begin{minted}{cpp}
+SG_total = SG1 ^ SG2 ^ ... ^ SGn;
+
+SG_total == 0  // 先手必败
+SG_total != 0  // 先手必胜
+\end{minted}
+
+
+\noindent\rule{\linewidth}{0.4pt}\par
+
+
+\subsubsection*{SG 函数打表法}
+\addcontentsline{toc}{subsubsection}{SG 函数打表法}
+
+
+例如每次可以取 \texttt{moves} 中的数量： \par
+
+\begin{minted}{cpp}
+vector<int> get_sg(int N, vector<int> moves) {
+    vector<int> sg(N + 1, 0);
+
+    for (int i = 1; i <= N; i++) {
+        vector<int> vis(128, 0);
+        for (auto d : moves) {
+            if (i >= d) {
+                vis[sg[i - d]] = 1;
+            }
+        }
+
+        int g = 0;
+        while (vis[g]) g++;
+
+        sg[i] = g;
+    }
+    return sg;
+}
+\end{minted}
+
+
+
+
+\subsection*{快速幂}
+\addcontentsline{toc}{subsection}{快速幂}
+
+
+\begin{minted}{cpp}
+// 快速幂：计算 a^b % mod
+long long qpow(long long a, long long b, long long mod) {
+  long long res = 1 % mod;
+  a %= mod;
+  while (b > 0) {
+    if (b & 1)
+      res = res * a % mod;
+    a = a * a % mod;
+    b >>= 1;
+  }
+  return res;
+}
+
+// 模意义下的乘法逆元:inv(a) = a^{-1} % mod(当 mod 为素数)
+long long inv(long long a, long long mod) {
+  return qpow(a, mod - 2, mod);  // 费马小定理
+}
+\end{minted}
+
+
+
+
+\subsection*{矩阵类}
+\addcontentsline{toc}{subsection}{矩阵类}
+
+
+\begin{minted}{cpp}
+struct Matrix {
+  int n, m;
+  vector<vector<ll>> a;
+  ll mod;
+
+  // 构造函数：生成 n 行 m 列、初值为 val 的矩阵，模数为 mod
+  Matrix(int _n, int _m, ll val = 0, ll _mod = 1e9 + 7)
+      : n(_n), m(_m), a(_n, vector<ll>(_m, val)), mod(_mod) {}
+
+  // 构造函数：用二维 vector 初始化矩阵，自动取模
+  Matrix(const vector<vector<ll>> &vec, ll _mod = 1e9 + 7) : mod(_mod) {
+    n = (int)vec.size();
+    m = n ? (int)vec[0].size() : 0;
+    a.assign(n, vector<ll>(m));
+    for (int i = 0; i < n; ++i) {
+      assert((int)vec[i].size() == m);
+      for (int j = 0; j < m; ++j)
+        a[i][j] = (vec[i][j] % mod + mod) % mod;
+    }
+  }
+
+  // 单位矩阵(继承 mod,必须是方阵)
+  Matrix identity(int size) const {
+    Matrix I(size, size, 0, mod);
+    for (int i = 0; i < size; ++i)
+      I.a[i][i] = 1;
+    return I;
+  }
+
+  // 矩阵乘法（支持任意模）
+  Matrix operator*(const Matrix &rhs) const {
+    assert(m == rhs.n);
+    Matrix res(n, rhs.m, 0, mod);
+    for (int i = 0; i < n; ++i)
+      for (int k = 0; k < m; ++k) {
+        ll x = a[i][k] % mod;
+        for (int j = 0; j < rhs.m; ++j) {
+          ll y = rhs.a[k][j] % mod;
+          res.a[i][j] = (res.a[i][j] + x * y % mod) % mod;
+        }
+      }
+    return res;
+  }
+
+  // 矩阵快速幂（仅适用于方阵）
+  Matrix pow(ll exp) const {
+    assert(n == m);
+    Matrix res = identity(n), base = *this;
+    while (exp) {
+      if (exp & 1) res = res * base;
+      base = base * base;
+      exp >>= 1;
+    }
+    return res;
+  }
+
+  // 打印矩阵（每行空格分隔）
+  void print() const {
+    for (int i = 0; i < n; ++i) {
+      for (int j = 0; j < m; ++j) {
+        cout << a[i][j];
+        if (j + 1 < m) cout << " ";
+      }
+      cout << "\n";
+    }
+  }
+};
+\end{minted}
+
+
+\subsection*{线性筛}
+\addcontentsline{toc}{subsection}{线性筛}
+
+
+\begin{minted}{cpp}
+class LinearSieve
+{
+  int n;
+  vector<bool> is_composite;
+  // 可选的函数值
+  bool has_phi, has_mu, has_sigma, has_d;
+  // 约数和 sigma 的辅助数组：g[i] = i 最后一个素因子对应的等比和 (1 + p + ... + p^k)
+  vector<ll> g;
+  // 约数个数 d(n) 以及：cnt_last[i] = i 最后一个质因子 p 的指数 + 1 (即 k+1)
+  vector<int> d, cnt_last;
+
+public:
+  vector<int> primes;
+  vector<int> phi, mu;
+  vector<ll> sigma;
+
+  LinearSieve(int n,
+              bool need_phi = false,
+              bool need_mu = false,
+              bool need_sigma = false,
+              bool need_d = false)
+      : n(n),
+        is_composite(n + 1, false),
+        has_phi(need_phi),
+        has_mu(need_mu),
+        has_sigma(need_sigma),
+        has_d(need_d)
+  {
+    primes.reserve(n / 10);
+    if (has_phi)
+      phi.assign(n + 1, 0);
+    if (has_mu)
+      mu.assign(n + 1, 0);
+    if (has_sigma)
+    {
+      sigma.assign(n + 1, 0);
+      g.assign(n + 1, 0);
+    }
+    if (has_d)
+    {
+      d.assign(n + 1, 0);
+      cnt_last.assign(n + 1, 0);
+    }
+    build();
+  }
+
+private:
+  void build()
+  {
+    if (has_phi)
+      phi[1] = 1;
+    if (has_mu)
+      mu[1] = 1;
+    if (has_sigma)
+    {
+      sigma[1] = 1;
+      g[1] = 1;
+    }
+    if (has_d)
+    {
+      d[1] = 1;
+      cnt_last[1] = 1; // 随便填个 1，不会用到
+    }
+
+    for (int i = 2; i <= n; i++)
+    {
+      if (!is_composite[i])
+      {
+        primes.push_back(i);
+
+        if (has_phi)
+          phi[i] = i - 1;
+        if (has_mu)
+          mu[i] = -1;
+        if (has_sigma)
+        {
+          g[i] = 1 + i;
+          sigma[i] = g[i];
+        }
+        if (has_d)
+        {
+          d[i] = 2;
+          cnt_last[i] = 2;
+        }
+      }
+
+      for (int p : primes)
+      {
+        ll v = 1LL * p * i;
+        if (v > n)
+          break;
+        int j = (int)v;
+        is_composite[j] = true;
+
+        // sigma 部分
+        if (has_sigma)
+        {
+          if (i % p == 0)
+          {
+            g[j] = g[i] * p + 1;
+            sigma[j] = sigma[i] / g[i] * g[j];
+          }
+          else
+          {
+            g[j] = 1 + p;
+            sigma[j] = sigma[i] * g[j];
+          }
+        }
+
+        // phi 部分
+        if (has_phi)
+        {
+          if (i % p == 0)
+          {
+            phi[j] = phi[i] * p;
+          }
+          else
+          {
+            phi[j] = phi[i] * (p - 1);
+          }
+        }
+
+        // mu 部分
+        if (has_mu)
+        {
+          if (i % p == 0)
+          {
+            mu[j] = 0;
+          }
+          else
+          {
+            mu[j] = -mu[i];
+          }
+        }
+
+        // d(n) 部分
+        if (has_d)
+        {
+          if (i % p == 0)
+          {
+            cnt_last[j] = cnt_last[i] + 1;
+            d[j] = d[i] / cnt_last[i] * cnt_last[j];
+          }
+          else
+          {
+            cnt_last[j] = 2;
+            d[j] = d[i] * 2;
+          }
+        }
+        if (i % p == 0)
+          break;
+      }
+    }
+  }
+};
+\end{minted}
+
+
+\subsection*{质因数分解}
+\addcontentsline{toc}{subsection}{质因数分解}
+
+
+\begin{minted}{cpp}
+const int MAXN = 1000000;
+
+vector<int> minp(MAXN + 1), primes;
+
+// 线性筛预处理 minp[x] = x 的最小质因子
+// 分解 x 的质因数，返回 {质因子, 指数}
+// 复杂度：O(质因子个数，带重数)，最坏约 O(log x)
+//对1 - N 所有数字分解复杂度为O(N loglogN)
+vector<pair<int, int>> factorize(int x)
+{
+  vector<pair<int, int>> factors;
+
+  while (x > 1)
+  {
+    int p = minp[x];
+    int cnt = 0;
+
+    while (x % p == 0)
+    {
+      x /= p;
+      cnt++;
+    }
+
+    factors.push_back({p, cnt});
+  }
+  return factors;
+}
+\end{minted}
+
+
+
+
+\subsection*{扩展欧几里得}
+\addcontentsline{toc}{subsection}{扩展欧几里得}
+
+
+\begin{minted}{cpp}
+// 裴蜀定理 Bezout Theorem
+//
+// 1. 对于任意整数 a, b，一定存在整数 x, y，使得：
+//      a * x + b * y = gcd(a, b)
+// 2. 一般地，对于多个整数 a1, a2, ..., an，
+//    它们通过整数线性组合能得到的所有整数，恰好是 gcd(a1, a2, ..., an) 的倍数。
+//    即方程：
+//      a1 * x1 + a2 * x2 + ... + an * xn = c
+//    有整数解的充要条件：
+//      gcd(a1, a2, ..., an) | c
+
+
+// 如何得到一组解：
+//
+// 1. 先用扩展欧几里得求出一组 x0, y0，使得：
+//      a * x0 + b * y0 = gcd(a, b)
+//
+// 2. 设：
+//      g = gcd(a, b)
+//
+//    如果要求解：
+//      a * x + b * y = c
+//
+//    那么必须满足：
+//      c % g == 0
+//
+// 3. 因为已经有：
+//      a * x0 + b * y0 = g
+//
+//    两边同时乘以 c / g，可得：
+//      a * (x0 * c / g) + b * (y0 * c / g) = c
+//
+//    所以一组特解是：
+//      x = x0 * (c / g)
+//      y = y0 * (c / g)
+//
+// 4. 通解形式：
+//      x = x0 * (c / g) + (b / g) * t
+//      y = y0 * (c / g) - (a / g) * t
+//
+//    其中 t 是任意整数。
+class Exgcd {
+public:
+    // 扩展欧几里得：求 ax + by = gcd(a,b) 的一组解 (x,y)，返回 gcd(a,b)
+    static ll extgcd(ll a, ll b, ll &x, ll &y) {
+        if (b == 0) {
+            x = (a >= 0 ? 1 : -1);
+            y = 0;
+            return llabs(a);
+        }
+        ll x1, y1;
+        ll g = extgcd(b, a % b, x1, y1);
+        // 从 b·x1 + (a%b)·y1 = g 推导
+        x = y1;
+        y = x1 - (a / b) * y1;
+        return g;
+    }
+
+    // 模逆：求 a·inv ≡ 1 (mod m)，若 gcd(a,m)=1 返回最小非负逆元，否则返回 -1
+    static ll modInverse(ll a, ll m) {
+        ll x, y;
+        if (extgcd(a, m, x, y) != 1) return -1;
+        x %= m;
+        if (x < 0) x += m;
+        return x;
+    }
+};
+\end{minted}
+
+
+
+
+\subsection*{组合数(包含卡特兰数)}
+\addcontentsline{toc}{subsection}{组合数(包含卡特兰数)}
+
+
+\begin{minted}{cpp}
+struct Combinatorics {
+  int maxn;
+  int mod;
+  vector<long long> fac, inv, facinv;
+
+  long long qpow(long long a, long long b) const {
+    long long res = 1;
+    a %= mod;
+    while (b) {
+      if (b & 1) res = res * a % mod;
+      a = a * a % mod;
+      b >>= 1;
+    }
+    return res;
+  }
+
+  Combinatorics(int n, int _mod) : maxn(n), mod(_mod) {
+    fac.resize(n + 1);
+    inv.resize(n + 1);
+    facinv.resize(n + 1);
+    fac[0] = facinv[0] = 1;
+    for (int i = 1; i <= n; ++i)
+      fac[i] = fac[i - 1] * i % mod;
+    facinv[n] = qpow(fac[n], mod - 2);
+    for (int i = n - 1; i >= 1; --i)
+      facinv[i] = facinv[i + 1] * (i + 1) % mod;
+    for (int i = 1; i <= n; ++i)
+      inv[i] = fac[i] * facinv[i - 1] % mod;
+  }
+
+  long long C(int n, int k) const {
+    if (k < 0 || k > n) return 0;
+    return fac[n] * facinv[k] % mod * facinv[n - k] % mod;
+  }
+
+  long long A(int n, int k) const {
+    if (k < 0 || k > n) return 0;
+    return fac[n] * facinv[n - k] % mod;
+  }
+  // 卡特兰数 C_n = C(2n,n) / (n+1)
+  ll catalan(int n) {
+    return (C(2 * n, n) - C(2 * n, n + 1) + MOD) % MOD;
+ }
+  long long H(int n, int k) const {
+    if (n == 0 && k == 0) return 1;
+    if (n <= 0 || k < 0) return 0;
+    return C(n + k - 1, k);
+  }
+};
+\end{minted}
+
+
+
+
+\subsection*{异或线性基}
+\addcontentsline{toc}{subsection}{异或线性基}
+
+
+\begin{minted}{cpp}
+//排序采用 0-base(常识为1-base)，默认第一个数字是 0,为第 0 大，且子集是包含空集的非重集
+class LinearBasis{
+  //LOG = 60 表示最高支持 61 位整数
+  const int LOG = 60;
+  vector<ll>base,rankBase;
+  int rank = 0;
+  public:
+  LinearBasis() : base(LOG + 1){}
+  bool insert(ll x)
+  {
+    for(int bit = LOG ; bit >= 0 ;bit --)
+    {
+      if((x >> bit) & 1){
+        if(base[bit]){
+          x ^= base[bit];
+        }else{
+          base[bit] = x;
+          rank ++;
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  ll querySetSize(){
+    return 1ll << rank;
+  }
+  ll queryMaximum(){
+    ll res = 0;
+    for(int bit = LOG ; bit >= 0 ;bit--){
+      if((res ^ base[bit]) > res){
+        res ^= base[bit];
+      }
+    }
+    return res;
+  }
+
+  ll queryKthNumber(ll k){
+      assert(k < querySetSize() && k >= 0);
+    rankBase.clear();
+    for(int bit = 0; bit <= LOG ; bit ++)
+    {
+      for(int p = bit - 1; p >=0 ; p --)
+      {
+        if((base[bit] >> p) & 1){
+          base[bit] ^= base[p];
+        }
+      }
+      if(base[bit]){
+        rankBase.push_back(base[bit]);
+      }
+    }
+    ll res = 0;
+    for(int bit = 0 ; bit < rank ; bit ++)
+    {
+      if((k >> bit) & 1){
+        res ^= rankBase[bit];
+      }
+    }
+    return res;
+  }
+};
+
+\end{minted}
+
+
+
+
+\section*{图论}
+\addcontentsline{toc}{section}{图论}
+
+
+\subsection*{Dijkstra}
+\addcontentsline{toc}{subsection}{Dijkstra}
+
+
+\begin{minted}{cpp}
+auto dijkstra = [](int s, const vector<vector<pair<ll, int>>> &adj) {
+  int n = adj.size() - 1; // 1-based 节点编号,adj[0] 不使用
+  ll INF = 1e18;
+  vector<ll> dist(n + 1, INF);
+  vector<bool> vis(n + 1, false);
+  priority_queue<pair<ll, int>, vector<pair<ll, int>>, greater<>> pq;
+  dist[s] = 0;
+  pq.emplace(0, s);
+
+  while (!pq.empty()) {
+    auto [d, u] = pq.top();
+    pq.pop();
+    if (vis[u]) continue;
+    vis[u] = true;
+    for (auto [w, v] : adj[u]) {
+      if (dist[v] > dist[u] + w) {
+        dist[v] = dist[u] + w;
+        pq.emplace(dist[v], v);
+      }
+    }
+  }
+  return dist; // dist[u] 表示从 s 到 u 的最短路,1-based
+}
+\end{minted}
+
+
+\subsection*{01-BFS}
+\addcontentsline{toc}{subsection}{01-BFS}
+
+
+\begin{minted}{cpp}
+vector<ll> zero_one_bfs(int n, int s, const vector<vector<pair<int,int>>> &g) {
+    vector<ll> dist(n + 1, INF);
+    deque<int> dq;
+
+    dist[s] = 0;
+    dq.emplace_back(s);
+
+    while (!dq.empty()) {
+        int u = dq.front();
+        dq.pop_front();
+
+        ll du = dist[u];
+        for (auto [v, w] : g[u]) {
+            if (du + w < dist[v]) {
+                dist[v] = du + w;
+                if (w == 0) {
+                    dq.emplace_front(v); // 0 边，优先处理
+                } else {
+                    dq.emplace_back(v);  // 1 边，放队尾
+                }
+            }
+        }
+    }
+    return dist;
+}
+\end{minted}
+
+
+
+
+\subsection*{拓扑排序}
+\addcontentsline{toc}{subsection}{拓扑排序}
+
+
+\begin{minted}{cpp}
+  while (!q.empty())
+  {
+    int sz = (int)q.size();
+    vector<int> layer;
+    layer.reserve(sz);
+    // 这一轮队列里的点就是当前这一层
+    while (sz--)
+    {
+      int u = q.front();
+      q.pop();
+      layer.push_back(u);
+      for (int v : g[u])
+      {
+        if (--indeg[v] == 0)
+        {
+          q.push(v);
+          // level[v] = (level[u] == -1 ? 0 : level[u] + 1); // 如果想标层号，可以改
+        }
+      }
+    }
+    layers.push_back(move(layer));
+  }
+\end{minted}
+
+
+
+
+\subsection*{匈牙利二分图最大匹配}
+\addcontentsline{toc}{subsection}{匈牙利二分图最大匹配}
+
+
+\begin{minted}{cpp}
+/*
+  Hungarian (DFS 版) — 二分图最大匹配
+  顶点集:L = {1..nL}, R = {1..nR}   —— 1-based
+  用法：
+    Hungarian g(nL, nR);
+    g.add_edge(u, v);                // u∈L, v∈R
+    int ans = g.max_matching();      // 返回最大匹配数
+    auto M = g.get_matching();       // 返回所有匹配对 (u,v)
+  说明：
+    - 多重边自动等价（不会影响结果）。
+    - 每次 max_matching() 会在内部从空匹配开始跑一遍；若要增量维护需自己管理。
+*/
+struct Hungarian {
+  int nL, nR;
+  vector<vector<int>> adj;     // L侧邻接:adj[u] = {v1, v2, ...} , v∈R
+  vector<int> matchL, matchR;  // matchL[u] = u 匹配到的 R点:matchR[v] = v 匹配到的 L点
+  vector<int> vis;             // DFS 访问标记（在 R 侧）
+
+  Hungarian(int nL = 0, int nR = 0) { init(nL, nR); }
+
+  void init(int _nL, int _nR) {
+    nL = _nL; nR = _nR;
+    adj.assign(nL + 1, {});
+    matchL.assign(nL + 1, 0);
+    matchR.assign(nR + 1, 0);
+    vis.assign(nR + 1, 0);
+  }
+  inline void add_edge(int u, int v) {
+    // 要求:1 <= u <= nL, 1 <= v <= nR
+    adj[u].push_back(v);
+  }
+  // 尝试从 L侧点 u 增广
+  bool dfs(int u) {
+    for (int v : adj[u]) {
+      if (vis[v]) continue;
+      vis[v] = 1;
+      // 若 v 未匹配，或能将 v 当前匹配的左点“让位”出去
+      if (matchR[v] == 0 || dfs(matchR[v])) {
+        matchL[u] = v;
+        matchR[v] = u;
+        return true;
+      }
+    }
+    return false;
+  }
+  // 主过程：返回最大匹配数
+  int max_matching() {
+    // 清空旧匹配（确保可重复调用）
+    fill(matchL.begin(), matchL.end(), 0);
+    fill(matchR.begin(), matchR.end(), 0);
+    int mcbm = 0;
+    // 朴素匈牙利：对每个未匹配的左点，清空 vis，跑一遍 DFS 增广
+    for (int u = 1; u <= nL; ++u) {
+      if (matchL[u]) continue;
+      fill(vis.begin(), vis.end(), 0);
+      if (dfs(u)) ++mcbm;
+    }
+    return mcbm;
+  }
+  // 返回所有匹配对 (u,v)
+  vector<pair<int,int>> get_matching() const {
+    vector<pair<int,int>> res;
+    res.reserve(nL);
+    for (int u = 1; u <= nL; ++u) {
+      if (matchL[u]) res.emplace_back(u, matchL[u]);
+    }
+    return res;
+  }
+};
+\end{minted}
+
+
+\subsection*{欧拉回路}
+\addcontentsline{toc}{subsection}{欧拉回路}
+
+
+\begin{minted}{cpp}
+// 无向图欧拉回路 demo：Hierholzer 算法
+//
+// 结论：
+// 1. 无向图存在欧拉回路的必要条件：所有点度数都是偶数。
+// 2. 如果题目要求“整张有边图形成一条欧拉回路”，还需要所有有边的点连通。
+// 3. 如果题目允许每个连通块分别处理，则不需要整图连通；只要每个点度数为偶数，每个有边连通块都有欧拉回路。
+//
+// 实现易错点：
+// 1. 无向边在邻接表中存两次，但两条反向边必须共用同一个 id。
+// 2. used[id] 表示原始边是否已经走过，大小应该按边数 m 开。
+// 3. ptr[u] 记录 u 的邻接表扫描到哪里，避免每次从头扫导致复杂度退化。
+// 4. ptr[u]++ 必须写在判断 used[id] 前面，否则遇到已用边可能死循环。
+// 5. 如果要输出欧拉回路顺序，通常在递归返回后 push 边，最后 reverse。
+// 6. 如果只是在欧拉遍历过程中给边定向 / 统计，不一定需要保存完整路径。
+struct Edge
+{
+    int v, id;
+};
+void solve()
+{
+    int n, m;
+    cin >> n >> m;
+    vector<vector<Edge>> graph(n + 1);
+    vector<int> degree(n + 1, 0);
+    for (int id = 1; id <= m; id++)
+    {
+        int u, v;
+        cin >> u >> v;
+        // 无向边存两次，但共用同一个 id。
+        graph[u].push_back({v, id});
+        graph[v].push_back({u, id});
+        degree[u]++;
+        degree[v]++;
+    }
+    // 欧拉回路要求每个点度数为偶数。
+    for (int i = 1; i <= n; i++)
+    {
+        if (degree[i] & 1)
+        {
+            cout << "-1\n";
+            return;
+        }
+    }
+    vector<int> ptr(n + 1, 0);
+    vector<char> used(m + 1, false);
+    vector<int> eulerEdges; // 欧拉回路的边序
+    vector<int> eulerNodes; // 欧拉回路的点序
+    auto dfs = [&](this auto &&self, int u) -> void
+    {
+        while (ptr[u] < (int)graph[u].size())
+        {
+            auto [v, id] = graph[u][ptr[u]];
+            // 必须先移动 ptr[u]，否则遇到 used[id] 时会卡在原地。
+            ptr[u]++;
+            // 无向边在邻接表里出现两次，用 used[id] 防止重复走。
+            if (used[id])
+                continue;
+            used[id] = true;
+            self(v);
+            // Hierholzer 的路径拼接在回溯阶段完成。
+            // 所以这里回溯后记录边，最后 reverse。
+            eulerEdges.push_back(id);
+        }
+        // 记录点序也是回溯时加入，最后 reverse。
+        eulerNodes.push_back(u);
+    };
+    int start = 1;
+    for (int i = 1; i <= n; i++)
+    {
+        if (degree[i])
+        {
+            start = i;
+            break;
+        }
+    }
+    dfs(start);
+    reverse(eulerEdges.begin(), eulerEdges.end());
+    reverse(eulerNodes.begin(), eulerNodes.end());
+    // 如果是整张有边图一条欧拉回路，应当刚好走完 m 条边。
+    if ((int)eulerEdges.size() != m)
+    {
+        cout << "-1\n";
+        return;
+    }
+}
+
+\end{minted}
+
+
+
+
+\subsection*{树上差分}
+\addcontentsline{toc}{subsection}{树上差分}
+
+
+\begin{minted}{cpp}
+// 树上差分模板整理
+// 1. 路径边差分：统计每条边被多少条路径经过
+// 2. 路径点差分：统计每个点被多少条路径经过
+// 3. DFS 序子树差分：子树加、补子树加，Meet 这题用的是这一类
+//
+// 默认已有：
+// g[u]           : 树的邻接表
+// up[0][u]       : u 的父亲，根的父亲为自身
+// tin[u], tout[u]: DFS 序
+// lca(u, v)      : 求 LCA
+// n              : 点数
+
+// ============================================================
+// 1. 路径边差分
+// 给路径 u-v 上所有边加 1
+// 回收后 diff[x] 表示边 x - up[0][x] 被经过多少次，根节点无意义
+// ============================================================
+
+vector<int> edgeDiff(n + 1, 0);
+vector<int> edgeCnt(n + 1, 0);
+
+auto addPathEdge = [&](int u, int v)
+{
+    int w = lca(u, v);
+
+    edgeDiff[u]++;
+    edgeDiff[v]++;
+    edgeDiff[w] -= 2;
+};
+
+auto collectEdge = [&](this auto &&self, int u, int fa) -> void
+{
+    for (int v : g[u])
+    {
+        if (v == fa)
+            continue;
+
+        self(v, u);
+
+        edgeDiff[u] += edgeDiff[v];
+    }
+
+    edgeCnt[u] = edgeDiff[u];
+};
+
+// 使用：
+// for (auto [u, v] : paths)
+//     addPathEdge(u, v);
+// collectEdge(1, 1);
+
+
+// ============================================================
+// 2. 路径点差分
+// 给路径 u-v 上所有点加 1
+// 回收后 pointDiff[x] 表示点 x 被多少条路径经过
+// ============================================================
+
+vector<int> pointDiff(n + 1, 0);
+
+auto addPathPoint = [&](int u, int v)
+{
+    int w = lca(u, v);
+
+    pointDiff[u]++;
+    pointDiff[v]++;
+    pointDiff[w]--;
+
+    if (up[0][w] != w)
+        pointDiff[up[0][w]]--;
+};
+
+auto collectPoint = [&](this auto &&self, int u, int fa) -> void
+{
+    for (int v : g[u])
+    {
+        if (v == fa)
+            continue;
+
+        self(v, u);
+
+        pointDiff[u] += pointDiff[v];
+    }
+};
+
+// 使用：
+// for (auto [u, v] : paths)
+//     addPathPoint(u, v);
+// collectPoint(1, 1);
+
+
+// ============================================================
+// 3. DFS 序子树差分 / 补子树差分
+// 适合：子树整体加、整棵树减去某子树整体加
+// Meet 这题的禁止连通块标记用的是这一类
+// ============================================================
+
+vector<int> diff(n + 3, 0);
+int globalAdd = 0;
+
+auto addSubtree = [&](int u, int val)
+{
+    diff[tin[u]] += val;
+    diff[tout[u] + 1] -= val;
+};
+
+auto addAllExceptSubtree = [&](int u, int val)
+{
+    globalAdd += val;
+    addSubtree(u, -val);
+};
+
+// 切断边 a-b，给包含 a 的那一侧加 1
+auto addSide = [&](int a, int b)
+{
+    if (up[0][a] == b)
+    {
+        // a 是 b 的儿子，包含 a 的一侧就是 subtree(a)
+        addSubtree(a, 1);
+    }
+    else
+    {
+        // b 是 a 的儿子，包含 a 的一侧就是整棵树 - subtree(b)
+        addAllExceptSubtree(b, 1);
+    }
+};
+
+// 按 DFS 序回收贡献
+// cur 表示当前 DFS 序位置对应点的贡献值
+auto recoverDfnDiff = [&]()
+{
+    vector<int> value(n + 1, 0);
+
+    int cur = globalAdd;
+    for (int i = 1; i <= n; i++)
+    {
+        cur += diff[i];
+        value[i] = cur;
+    }
+
+    return value;
+};
+
+// 使用：
+// addSubtree(u, 1);              // 子树 u 加 1
+// addAllExceptSubtree(u, 1);     // 整棵树 - subtree(u) 加 1
+// addSide(a, b);                 // 切断 a-b 后，包含 a 的一侧加 1
+// auto value = recoverDfnDiff(); // value[i] 是 DFS 序位置 i 对应点的贡献
+\end{minted}
+
+
+
+
+\subsection*{树上启发式合并}
+\addcontentsline{toc}{subsection}{树上启发式合并}
+
+
+\begin{minted}{cpp}
+vector<int> sz(n + 1), son(n + 1);
+function<void(int, int)> dfs0 = [&](int u, int parent) {
+  sz[u] = 1;
+  ll maxi = 0;
+  for (int v : adj[u]) {
+    if (v == parent) continue;
+    dfs0(v, u);
+    if (sz[v] > maxi) {
+      maxi = sz[v];
+      son[u] = v;
+    }
+    sz[u] += sz[v];
+  }
+};
+dfs0(1, 0);
+
+function<void(int, int, int)> add = [&](int u, int parent, int child) {
+  for (int v : adj[u]) {
+    if (v == parent || v == child) continue;
+    // TODO: implement add logic
+  }
+};
+
+function<void(int, int)> clean = [&](int u, int parent) {
+  for (int v : adj[u]) {
+    if (v == parent) continue;
+    // TODO: implement clean logic
+  }
+};
+
+function<void(int, int, bool)> dfs = [&](int u, int parent, bool keep) {
+  for (int v : adj[u]) {
+    if (v == parent || v == son[u]) continue;
+    dfs(v, u, false);
+  }
+  if (son[u]) dfs(son[u], u, true);
+  add(u, parent, son[u]);
+
+  if (!keep) {
+    clean(u, parent);
+  }
+};
+dfs(1, 0, true);
+\end{minted}
+
+
+\subsection*{倍增求LCA}
+\addcontentsline{toc}{subsection}{倍增求LCA}
+
+
+\begin{minted}{cpp}
+// 倍增求 LCA + 距离查询
+struct LCA {
+  int n, LOG;
+  vector<vector<int>> up, adj;
+  vector<int> depth;
+
+  LCA(int _n) : n(_n) {
+    LOG = 32 - __builtin_clz(n);
+    up.assign(n + 1, vector<int>(LOG));
+    adj.resize(n + 1);
+    depth.resize(n + 1);
+  }
+
+  void add_edge(int u, int v) {
+    adj[u].push_back(v);
+    adj[v].push_back(u);
+  }
+
+  void dfs(int u, int p) {
+    up[u][0] = p;
+    for (int i = 1; i < LOG; ++i)
+      up[u][i] = up[up[u][i - 1]][i - 1];
+    for (int v : adj[u]) {
+      if (v != p) {
+        depth[v] = depth[u] + 1;
+        dfs(v, u);
+      }
+    }
+  }
+
+  void init(int root = 1) {
+    depth[root] = 0;
+    dfs(root, 0);
+  }
+
+  int lca(int u, int v) const {
+    if (depth[u] < depth[v]) swap(u, v);
+    for (int i = LOG - 1; i >= 0; --i) {
+      if (depth[u] - (1 << i) >= depth[v])
+        u = up[u][i];
+    }
+    if (u == v) return u;
+    for (int i = LOG - 1; i >= 0; --i) {
+      if (up[u][i] != up[v][i]) {
+        u = up[u][i];
+        v = up[v][i];
+      }
+    }
+    return up[u][0];
+  }
+
+  int get_distance(int u, int v) const {
+    int _lca = lca(u, v);
+    return depth[u] + depth[v] - 2 * depth[_lca];
+  }
+  int get_kth_ancestor(int u, int k) {
+    for (int j = LOG; j >= 0; j--) {
+        if (k & (1 << j)) {
+            u = up[u][j];
+            if (u == 0) break;
+        }
+    }
+    return u;
+  }
+};
+\end{minted}
+
+
+\subsection*{Tarjan\_SCC}
+\addcontentsline{toc}{subsection}{Tarjan\_SCC}
+
+
+\begin{minted}{cpp}
+class TarjanSCC
+{
+public:
+  int n, scc_cnt = 0;
+  vector<vector<int>> adj;            // 原图邻接表
+  vector<int> dfn, low, stk, scc_id;  // Tarjan 必需数组
+  vector<bool> in_stk;
+  vector<vector<int>> sccs;           // 强连通分量集合
+  int timestamp = 0, top = 0;
+
+  TarjanSCC(int _n) : n(_n),
+    adj(_n + 1), dfn(_n + 1), low(_n + 1),
+    stk(_n + 1), scc_id(_n + 1), in_stk(_n + 1, false) {}
+
+  /// 添加有向边
+  void add_edge(int u, int v) {
+    adj[u].emplace_back(v);
+  }
+
+  /// 运行 Tarjan 算法，提取所有 SCC
+  void run() {
+    for (int u = 1; u <= n; ++u) {
+      if (!dfn[u]) dfs(u);
+    }
+  }
+
+  /// 构建缩点图(有向无环图 DAG),去掉重边
+  vector<vector<int>> build_dag() {
+    vector<vector<int>> dag(scc_cnt + 1);
+    vector<unordered_set<int>> dag_set(scc_cnt + 1); // 去重用
+    for (int u = 1; u <= n; ++u) {
+      for (int v : adj[u]) {
+        int su = scc_id[u], sv = scc_id[v];
+        if (su != sv && !dag_set[su].count(sv)) {
+          dag[su].push_back(sv);
+          dag_set[su].insert(sv);
+        }
+      }
+    }
+    return dag;
+  }
+
+private:
+  void dfs(int u) {
+    dfn[u] = low[u] = ++timestamp;
+    stk[++top] = u; in_stk[u] = true;
+    for (int v : adj[u]) {
+      if (!dfn[v]) {
+        dfs(v);
+        low[u] = min(low[u], low[v]);
+      } else if (in_stk[v]) {
+        low[u] = min(low[u], dfn[v]);
+      }
+    }
+    if (dfn[u] == low[u]) {
+      ++scc_cnt;
+      sccs.emplace_back();
+      int x;
+      do {
+        x = stk[top--];
+        in_stk[x] = false;
+        scc_id[x] = scc_cnt;
+        sccs.back().push_back(x);
+      } while (x != u);
+    }
+  }
+};
+
+\end{minted}
+
+
+\subsection*{Tarjan\_EBCC}
+\addcontentsline{toc}{subsection}{Tarjan\_EBCC}
+
+
+\begin{minted}{cpp}
+// Tarjan_EBCC: 在原图上(带边编号)求割边(桥)并缩点为边双连通分量(edge-biconnected components)
+class Tarjan_EBCC {
+    int n;
+    vector<int> dfn, low;
+    int timer;
+    vector<int> bridges;
+    vector<int> comp;
+    int comp_cnt;
+
+public:
+    vector<vector<pair<int,int>>> g;
+    Tarjan_EBCC(int n = 0) : n(n), g(n+1), dfn(n+1,0), low(n+1,0), timer(0), comp(n+1,0), comp_cnt(0) {}
+
+    void add_edge(int u, int v, int id) {
+        g[u].push_back({v,id});
+        g[v].push_back({u,id});
+    }
+
+    void run() {
+        for(int i=1;i<=n;i++){
+            if(!dfn[i]) dfs_bridge(i,-1);
+        }
+        unordered_set<int> bridgeSet;
+        bridgeSet.reserve(bridges.size()*2+10);
+        for(int eid: bridges) bridgeSet.insert(eid);
+        for(int i=1;i<=n;i++){
+            if(!comp[i]){
+                ++comp_cnt;
+                dfs_comp(i, comp_cnt, bridgeSet);
+            }
+        }
+    }
+
+    vector<int> get_bridges() const { return bridges; }
+    vector<int> get_components() const { return comp; }
+    int get_comp_cnt() const { return comp_cnt; }
+
+private:
+    void dfs_bridge(int u, int peid) {
+        dfn[u] = low[u] = ++timer;
+        for(auto [v,eid] : g[u]){
+            if(!dfn[v]){
+                dfs_bridge(v,eid);
+                low[u] = min(low[u], low[v]);
+                if(low[v] > dfn[u]) bridges.push_back(eid);
+            } else if(eid != peid){
+                low[u] = min(low[u], dfn[v]);
+            }
+        }
+    }
+
+    void dfs_comp(int u, int cid, const unordered_set<int> &bridgeSet) {
+        comp[u] = cid;
+        for(auto [v,eid] : g[u]){
+            if(bridgeSet.count(eid)) continue;
+            if(!comp[v]) dfs_comp(v, cid, bridgeSet);
+        }
+    }
+};
+\end{minted}
+
+
+\subsection*{Tarjan\_VBCC}
+\addcontentsline{toc}{subsection}{Tarjan\_VBCC}
+
+
+\begin{minted}{cpp}
+class Tarjan_VBCC
+{
+  struct Edge { int to, id; };
+
+  int n, eid;
+  vector<vector<Edge>> g;
+  vector<int> dfn, low, is_cut;
+  int timer;
+  vector<pair<int,int>> estk;
+  vector<vector<int>> bcc;
+  unordered_set<long long> edge_set;
+
+  static long long encode(int u, int v) {
+    if (u > v) swap(u, v);
+    return ((long long)u << 32) | (unsigned)v;
+  }
+
+public:
+  explicit Tarjan_VBCC(int n = 0) { init(n); }
+
+  /// 初始化
+  void init(int N) {
+    n = N; eid = 0;
+    g.assign(n + 1, {});
+    dfn.assign(n + 1, 0);
+    low.assign(n + 1, 0);
+    is_cut.assign(n + 1, 0);
+    timer = 0;
+    estk.clear(); bcc.clear(); edge_set.clear();
+  }
+
+  /// 添加无向边，自动去掉自环和重边
+  void add_edge(int u, int v) {
+    if (u == v) return;
+    long long code = encode(u, v);
+    if (edge_set.count(code)) return;
+    edge_set.insert(code);
+    ++eid;
+    g[u].push_back({v, eid});
+    g[v].push_back({u, eid});
+  }
+
+private:
+  /// Tarjan 深搜，维护 dfn/low，识别点双
+  void dfs(int u, int parent_eid) {
+    dfn[u] = low[u] = ++timer;
+    int child = 0;
+    for (auto [v, id] : g[u]) {
+      if (!dfn[v]) {
+        estk.emplace_back(u, v);
+        ++child;
+        dfs(v, id);
+        low[u] = min(low[u], low[v]);
+        if (low[v] >= dfn[u]) {
+          if (parent_eid != -1 || child > 1) is_cut[u] = 1;
+          unordered_set<int> nodes;
+          while (!estk.empty()) {
+            auto e = estk.back(); estk.pop_back();
+            nodes.insert(e.first); nodes.insert(e.second);
+            if (e.first == u && e.second == v) break;
+          }
+          vector<int> comp(nodes.begin(), nodes.end());
+          bcc.push_back(move(comp));
+        }
+      } else if (id != parent_eid && dfn[v] < dfn[u]) {
+        estk.emplace_back(u, v);
+        low[u] = min(low[u], dfn[v]);
+      }
+    }
+  }
+
+public:
+  /// 运行 Tarjan 算法，提取所有点双分量
+  void run() {
+    for (int i = 1; i <= n; ++i) {
+      if (!dfn[i]) {
+        dfs(i, -1);
+        if (!estk.empty()) {
+          unordered_set<int> nodes;
+          while (!estk.empty()) {
+            auto e = estk.back(); estk.pop_back();
+            nodes.insert(e.first); nodes.insert(e.second);
+          }
+          vector<int> comp(nodes.begin(), nodes.end());
+          bcc.push_back(move(comp));
+        }
+      }
+    }
+  }
+
+  /// 返回所有点双分量
+  const vector<vector<int>>& get_bcc() const { return bcc; }
+
+  /// 返回所有割点
+  vector<int> get_cutpoints() const {
+    vector<int> res;
+    for (int i = 1; i <= n; ++i)
+      if (is_cut[i]) res.push_back(i);
+    return res;
+  }
+};
+
+\end{minted}
+
+
+\subsection*{最小割最大流}
+\addcontentsline{toc}{subsection}{最小割最大流}
+
+
+\begin{minted}{cpp}
+一般图最大流总复杂度：
+O(n^2 m)
+二分图匹配、单位容量网络等特殊图上通常更快，常见复杂度：
+O(m sqrt(n))
+  
+ class Dinic
+{
+private:
+  struct Edge
+  {
+    int from, to;
+    ll cap;       // 当前剩余容量
+    ll originCap; // 原始容量，用于求割边代价、查询流量
+    int id;       // 输入边编号，不需要输出割边时可以不管
+  };
+
+  int n;
+  vector<Edge> edges;
+  vector<vector<int>> g;
+  vector<int> level, cur;
+  vector<int> edgeIdToIndex;
+
+  bool bfs(int s, int t)
+  {
+    fill(all(level), -1);
+
+    queue<int> q;
+    level[s] = 0;
+    q.push(s);
+
+    while (!q.empty())
+    {
+      int u = q.front();
+      q.pop();
+
+      for (int edgeIndex : g[u])
+      {
+        Edge &e = edges[edgeIndex];
+
+        if (e.cap > 0 && level[e.to] == -1)
+        {
+          level[e.to] = level[u] + 1;
+          q.push(e.to);
+        }
+      }
+    }
+
+    return level[t] != -1;
+  }
+
+  ll dfs(int u, int t, ll pushed)
+  {
+    if (u == t)
+      return pushed;
+    if (pushed == 0)
+      return 0;
+
+    for (int &i = cur[u]; i < (int)g[u].size(); i++)
+    {
+      int edgeIndex = g[u][i];
+      Edge &e = edges[edgeIndex];
+
+      if (e.cap == 0)
+        continue;
+      if (level[e.to] != level[u] + 1)
+        continue;
+
+      ll tr = dfs(e.to, t, min(pushed, e.cap));
+      if (tr == 0)
+        continue;
+
+      e.cap -= tr;
+      edges[edgeIndex ^ 1].cap += tr;
+
+      return tr;
+    }
+
+    return 0;
+  }
+
+public:
+  // 建立一个 1-base 流图。
+  // 可用点编号：1, 2, ..., n。
+  // 0 号点默认空着不用。
+  Dinic(int n = 0)
+  {
+    init(n);
+  }
+
+  // 重新初始化图。
+  // 多测时可以用 dinic.init(n) 清空旧图。
+  void init(int n_)
+  {
+    n = n_;
+    edges.clear();
+    g.assign(n + 1, {});
+    level.assign(n + 1, -1);
+    cur.assign(n + 1, 0);
+    edgeIdToIndex.clear();
+  }
+
+  // 加一条有向边 from -> to，容量为 cap。
+  //
+  // id 是这条边的外部编号。
+  // 如果你只要求最大流，不需要传 id。
+  // 如果你要输出最小割边，建议传入输入边编号 i。
+  //
+  // 例：
+  // dinic.addEdge(u, v, c);
+  // dinic.addEdge(u, v, c, i);
+  void addEdge(int from, int to, ll cap, int id = -1)
+  {
+    if (id >= 0)
+    {
+      if ((int)edgeIdToIndex.size() <= id)
+      {
+        edgeIdToIndex.resize(id + 1, -1);
+      }
+      edgeIdToIndex[id] = (int)edges.size();
+    }
+
+    edges.push_back({from, to, cap, cap, id});
+    g[from].push_back((int)edges.size() - 1);
+
+    edges.push_back({to, from, 0, 0, -1});
+    g[to].push_back((int)edges.size() - 1);
+  }
+
+  // 加一条无向边 u - v，两个方向容量都是 cap。
+  //
+  // 注意：
+  // 这是“无向容量边”，等价于：
+  // u -> v 容量 cap
+  // v -> u 容量 cap
+  //
+  // 如果题目是普通无向图最小割，通常可以这样建。
+  void addUndirectedEdge(int u, int v, ll cap, int id = -1)
+  {
+    addEdge(u, v, cap, id);
+    addEdge(v, u, cap, id);
+  }
+
+  // 求 s 到 t 的最大流。
+  //
+  // 返回值：
+  // 从 s 最多能流到 t 的流量。
+  //
+  // 根据最大流最小割定理，这个值也等于 s-t 最小割容量。
+  ll maxFlow(int s, int t)
+  {
+    ll flow = 0;
+
+    while (bfs(s, t))
+    {
+      fill(all(cur), 0);
+
+      while (true)
+      {
+        ll pushed = dfs(s, t, INF);
+        if (pushed == 0)
+          break;
+        flow += pushed;
+      }
+    }
+
+    return flow;
+  }
+
+  // 跑完 maxFlow(s, t) 之后调用。
+  //
+  // 返回一个 vis 数组：
+  // vis[u] = 1 表示 u 在最小割的 S 侧。
+  // vis[u] = 0 表示 u 在最小割的 T 侧。
+  //
+  // 原理：
+  // 在残量网络里，从 s 出发，只走剩余容量 > 0 的边。
+  vector<int> minCutSide(int s)
+  {
+    vector<int> vis(n + 1, 0);
+    queue<int> q;
+
+    vis[s] = 1;
+    q.push(s);
+
+    while (!q.empty())
+    {
+      int u = q.front();
+      q.pop();
+
+      for (int edgeIndex : g[u])
+      {
+        Edge &e = edges[edgeIndex];
+
+        if (e.cap > 0 && !vis[e.to])
+        {
+          vis[e.to] = 1;
+          q.push(e.to);
+        }
+      }
+    }
+
+    return vis;
+  }
+
+  // 跑完 maxFlow(s, t) 之后调用。
+  //
+  // 返回一组最小割边的输入编号。
+  //
+  // 一条原图边 u -> v 属于这组最小割，当且仅当：
+  // u 在 S 侧，v 在 T 侧。
+  //
+  // 使用这个函数时，addEdge 最好传入 id：
+  // dinic.addEdge(u, v, c, i);
+  vector<int> minCutEdges(int s)
+  {
+    vector<int> vis = minCutSide(s);
+    vector<int> cutEdges;
+
+    for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2)
+    {
+      Edge &e = edges[edgeIndex];
+
+      if (e.id != -1 && vis[e.from] && !vis[e.to])
+      {
+        cutEdges.push_back(e.id);
+      }
+    }
+
+    return cutEdges;
+  }
+
+  // 跑完 maxFlow(s, t) 之后调用。
+  //
+  // 返回当前这组最小割边的原始容量之和。
+  //
+  // 正常情况下：
+  // dinic.minCutCost(s) == dinic.maxFlow(s, t)
+  ll minCutCost(int s)
+  {
+    vector<int> vis = minCutSide(s);
+    ll cost = 0;
+
+    for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2)
+    {
+      Edge &e = edges[edgeIndex];
+
+      if (vis[e.from] && !vis[e.to])
+      {
+        cost += e.originCap;
+      }
+    }
+
+    return cost;
+  }
+
+  // 查询某条输入边实际流了多少。
+  //
+  // 前提：
+  // addEdge 时传入过这个输入边编号 id。
+  //
+  // 例：
+  // dinic.addEdge(u, v, c, i);
+  // ...
+  // ll used = dinic.getFlow(i);
+  ll getFlow(int id)
+  {
+    int edgeIndex = edgeIdToIndex[id];
+    return edges[edgeIndex].originCap - edges[edgeIndex].cap;
+  }
+};
+
+\end{minted}
+
+
+\subsection*{最小费用最大流}
+\addcontentsline{toc}{subsection}{最小费用最大流}
+
+
+\begin{minted}{cpp}
+// 最小费用最大流
+// useSPFA = false：适用于原始边费用非负
+// useSPFA = true ：适用于原始边费用可能为负
+// 复杂度：O(SPFA + A * m log n)，A 为增广次数
+class MinCostMaxFlow {
+private:
+    struct Edge {
+        int from, to; // 边的起点和终点
+        ll cap;       // 当前残余容量
+        ll cost;      // 单位流量费用
+    };
+    int n;
+    vector<Edge> edges;
+    vector<vector<int>> g;
+    // SPFA 初始化势能 h
+    // 作用：当原始费用可能为负时，先算出从 s 到每个点的最短路势能
+    void initPotentialBySPFA(int s, vector<ll> &h) {
+        vector<int> inq(n + 1, 0);
+        queue<int> q;
+        fill(all(h), INF);
+        h[s] = 0;
+        q.push(s);
+        inq[s] = 1;
+        while (!q.empty()) {
+            int u = q.front();
+            q.pop();
+            inq[u] = 0;
+            for (int id : g[u]) {
+                Edge &e = edges[id];
+                if (e.cap <= 0) continue;
+                int v = e.to;
+                if (h[v] > h[u] + e.cost) {
+                    h[v] = h[u] + e.cost;
+
+                    if (!inq[v]) {
+                        inq[v] = 1;
+                        q.push(v);
+                    }
+                }
+            }
+        }
+        // 不可达点的势能设为 0，避免后续计算 INF 参与运算
+        for (int i = 1; i <= n; i++) {
+            if (h[i] == INF) h[i] = 0;
+        }
+    }
+
+public:
+    MinCostMaxFlow(int n) : n(n), g(n + 1) {}
+
+    // 加一条 u -> v 的边，容量为 cap，费用为 cost
+    // 同时加反向边 v -> u，容量为 0，费用为 -cost，用于撤销流量
+    void addEdge(int u, int v, ll cap, ll cost) {
+        int id = edges.size();
+        edges.push_back({u, v, cap, cost});
+        edges.push_back({v, u, 0, -cost});
+        g[u].push_back(id);
+        g[v].push_back(id ^ 1);
+    }
+
+    // 返回 {最大流, 最小费用}
+    // useSPFA 表示是否使用 SPFA 初始化势能
+    pair<ll, ll> minCostMaxFlow(int s, int t, bool useSPFA = false) {
+        ll maxFlow = 0;
+        ll minCost = 0;
+
+        vector<ll> h(n + 1, 0); // 势能，用来让 Dijkstra 可以处理残量网络中的负边
+        vector<ll> dist(n + 1); // 最短路距离
+        vector<int> pre(n + 1); // pre[v] 表示最短路上到达 v 的边编号
+
+        if (useSPFA) {
+            initPotentialBySPFA(s, h);
+        }
+
+        while (true) {
+            fill(all(dist), INF);
+            fill(all(pre), -1);
+            priority_queue<pair<ll, int>, vector<pair<ll, int>>, greater<pair<ll, int>>> pq;
+            dist[s] = 0;
+            pq.push({0, s});
+            // 在残量网络上跑 Dijkstra，找费用最短的增广路
+            while (!pq.empty()) {
+                auto [d, u] = pq.top();
+                pq.pop();
+                if (d != dist[u]) continue;
+                for (int id : g[u]) {
+                    Edge &e = edges[id];
+                    if (e.cap <= 0) continue;
+                    int v = e.to;
+                    // 势能修正后的边权
+                    // 如果势能正确，这个 newCost 应该是非负的
+                    ll newCost = e.cost + h[u] - h[v];
+
+                    if (dist[v] > dist[u] + newCost) {
+                        dist[v] = dist[u] + newCost;
+                        pre[v] = id;
+                        pq.push({dist[v], v});
+                    }
+                }
+            }
+            // t 不可达，说明已经没有增广路
+            if (pre[t] == -1) break;
+
+            // 更新势能
+            for (int i = 1; i <= n; i++) {
+                if (dist[i] < INF) {
+                    h[i] += dist[i];
+                }
+            }
+            // 找这条增广路上的瓶颈容量
+            ll addFlow = INF;
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                addFlow = min(addFlow, edges[pre[cur]].cap);
+            }
+            // 沿着最短费用路增广
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                int id = pre[cur];
+                edges[id].cap -= addFlow;
+                edges[id ^ 1].cap += addFlow;
+
+                minCost += addFlow * edges[id].cost;
+            }
+            maxFlow += addFlow;
+        }
+        return {maxFlow, minCost};
+    }
+};
+\end{minted}
+
+
+
+
+\section*{字符串}
+\addcontentsline{toc}{section}{字符串}
+
+
+下面的字符串算法均默认采用 0-base实现 \par
+
+\subsection*{KMP}
+\addcontentsline{toc}{subsection}{KMP}
+
+
+\begin{minted}{cpp}
+ 	  string s1;
+    cin>>s1;
+    const int n = s1.size();
+		//这里采用0-base
+    vector<int>next(n);
+    for(int i = 1; i < n ;i ++){
+      int len = next[i - 1];
+      while(len && s1[i] != s1[len]){
+        len = next[len - 1];
+      }
+      if(s1[i] == s1[len])
+      next[i] = len + 1;
+    }
+
+    cout << n - next[n - 1] ; 
+\end{minted}
+
+
+
+
+\subsection*{manacher 求最长回文半径}
+\addcontentsline{toc}{subsection}{manacher 求最长回文半径}
+
+
+\begin{minted}{cpp}
+  string s;
+  cin >> s;
+  const int n = s.size();
+  vector<int> manacher(n);
+  // 奇回文半径,manacher[cur] 表示以 cur 为中心的最大回文半径
+  for (int cur = 0, L = 0, R = 0, k = 0; cur < n; cur++)
+  {
+    if (cur <= R)
+      k = min(manacher[R + L - cur], R - cur + 1);
+    else
+      k = 1;
+    while (cur + k < n && cur - k >= 0 && s[cur + k] == s[cur - k])
+      k++;
+    if (cur + k - 1 > R)//一定保证右端点最右
+    	R = cur + k - 1, L = cur - k + 1;
+    manacher[cur] = k;
+  }
+	fill(all(manacher),0);
+  // 偶回文半径，manacher[cur] 表示以 {cur - 1, cur}为中心的最大回文半径
+  for (int cur = 0, L = 0, R = 0, k = 0; cur < n; cur++)
+  {
+    if (cur <= R)
+    k = min(manacher[R + L - cur + 1], R - cur + 1);
+    else
+    k = 0; // 注意这里要写成0，因为第一个位置初始不合法
+    while (cur + k < n && cur - 1 - k >= 0 && s[cur + k] == s[cur - 1 - k])
+    k++;
+    
+    if (cur + k - 1 > R)//一定保证右端点最右
+    	R = cur + k - 1, L = cur - 1 - k + 1;
+    manacher[cur] = k;
+  }
+\end{minted}
+
+
+\subsection*{Z函数求所有后缀与原字符串的LCP}
+\addcontentsline{toc}{subsection}{Z函数求所有后缀与原字符串的LCP}
+
+
+\begin{minted}{cpp}
+ // Z函数:求字符串每一个后缀和原字符串LCP
+  auto Z = [&](string s) -> vector<int>
+  {
+    int n = s.size();
+    vector<int> Z(n);
+
+    // 默认第一个位置是全匹配
+    Z[0] = n;
+    for (int cur = 1, l = 0, r = 0, k = 0; cur < n; cur++)
+    {
+      if (cur <= r)
+        k = min(Z[cur - l], r - cur + 1); // 复用维护的匹配区间信息
+      else
+        k = 0;
+      // 暴力扩展
+      while (cur + k < n && s[cur + k] == s[k])
+        k++;
+
+      // 当且仅当新匹配区间右端点更远的时候更新匹配区间
+      if (cur + k - 1 > r)
+        l = cur, r = cur + k - 1;
+      // 记录Z函数的值
+      Z[cur] = k;
+    }
+    return Z;
+  };
+\end{minted}
+
+
+
+
+\section*{动态规划}
+\addcontentsline{toc}{section}{动态规划}
+
+
+\subsection*{SOSDP}
+\addcontentsline{toc}{subsection}{SOSDP}
+
+
+子集和DP ：给定 $$ val[mask]$$，求 $$ dp[mask] = \sum{  val[sub] [sub ⊆ mask ]}$$  。 \par
+
+\begin{minted}{cpp}
+// 子集和 SOS DP
+// dp[mask] = sum(val[sub])，其中 sub 是 mask 的子集
+// 复杂度 O(n * 2^n),适用于n <= 20甚至25
+  for (int bit = 0; bit < n; bit++)
+  {
+    for (int mask = 0; mask < (1 << n); mask++)
+    {
+      // 如果 mask 含有 bit，那么它的子集可以分成两类：
+      // 1. 含 bit 的子集，已经在 dp[mask] 里
+      // 2. 不含 bit 的子集，来自 dp[mask ^ (1 << bit)]
+      if ((mask >> bit) & 1)//把这里的值等于1改成0即为超集和DP
+      {
+        dp[mask] += dp[mask ^ (1 << bit)];
+      }
+    }
+  }
+\end{minted}
+
+
+\subsection*{树上背包}
+\addcontentsline{toc}{subsection}{树上背包}
+
+
+\begin{minted}{cpp}
+  vector<vector<ll>> dp1(n + 1,vector<ll>(n + 1)), dp2(n + 1,vector<ll>(n + 1));
+  vector<ll> sz(n + 1);
+  ll ans = 0 ;
+  [&](this auto && dfs,int u, int p) -> void
+  {
+    sz[u] = 1;
+    dp1[u][1] = 1;
+    for (int v : adj[u])
+    {
+      if (v == p)
+        continue;
+        dfs(v,u);
+      vector<ll>ndp1 =dp1[u];
+      vector<ll>ndp2 =dp2[u];
+      //注意正是这里按照sz合并的优化，让每一个点对只会在自己的LCA处被枚举到一次，故复杂度是O(n^2)的
+      for(int i = 1;i <= sz[v] ;i ++){
+        ndp1[i + 1] += dp1[v][i];
+        ndp2[i + 1] += dp2[v][i];
+      }
+      //假如不开滚动数组，需要和01背包一样倒序枚举内层
+      for (int i = 1; i <= sz[v]; i++)
+      {
+        for (int j = 1; j <= sz[u]; j++)
+        {
+          ndp2[i + j] += dp1[u][j] * dp1[v][i];
+          if(i + j == k){
+            ans += dp1[u][j] * dp2[v][i] + dp2[u][j] * dp1[v][i];
+          }
+        }
+      }
+      sz[u] += sz[v];
+      swap(dp1[u],ndp1);
+      swap(dp2[u],ndp2);
+    }
+  }(1,0);
+\end{minted}
+
+
+\subsection*{多重背包（二进制拆分）}
+\addcontentsline{toc}{subsection}{多重背包（二进制拆分）}
+
+
+\begin{minted}{cpp}
+ 		vector<int> t(n+1), c(n+1), p(n+1);
+    for (int i = 1; i <= n; ++i) cin >> t[i] >> c[i] >> p[i];
+    // dp[cap] = 最大美学值
+    vector<int> dp(T+1, 0);
+
+    for (int i = 1; i <= n; ++i) {
+        // 跳过必定用不上的物品（可选，主要是小优化）
+        if (t[i] > T) continue;
+
+        if (p[i] == 0) {
+            // 完全背包：正序
+            for (int cap = t[i]; cap <= T; ++cap)
+                dp[cap] = max(dp[cap], dp[cap - t[i]] + c[i]);
+        } else {
+            // 多重背包：二进制拆分 => 0/1 物品，倒序
+            int x = p[i];
+            int k = 1;
+            while (x > 0) {
+                int num = min(k, x);
+                int cost = t[i] * num, val = c[i] * num;
+                if (cost <= T) {
+                    for (int cap = T; cap >= cost; --cap)
+                        dp[cap] = max(dp[cap], dp[cap - cost] + val);
+                }
+                x -= num;
+                k <<= 1;
+            }
+        }
+    }
+\end{minted}
+
+
+
+
+\section*{几何}
+\addcontentsline{toc}{section}{几何}
+
+
+\subsection*{经典结论与技巧}
+\addcontentsline{toc}{subsection}{经典结论与技巧}
+
+
+1. 对于平面上的点 \texttt{(X, Y)}，如果要\textbf{最大化}： \par
+
+\begin{minted}{cpp}
+   |Y1 - Y2| / |X1 - X2|
+\end{minted}
+
+
+只需要 **按照 \texttt{X} 排序**，然后检查相邻点。 \par
+
+原因是：如果最优点对在 \texttt{X} 排序中间隔了别的点，那么中间那个点一定能和两端之一组成一个不劣的点对。 \par
+
+\section*{其它技巧}
+\addcontentsline{toc}{section}{其它技巧}
+
+
+\subsection*{普通莫队}
+\addcontentsline{toc}{subsection}{普通莫队}
+
+
+\begin{minted}{cpp}
+    int n,m,k;
+    cin>>n>>m>>k;
+    vector<int>a(n + 1);
+    for(int i =1; i<=n ;i ++)cin>>a[i];
+    vector<tuple<int,int,int>>todo;
+    todo.reserve(m);
+    vector<int>ans(m + 1);
+    for(int i= 1; i <= m;i ++)
+    {
+      int l,r;cin>>l>>r;
+      todo.emplace_back(l,r,i);
+    }
+    const int M = sqrt(n);
+    sort(all(todo),[&](tuple<int,int,int>a,tuple<int,int,int>b){
+      auto[l_a,r_a,_] = a;
+      auto[l_b,r_b,_] = b;
+      int id_a = (l_a - 1)/M + 1;
+      int id_b = (l_b - 1)/M + 1;
+      if(id_a != id_b){
+        return id_a < id_b;
+      }
+      if(id_a & 1){
+        return r_a < r_b;
+      }else{
+        return r_a > r_b;
+      }
+    });
+    ll sum = 0;
+    int wl = 1,wr = 0;
+
+    vector<ll>cnt(k + 1,0);
+    auto del = [&](int p){
+      sum -= (2*cnt[a[p]] - 1);
+      cnt[a[p]]--;
+    };
+    auto add = [&](int p){
+      sum += (2*cnt[a[p]] + 1);
+      cnt[a[p]]++;
+    };
+    for(auto&[l,r,id] : todo)
+    {
+      while(wl > l){
+        add(--wl);
+      }
+      while(wl < l){
+        del(wl++);
+      }
+      while(wr > r){
+        del(wr--);
+      }
+      while(wr < r){
+        add(++wr);
+      }
+      
+      ans[id] = sum;
+    }
+    for(int i = 1;i <= m;i ++)
+    cout<<ans[i]<<"\n";
+\end{minted}
+
+
+\subsection*{带修莫队}
+\addcontentsline{toc}{subsection}{带修莫队}
+
+
+\begin{minted}{cpp}
+struct Event { char typ; int x, y; };            // Q: x=L,y=R;  R: x=P,y=C(original)
+struct Query  { int l, r, t, id; };              // t = updates done before this query
+struct Update { int p, from, to; };              // color change at position p
+
+int main() {
+  cin.tie(0)->sync_with_stdio(0);
+
+  int n, m; 
+  cin >> n >> m;
+  vector<int> A(n + 1);
+  for (int i = 1; i <= n; i++) cin >> A[i];
+
+  vector<Event> event; event.reserve(m);
+  vector<int> color; color.reserve(n + m);
+  for (int i = 1; i <= n; i++) color.push_back(A[i]);
+
+  for (int i = 0; i < m; i++) {
+    char op; int x, y;
+    cin >> op >> x >> y;            
+    event.push_back({op, x, y});
+    if (op == 'R' || op == 'C') color.push_back(y); 
+  }
+  sort(all(color));
+  color.erase(unique(all(color)), color.end());
+  auto get_id = [&](int v)->int {
+    return int(lower_bound(all(color), v) - color.begin()) + 1; 
+  };
+  for (int i = 1; i <= n; i++) A[i] = get_id(A[i]);
+
+  vector<Query> query; query.reserve(m);
+  vector<Update> update; update.reserve(m);
+  vector<int> a_cur = A;   
+  int time = 0, idx = 0;
+  for (auto [tp, x, y] : event) {
+    if (tp == 'Q') {
+      query.push_back({x, y, time, ++idx});
+    } else { 
+      int p = x, to = get_id(y);
+      update.push_back({p, a_cur[p], to});
+      a_cur[p] = to;
+      ++time;
+    }
+  }
+  const int B = max(1, (int)pow(n, 2.0/3.0));
+  auto id = [&](int x){ return x / B; };
+  sort(all(query), [&](const Query& A, const Query& Bq){
+    int ab = id(A.l), bb = id(Bq.l);
+    if (ab != bb) return ab < bb;
+    int ar = id(A.r), br = id(Bq.r);
+    if (ar != br) return (ab & 1) ? (ar > br) : (ar < br);
+    return ( (ar & 1) ? (A.t > Bq.t) : (A.t < Bq.t) );
+  });
+  int K = (int)color.size() + 5;
+  vector<int> cnt(K, 0);
+  vector<int> ans(idx + 1, 0);
+  vector<int> a = A;    
+  int l = 1, r = 0, curT = 0, kind = 0;
+
+  auto add = [&](int pos){
+    pos = a[pos];
+    if (++cnt[pos] == 1) ++kind;
+  };
+  auto del = [&](int pos){
+    pos = a[pos];
+    if (--cnt[pos] == 0) --kind;
+  };
+  auto modify = [&](){      
+    auto& [p,from,to] = update[curT];
+    if (l <= p && p <= r) {
+      if (--cnt[from] == 0) --kind;
+      if (++cnt[to]   == 1) ++kind;
+    }
+    a[p] = to;
+    ++curT;
+  };
+  auto recover = [&](){            
+    auto&[p,from,to] = update[curT - 1];
+    if (l <= p && p <= r) {
+      if (--cnt[to]   == 0) --kind;
+      if (++cnt[from] == 1) ++kind;
+    }
+    a[p] = from;
+    --curT;
+  };
+
+  for (auto&[L,R,T,id] : query) {
+    while (curT < T) modify();
+    while (curT > T) recover();
+    while (r < R) add(++r);
+    while (l > L) add(--l);
+    while (r > R) del(r--);
+    while (l < L) del(l++);
+    ans[id] = kind;
+  }
+
+  for (int i = 1; i <= idx; i++) cout << ans[i] << "\n";
+  return 0;
+}
+\end{minted}
+
+
+
+
+\end{multicols*}
+\end{document}

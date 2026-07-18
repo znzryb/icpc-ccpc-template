@@ -1,0 +1,1022 @@
+	\begin{center}
+		\section{计算几何}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{点线基础模板}
+
+		以下是计算几何最底层的几个基础类型：符号判定 \texttt{sgn}、点 / 向量 \texttt{Point}（也用作 \texttt{Vector}）、叉乘 / 点乘、两点式直线 \texttt{Line}。\textbf{后续所有子节的代码都建立在这些定义之上}，每节顶部会以注释形式列出本节用到的依赖（具体实现见此处）。
+
+		模板里的 \texttt{Real} 通过 \texttt{using Real = DB;} 切换成浮点；当 \texttt{Real} 为\textbf{整数类型}（含 \texttt{ll} 与 \texttt{\_\_int128}）时，\texttt{cross} / \texttt{norm} 自动放大到 \texttt{\_\_int128\_t} 计算以避免溢出。\texttt{Point::abs()} 走自己写的 \texttt{sqrtL}：浮点直接 \texttt{sqrtl}，\textbf{整数走 \texttt{isqrt} + 修正}，避免 \texttt{(long double)\,i128} 在 $n > 2^{53}$ 时丢整数精度。
+
+		\href{https://gist.github.com/znzryb/11d094702ccdb989efb8aed573ab0885}{change log}
+
+		\begin{minted}{cpp}
+// floor(sqrt(n))，n >= 0；二分 + 防溢出（mid <= n/mid 等价 mid*mid <= n）
+i128 isqrt(i128 n) {
+	if (n <= 0) return 0;
+	i128 lo = 0, hi = (i128) 2e18; // sqrt(4e36) <= 2e18
+	while (lo < hi) {
+		i128 mid = lo + (hi - lo + 1) / 2;
+		if (mid <= n / mid) lo = mid;
+		else                hi = mid - 1;
+	}
+	return lo;
+}
+
+// 统一 sqrt 入口：浮点直接 sqrtl；整数（含 i128）走 isqrt + 修正，
+// 避免 (long double) i128 在 n > 2^53 时丢整数精度
+template<typename T>
+long double sqrtL(T n) {
+	if constexpr (is_floating_point_v<T>) {
+		return sqrtl((long double) n);
+	} else {
+		i128 ni = (i128) n;
+		if (ni <= 0) return 0;
+		i128 i = isqrt(ni);
+		long double id = (long double) i;
+		long double rd = (long double) (ni - i * i);
+		// sqrt(i^2 + r) = i * sqrt(1 + r/i^2)
+		return id * sqrtl(1.0L + rd / (id * id));
+	}
+}
+
+using Real = DB;
+
+template<class T>
+int sgn(T x) {
+	if (-eps < x && x < eps) return 0;
+	return x < 0 ? -1 : 1;
+}
+
+struct Point {
+	Real x, y;
+	int id = -1; // 原始输入下标；-1 = 派生点（+ - * 算术结果）或未赋值
+
+	explicit Point(Real x_ = 0, Real y_ = 0) : x(x_), y(y_) {}
+
+	// 只对左值生效的复合运算符
+	Point &operator+=(Point p) & { x += p.x, y += p.y; return *this; }
+	Point &operator-=(Point p) & { x -= p.x, y -= p.y; return *this; }
+	Point &operator*=(Real t) & { x *= t, y *= t; return *this; }
+	Point &operator/=(Real t) & { x /= t, y /= t; return *this; }
+
+	Point operator-() const { return Point(-x, -y); }
+
+	friend Point operator+(Point a, Point b) { return a += b; }
+	friend Point operator-(Point a, Point b) { return a -= b; }
+	friend Point operator*(Point a, Real b) { return a *= b; }
+	friend Point operator*(Real a, Point b) { return b *= a; }
+	friend Point operator/(Point a, Real b) { return a /= b; }
+
+	friend bool operator<(Point a, Point b) {
+		int sx = sgn(a.x - b.x);
+		if (sx != 0) return a.x < b.x;
+		return a.y < b.y;
+	}
+	friend bool operator>(Point a, Point b) { return b < a; }
+	friend bool operator==(Point a, Point b) {
+		return sgn(a.x - b.x) == 0 && sgn(a.y - b.y) == 0;
+	}
+	friend bool operator!=(Point a, Point b) { return !(a == b); }
+	friend istream &operator>>(istream &is, Point &p) { return is >> p.x >> p.y; }
+
+	// !is_floating_point_v 而不是 is_integral_v：让 i128 / __int128 也走整数分支
+	auto norm() const {
+		if constexpr (!is_floating_point_v<Real>) {
+			return (__int128_t) x * x + (__int128_t) y * y;
+		} else {
+			return x * x + y * y;
+		}
+	}
+	DB abs() const { return sqrtL(norm()); }
+};
+
+using Vector = Point;
+
+auto cross(Point a, Point b) {
+	if constexpr (!is_floating_point_v<Real>) {
+		return (__int128_t) a.x * b.y - (__int128_t) a.y * b.x;
+	} else {
+		return a.x * b.y - a.y * b.x;
+	}
+}
+// 三参数重载：以 o 为原点算 (a - o) x (b - o)
+// 用途：判 3 点 turn (>0 左转 / <0 右转 / =0 共线) / 2 倍三角形有向面积
+auto cross(Point o, Point a, Point b) { return cross(a - o, b - o); }
+
+auto dot(Point a, Point b) {
+	if constexpr (is_integral_v<Real>) {
+		return (__int128_t) a.x * b.x + (__int128_t) a.y * b.y;
+	} else {
+		return a.x * b.x + a.y * b.y;
+	}
+}
+
+// 两点式直线
+struct Line {
+	Point p1, p2;
+
+	Line() = default;
+	Line(Point a, Point b) : p1(a), p2(b) {}
+	// 斜率式 y = kx + c   AC https://qoj.ac/submission/2146870
+	Line(Real k, Real c) : p1(Point(0, c)), p2(Point(1, k + c)) {}
+	// 一般式 ax + by + c = 0（要求 Real 是浮点类型）
+	Line(Real a, Real b, Real c) : p1(), p2() {
+#ifdef LOCAL
+		assert(is_floating_point_v<Real>);
+#endif
+		// 方向向量 (b, -a)
+		if (b != 0) p1 = Point(0, -c / b);
+		else        p1 = Point(-c / a, 0);
+		p2 = Point(p1.x + b, p1.y - a);
+	}
+
+	friend bool operator<(Line a, Line b) {
+		if (a.p1 != b.p1) return a.p1 < b.p1;
+		return a.p2 < b.p2;
+	}
+	friend bool operator==(Line a, Line b) {
+		return a.p1 == b.p1 && a.p2 == b.p2;
+	}
+	friend istream &operator>>(istream &is, Line &e) {
+		Real a, b, c, d;
+		is >> a >> b >> c >> d;
+		e = Line(Point(a, b), Point(c, d));
+		return is;
+	}
+};
+
+mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+		\end{minted}
+
+		\textbf{参考题单}：\href{https://vjudge.net/article/12247}{计算几何模板题目总结}（vjudge）以及 \href{https://qoj.ac/contest/2646}{QOJ 模板赛 2646}。
+
+		\subsection{点在线上的投影点}
+
+		\href{https://vjudge.net/solution/64166651}{vjudge 提交}。
+
+		设 \texttt{vec = l.p2 - l.p1}，把向量 \texttt{p - l.p1} 在 \texttt{vec} 方向上的归一化投影长度记为 $r$，于是投影点等于 \texttt{l.p1 + r * vec}。\textbf{要求 \texttt{Point} 是浮点类型}（否则除法会丢精度）。
+
+		\begin{minted}{cpp}
+// 依赖（基础模板已定义）：
+//   struct Point, struct Line
+//   dot(Point, Point)
+Point project(Point p, Line l) {
+#ifdef LOCAL
+	assert(is_floating_point_v<Real>); // Real 必须浮点，否则除法静默丢精度
+#endif
+	Point vec = l.p2 - l.p1;
+	DB r = dot(vec, p - l.p1) / ((DB) vec.x * vec.x + vec.y * vec.y);
+	return l.p1 + vec * r;
+}
+		\end{minted}
+
+		\subsection{对称点}
+
+		\href{https://vjudge.net/solution/64168723}{vjudge 提交}。
+
+		设 \texttt{proj} 为投影点，则对称点 \texttt{= proj + proj - p}。直观上：\textcolor{blue}{\textbf{以投影点为中点}}，原点和对称点处于直线两侧、距离相等。
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\draw[thick, blue!70!black] (-2.2, 0) -- (2.6, 0) node[right, font=\scriptsize] {$L$};
+				\coordinate (P)  at (0.5,  1.4);
+				\coordinate (Pp) at (0.5,  0);
+				\coordinate (Pr) at (0.5, -1.4);
+				\draw[dashed, gray] (P) -- (Pr);
+				\draw[gray] (0.3, 0) -- (0.3, 0.2) -- (0.5, 0.2);
+				\fill[red]    (P)  circle (1.8pt) node[above right, font=\scriptsize, color=red]    {$P$};
+				\fill[teal]   (Pp) circle (1.8pt) node[above left,  font=\scriptsize, color=teal]   {$P'$ (proj)};
+				\fill[orange] (Pr) circle (1.8pt) node[below right, font=\scriptsize, color=orange] {$P''$};
+				\draw[<->, blue!50!black, thin] (-1.5, 0.05) -- (-1.5, 1.35) node[midway, left, font=\tiny] {$d$};
+				\draw[<->, blue!50!black, thin] (-1.5, -0.05) -- (-1.5, -1.35) node[midway, left, font=\tiny] {$d$};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：$P'$（投影）是 $P$ 到 $L$ 的垂足；$P''$（对称点）满足 $P'$ 是 $P, P''$ 中点，从而 $P'' = 2P' - P$。}
+		\end{center}
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line
+//   project(Point, Line)（见前一节）
+Point reflect(Point p, Line l) {
+	Point proj = project(p, l);
+	return proj + proj - p;
+}
+		\end{minted}
+
+		\subsection{点线位置判断（CCW）}
+
+		\href{https://vjudge.net/solution/64174955}{vjudge 提交}。
+
+		给一条有向直线 $\overrightarrow{a \to b}$，目标点 $p$ 落在何处由 $\mathrm{cross}(\vec{ab}, \vec{ap})$ 与 $\mathrm{dot}(\vec{ab}, \vec{ap})$ 决定，共五种情况：
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth, x=1cm, y=1cm]
+				\begin{scope}
+					\draw[->, thick] (0,0) -- (1.2,0);
+					\fill (0,0) circle (1pt); \fill (1.2,0) circle (1pt);
+					\fill[teal] (0.6, 0.5) circle (1.6pt) node[above, font=\tiny, color=teal] {$p$};
+					\node[font=\tiny, anchor=north] at (0.6, -0.55) {COUNTER\_CCW};
+				\end{scope}
+				\begin{scope}[xshift=2.4cm]
+					\draw[->, thick] (0,0) -- (1.2,0);
+					\fill (0,0) circle (1pt); \fill (1.2,0) circle (1pt);
+					\fill[orange] (0.6, -0.5) circle (1.6pt) node[below, font=\tiny, color=orange] {$p$};
+					\node[font=\tiny, anchor=north] at (0.6, -0.85) {CLOCKWISE};
+				\end{scope}
+				\begin{scope}[xshift=4.8cm]
+					\draw[->, thick] (0,0) -- (1.2,0);
+					\fill (0,0) circle (1pt); \fill (1.2,0) circle (1pt);
+					\fill[violet] (-0.5, 0) circle (1.6pt) node[above, font=\tiny, color=violet] {$p$};
+					\node[font=\tiny, anchor=north] at (0.35, -0.55) {ONLINE\_BACK};
+				\end{scope}
+
+				\begin{scope}[yshift=-2.0cm]
+					\draw[->, thick] (0,0) -- (1.2,0);
+					\fill (0,0) circle (1pt); \fill (1.2,0) circle (1pt);
+					\fill[red] (1.7, 0) circle (1.6pt) node[above, font=\tiny, color=red] {$p$};
+					\node[font=\tiny, anchor=north] at (0.85, -0.55) {ONLINE\_FRONT};
+				\end{scope}
+				\begin{scope}[xshift=2.4cm, yshift=-2.0cm]
+					\draw[->, thick] (0,0) -- (1.2,0);
+					\fill (0,0) circle (1pt); \fill (1.2,0) circle (1pt);
+					\fill[blue] (0.6, 0) circle (1.6pt) node[above, font=\tiny, color=blue] {$p$};
+					\node[font=\tiny, anchor=north] at (0.6, -0.55) {ON\_SEGMENT};
+				\end{scope}
+				\node[font=\tiny] at (0, 0.18) {$a$};
+				\node[font=\tiny] at (1.2, 0.18) {$b$};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：先看 $\mathrm{cross}(\vec{ab},\vec{ap})$ 的符号——正左 / 负右；为零再看 $\mathrm{dot}$ 与 $|\vec{ab}|, |\vec{ap}|$ 的比较，区分 $p$ 落在线段反方向延长（BACK）、正方向延长（FRONT）还是线段内部（ON）。}
+		\end{center}
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line, using Vector = Point
+//   sgn, cross, dot
+//   Point::norm()
+constexpr int ON_SEGMENT        =  0;
+constexpr int COUNTER_CLOCKWISE =  1;
+constexpr int CLOCKWISE         = -1;
+constexpr int ONLINE_BACK       =  2;
+constexpr int ONLINE_FRONT      = -2;
+
+int CCW(Point p, Line l) {
+	Vector a = l.p2 - l.p1, b = p - l.p1;
+	if (sgn(cross(a, b)) > 0) return COUNTER_CLOCKWISE;
+	if (sgn(cross(a, b)) < 0) return CLOCKWISE;
+	if (sgn(dot(a, b)) < 0)   return ONLINE_BACK;
+	if (a.norm() < b.norm())  return ONLINE_FRONT;
+	return ON_SEGMENT;
+}
+		\end{minted}
+
+		\subsection{判断两直线是否垂直 / 平行}
+
+		\href{https://vjudge.net/solution/64175524}{vjudge 提交}。
+
+		分别取两条直线的方向向量，看 \texttt{dot} 是否为零（垂直）或 \texttt{cross} 是否为零（平行）。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Line, using Vector = Point
+//   sgn, cross, dot
+bool isOrthogonal(Line a, Line b) {
+	Vector c = a.p2 - a.p1, d = b.p2 - b.p1;
+	return !sgn(dot(c, d));
+}
+bool isParallel(Line a, Line b) {
+	Vector c = a.p2 - a.p1, d = b.p2 - b.p1;
+	return !sgn(cross(c, d));
+}
+		\end{minted}
+
+		\subsection{判断两线段是否相交}
+
+		\href{https://vjudge.net/solution/64175810}{vjudge 提交}。
+
+		\texttt{a} 与 \texttt{b} 相交当且仅当 \texttt{b} 的两端点关于 \texttt{a} 异侧（含端点重合）\textbf{且} \texttt{a} 的两端点关于 \texttt{b} 异侧。利用 \texttt{CCW} 的符号相乘 $\le 0$ 即可。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Line
+//   CCW(Point, Line)
+bool isIntersect(Line a, Line b) {
+	return CCW(b.p1, a) * CCW(b.p2, a) <= 0
+	    && CCW(a.p1, b) * CCW(a.p2, b) <= 0;
+}
+		\end{minted}
+
+		\subsection{两条直线交点}
+
+		\href{https://vjudge.net/solution/64186810}{vjudge 提交}。
+
+		设两条直线分别用方向式 $p + t\vec{v}$、$q + s\vec{w}$。在交点处：
+		\begin{align*}
+			p + t\vec{v} &= q + s\vec{w} \\
+			(p - q) \times \vec{w} + t\, \vec{v} \times \vec{w} &= 0 \quad (\text{两边叉乘 } \vec{w}\text{，自身叉乘消去 } s\vec{w}) \\
+			t &= \dfrac{\vec{w} \times (q - p)}{\vec{v} \times \vec{w}}
+		\end{align*}
+		交点即 $p + t\vec{v}$。\textbf{\texttt{Real} 必须是 \texttt{DB}}（除法会丢精度）。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line
+//   cross(Point, Point)
+// 注意：Real 必须是 DB（除法精度要求）；LOCAL 下 assert 防误用整数 Real
+Point getintersect(const Line &a, const Line &b) {
+#ifdef LOCAL
+	assert(is_floating_point_v<Real>);
+#endif
+	Point p = a.p1, v = a.p2 - a.p1, q = b.p1, w = b.p2 - b.p1;
+	Point u = p - q;
+	// 整数 Real 下 cross 返回 __int128，整型除法会截断；先 (DB) 显式转
+	DB t = (DB) cross(w, u) / cross(v, w);
+	return p + v * t;
+}
+		\end{minted}
+
+		\subsection{两线段间最小距离}
+
+		\href{https://vjudge.net/solution/64187931}{vjudge 提交}。
+
+		若两线段相交则距离为 $0$；否则取四个「端点 → 对方线段」距离的最小值。点到线段距离 \texttt{distancePS} 中要先判断投影是否落在线段两端之外，落到外面就退化为对应端点的距离。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line, using Vector = Point
+//   sgn, cross, dot
+//   Point::abs()
+//   isIntersect(Line, Line)
+DB distancePL(Point p, Line l) {
+	auto val = cross(l.p1, l.p2, p); // 三参数：以 l.p1 为原点
+	return sgn(val) * val / (l.p2 - l.p1).abs();
+}
+
+// AC https://qoj.ac/submission/2001668
+DB distancePS(Point p, Line l) {
+	if (l.p1 == l.p2) return (p - l.p1).abs(); // 退化为点
+	Vector t = l.p2 - l.p1;
+	if (sgn(dot(t, p - l.p1)) < 0) return (p - l.p1).abs();
+	if (sgn(dot(t, p - l.p2)) > 0) return (p - l.p2).abs();
+	return distancePL(p, l);
+}
+
+// AC https://qoj.ac/submission/2001588
+DB distanceSS(Line a, Line b) {
+	if (isIntersect(a, b)) return 0;
+	return min({distancePS(a.p1, b), distancePS(a.p2, b),
+	            distancePS(b.p1, a), distancePS(b.p2, a)});
+}
+		\end{minted}
+
+		\subsection{多边形面积}
+
+		\href{https://vjudge.net/solution/64207564}{vjudge 提交}。
+
+		用「向量叉乘求三角形有向面积之和」（鞋带公式）：
+		$$
+		A = \frac{1}{2} \left| \sum_{i=0}^{n-1} \mathrm{cross}(P_i, P_{(i+1) \bmod n}) \right|
+		$$
+		逆时针排列时 $\sum$ 本身已为正，顺时针为负，统一取绝对值。
+
+		\textbf{拆出 \texttt{polygonSignedArea}}：返回值 \texttt{auto} 跟着 \texttt{cross} 走（整数 \texttt{Real} $\to$ \texttt{i128}，浮点 \texttt{Real} $\to$ \texttt{Real}）。\textcolor{red}{\textbf{不要}}像旧版那样写成 \texttt{DB res = 0; res += cross(...)}——在整数 \texttt{Real} 下 \texttt{cross} 返回 \texttt{\_\_int128\_t}，赋给 \texttt{double} 累加器会在 $|val| > 2^{53}$ 时丢精度。除此之外，\texttt{reorder\_polygon} 也复用 \texttt{polygonSignedArea} 取符号判方向，避免「前三点共线」时的局部退化。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point
+//   cross(Point, Point)
+//   Point::abs()
+
+// 多边形 2 倍有向面积（不除 2 以保整数精度）
+// 返回类型 auto：整数 Real -> i128，浮点 Real -> Real
+// > 0: CCW；< 0: CW；== 0: 退化（全共线 / 自交）
+auto polygonSignedArea(const vector<Point> &poly) {
+	auto res = cross(Point(), Point()); // 零值，类型由 cross 继承
+	size_t n = poly.size();
+	for (size_t i = 0; i < n; ++i) res += cross(poly[i], poly[(i + 1) % n]);
+	return res;
+}
+
+DB polygonArea(const vector<Point> &poly) {
+	auto s = polygonSignedArea(poly);
+	if (s < 0) s = -s;
+	return (DB) s / 2.0;
+}
+
+DB polygon_perimeter(const vector<Point> &poly) {
+	DB res = 0;
+	size_t n = poly.size();
+	for (int i = 0; i < n; ++i) res += (poly[i] - poly[(i + 1) % n]).abs();
+	return res;
+}
+		\end{minted}
+
+		\subsection{多边形凸性检验}
+
+		\textbf{允许的输入}：\textcolor{red}{\textbf{不允许自交}}的多边形，顺序可顺可逆，函数会顺手把 \texttt{poly} 旋转 / 反向到「最左下点位 \texttt{[0]} + CCW 顺序」。
+
+		下面是三类\textbf{不被认为是凸多边形}的反例。
+
+		\subsubsection{反例 1：内角为反向凹角（外角为锐角）}
+
+		外角是锐角时 $\sin > 0$，叉乘也 $> 0$，看似 CCW；但其实形成的是\textcolor{red}{凹陷}。
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\draw[thick] (0,0) -- (3,0) -- (3,2) -- (1.5,1) -- (0,2) -- cycle;
+				\fill[red] (1.5,1) circle (2pt);
+				\node[font=\scriptsize, color=red, anchor=west] at (1.6,1) {反向凹角};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：标红顶点的内角 $> 180^{\circ}$（反射角），\texttt{isConvex} 中第一遍 \texttt{cross(poly[i] - poly[0], poly[i+1] - poly[0]) <= 0} 触发返回 false。}
+		\end{center}
+
+		\subsubsection{反例 2：自交多边形（蝴蝶结）}
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\draw[thick] (0,0) -- (3,2) -- (3,0) -- (0,2) -- cycle;
+				\fill[red] (1.5,1) circle (2pt);
+				\node[font=\scriptsize, color=red, anchor=west] at (1.6,1) {自交点};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：四个顶点排成蝴蝶结，相对 \texttt{poly[0]} 不再是单调 CCW 排列，第一遍叉乘扫描即被排除。}
+		\end{center}
+
+		\subsubsection{反例 3：内角恰为 $180^{\circ}$}
+
+		三点共线（叉乘 \texttt{= 0}）也不允许，否则会让边数虚假增加。
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\draw[thick] (0,0) -- (1.5,0) -- (3,0) -- (1.5,2.2) -- cycle;
+				\fill[red] (1.5,0) circle (2pt);
+				\node[font=\scriptsize, color=red, anchor=north] at (1.5,-0.05) {$180^{\circ}$};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：底边上多了一个 $180^{\circ}$ 顶点，第二遍 \texttt{cross(a, b) <= 0} 等号触发返回 false（严格大于零才算凸）。}
+		\end{center}
+
+		\textbf{实现}：\texttt{reorder\_polygon} 把多边形旋转 / 反向到「最左下点位 \texttt{[0]} + CCW 顺序」，再分两轮检查：(a)~所有顶点相对于 \texttt{poly[0]} 是 CCW 排列；(b)~每个内角的叉乘符号合规。
+
+		\textbf{\texttt{reorder\_polygon} 用整体 \texttt{polygonSignedArea} 判方向}，\textcolor{red}{\textbf{不要}}用「前三点 \texttt{cross}」局部判向：含三点共线的多边形（如长方形 + 边密集共线）前三点 \texttt{cross = 0}，会被旧版 \texttt{<= 0} 误判为 CW 而强 reverse，下游 \texttt{isConvex} / 旋转卡壳全部失效（QOJ 784 实测）。
+
+		\textbf{\texttt{isConvex} 加 \texttt{strict} 参数}：
+		\begin{itemize}
+					\setlength\itemsep{0pt}
+				\item \texttt{strict = true}（默认）：严格凸，拒绝三点共线 / 内角 = $180^{\circ}$；
+				\item \texttt{strict = false}：弱凸，允许内角 = $180^{\circ}$（题面用「凸」时常允许共线，要的就是这个口径）。
+		\end{itemize}
+		\textbf{加宽接受范围有时是发现底层 bug 的好工具}：本次就是因为加 \texttt{strict = false} 后 lax 模式 fail，才暴露出 \texttt{reorder\_polygon} 的隐藏 bug——strict 模式因为 \texttt{<= 0} 提前 short-circuit 把它掩盖了。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, using Vector = Point
+//   sgn, cross（含三参数）, polygonSignedArea
+void reorder_polygon(vector<Point> &poly) {
+	ll n = poly.size();
+	// 整体有向面积判向，避免「前三点共线」的局部退化（QOJ 784 反例）
+	if (sgn(polygonSignedArea(poly)) < 0) reverse(poly.begin(), poly.end());
+	// 找到字典序最小的点并循环左移到 [0]
+	ll pos_mn = 0;
+	for (int i = 1; i < n; ++i) if (poly[i] < poly[pos_mn]) pos_mn = i;
+	rotate(poly.begin(), poly.begin() + pos_mn, poly.end());
+}
+
+// 不允许自交的多边形，顺序都可以；会把 poly 变为 CCW 顺序
+// AC https://qoj.ac/submission/2002121
+// strict = true : 严格凸（拒绝三点共线 / 内角 = 180°）
+// strict = false: 弱凸  （允许三点共线 / 内角 = 180°），题面允许共线时用
+bool isConvex(vector<Point> poly, bool strict = true) {
+	ll n = poly.size();
+	if (n <= 2) return false; // 0 / 1 / 2 点不是多边形
+	reorder_polygon(poly);
+	auto fail = [&](int s) { return strict ? s <= 0 : s < 0; };
+	// 所有顶点相对 poly[0] 应按 CCW 整齐排列，否则是星形 / 乱序
+	bool has_turn = false; // 至少一处真左转，排除全共线（面积 = 0）退化
+	for (int i = 1; i < n - 1; ++i) {
+		int s = sgn(cross(poly[0], poly[i], poly[i + 1]));
+		if (fail(s)) return false;
+		if (s > 0) has_turn = true;
+	}
+	// 弱凸下若全程 cross == 0（全部点共线、面积 = 0）也得拒；
+	// strict 下 has_turn 在第一轮必为 true，此判等价空操作
+	if (!has_turn) return false;
+	// strict 时拒绝内角 = 180°（sgn = 0），弱凸只拒绝凹（sgn < 0）
+	for (int i = 0; i < n; ++i) {
+		ll i1 = (i + 1) % n, i2 = (i + 2) % n;
+		Vector a = poly[i1] - poly[i], b = poly[i2] - poly[i1];
+		if (fail(sgn(cross(a, b)))) return false;
+	}
+	return true;
+}
+		\end{minted}
+
+		\subsection{点与多边形关系}
+
+		多边形未必凸——「有向面积一定为正」的方法在凹多边形上失效，所以采用经典的\textbf{射线奇偶法}。
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\draw[thick] (0,0) -- (3.2,0.3) -- (3.6,2) -- (2.2,1.4) -- (2,2.7) -- (0.5,2.2) -- cycle;
+				\coordinate (Pin)  at (1.4, 1.4);
+				\coordinate (Pout) at (1.4, -0.6);
+				\fill[red]   (Pin)  circle (2pt) node[above, font=\scriptsize, color=red]   {$P_{\text{in}}$};
+				\fill[blue]  (Pout) circle (2pt) node[below, font=\scriptsize, color=blue]  {$P_{\text{out}}$};
+				\draw[->, dashed, red]  (Pin)  -- (5.0, 1.4);
+				\draw[->, dashed, blue] (Pout) -- (5.0, -0.6);
+				\node[font=\tiny, color=red,  anchor=south] at (4.0, 1.45) {1 次相交（奇）→ 在内};
+				\node[font=\tiny, color=blue, anchor=north] at (4.0, -0.65) {0 次相交（偶）→ 在外};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：从待判定点向任意方向打一条射线，统计与多边形边的相交次数。\textbf{奇 = 在内，偶 = 在外}。代码里射线方向用 \texttt{rng()} 随机，避开「射线恰好穿过顶点」的共线退化。}
+		\end{center}
+
+		返回值约定：\texttt{2}~=~严格在内、\texttt{1}~=~点落在某条边上、\texttt{0}~=~严格在外。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line
+//   CCW(Point, Line), ON_SEGMENT
+//   isIntersect(Line, Line)
+//   mt19937 rng（基础模板已定义）
+//   宏 SZ（用户自定义，等价于 (int)x.size()）
+int isInPolygon(Point p, const vector<Point> &poly) {
+	ll res = 0;
+	Line l(p, p + Point(2e5, rng()));
+	for (int i = 0; i < poly.size(); ++i) {
+		int i1 = (i + 1) % SZ(poly);
+		Line seg = Line(poly[i], poly[i1]);
+		int ccw = CCW(p, seg);
+		if (ccw == ON_SEGMENT) return 1;
+		if (isIntersect(l, seg)) ++res;
+	}
+	// 奇偶法则：射线相交奇数条边 = 在内
+	return (res & 1) ? 2 : 0;
+}
+		\end{minted}
+
+		\subsection{极角排序}
+
+		按 \texttt{atan2(y, x)} 排序时，注意 \texttt{atan2} 浮点本身的精度问题。\textbf{规避调用 atan2} 的做法：先按「下半平面 / x 轴正向 / 上半平面」三档分桶，桶内再用叉乘符号判定相对方位。这样所有比较都用整数叉乘完成，没有浮点误差。
+
+		起点是 $x$ 轴正半轴（含原点），逆时针环绕一周到 $x$ 轴负半轴（不含）。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point
+//   sgn, cross
+int get_part_of_point(const Point &p) {
+	if (p.y < 0) return 0;             // 下半平面 (-pi, 0)
+	if (p.y == 0 && p.x >= 0) return 1; // 角度为 0
+	return 2;                           // 上半平面 (0, pi]
+}
+
+// 按 atan2(y, x) 升序排，但用整数叉乘规避浮点
+// AC https://qoj.ac/submission/2001485
+void polar_angle_sort(vector<Point> &poly) {
+	sort(poly.begin(), poly.end(), [](const Point &a, const Point &b) -> bool {
+		int part1 = get_part_of_point(a), part2 = get_part_of_point(b);
+		if (part1 != part2) return part1 < part2;
+		return sgn(cross(a, b)) == 1;
+	});
+}
+		\end{minted}
+
+		\subsection{Minkowski 闵可夫斯基和}
+
+		给定两个凸包 $P_1$、$P_2$，定义其闵可夫斯基和：
+		$$
+		P_1 \oplus P_2 = \{a + b \mid a \in P_1,\ b \in P_2\}
+		$$
+		结果仍是凸包。\textbf{减法}就等价于「加上对方关于原点的中心对称图形」，这是判断两凸包是否相交、求最近距离的常用技巧。
+
+		\begin{center}
+			\begin{tikzpicture}[>=Stealth]
+				\begin{scope}
+					\draw[blue, thick] (-0.6,-0.6) rectangle (0.6, 0.6);
+					\node[font=\scriptsize] at (0, -1.0) {$P_1$};
+				\end{scope}
+				\begin{scope}[xshift=2.0cm]
+					\node[font=\scriptsize, anchor=center] at (-0.85, 0) {$\oplus$};
+					\draw[orange, thick] (0,0) circle (0.4);
+					\node[font=\scriptsize] at (0, -1.0) {$P_2$};
+				\end{scope}
+				\begin{scope}[xshift=4.4cm]
+					\node[font=\scriptsize, anchor=center] at (-0.95, 0) {$=$};
+					\draw[teal, thick] (-0.6, -1.0) -- (0.6, -1.0);
+					\draw[teal, thick] (-0.6,  1.0) -- (0.6,  1.0);
+					\draw[teal, thick] (-1.0, -0.6) -- (-1.0, 0.6);
+					\draw[teal, thick] ( 1.0, -0.6) -- (1.0,  0.6);
+					\draw[teal, thick] (0.6, 1.0)  arc (90:0:0.4);
+					\draw[teal, thick] (1.0, -0.6) arc (0:-90:0.4);
+					\draw[teal, thick] (-0.6, -1.0) arc (270:180:0.4);
+					\draw[teal, thick] (-1.0, 0.6)  arc (180:90:0.4);
+					\node[font=\scriptsize] at (0, -1.4) {$P_1 \oplus P_2$};
+				\end{scope}
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：正方形 + 圆 = 圆角矩形——四条直边长度等于原正方形的边长，四个角是半径等于圆半径的四分之一圆弧（这是几何上严格的 Minkowski 和）。}
+		\end{center}
+
+		\textbf{算法核心}：先把两个凸包都 \texttt{reorder\_polygon}（最左下点起、CCW 顺序），然后\textbf{把它们的边向量按极角合并}（类似归并排序的归并步）：每次比较两条候选边向量的叉乘符号，挑极角更小的那条接到答案末尾。起点设为 $P_1[0] + P_2[0]$，沿合并后的边向量逐条累加即得新凸包。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point
+//   sgn, cross
+//   reorder_polygon（见多边形凸性检验一节）
+// 参考 hh2048/XCPC 的 mincowski    AC https://qoj.ac/submission/2002545
+vector<Point> minkowski(vector<Point> &P1, vector<Point> &P2) {
+	reorder_polygon(P1);
+	reorder_polygon(P2);
+	int n = P1.size(), m = P2.size();
+	vector<Point> V1(n), V2(m);
+	for (int i = 0; i < n; i++) V1[i] = P1[(i + 1) % n] - P1[i];
+	for (int i = 0; i < m; i++) V2[i] = P2[(i + 1) % m] - P2[i];
+	vector<Point> ans = {P1.front() + P2.front()};
+	int i = 0, j = 0;
+	while (i < n && j < m) {
+		// cross(V1, V2) > 0 说明 V1 极角更小（CCW 下），先选小的
+		Point val = sgn(cross(V1[i], V2[j])) > 0 ? V1[i++] : V2[j++];
+		ans.push_back(ans.back() + val);
+	}
+	while (i < n) ans.push_back(ans.back() + V1[i++]);
+	while (j < m) ans.push_back(ans.back() + V2[j++]);
+	return ans;
+}
+		\end{minted}
+
+		\subsection{凸包（Andrew 算法）}
+
+		按 $x$ 升序、$x$ 相同按 $y$ 升序排序后，从左到右扫一遍维护下凸包，再从右到左扫一遍维护上凸包，把两段拼起来即可。
+
+		\textbf{\texttt{strict} 参数}决定共线点处理：\texttt{strict = true} 时 \texttt{cross == 0}（共线）也弹栈，\textbf{不保留共线点}；\texttt{strict = false} 时只在 \texttt{cross < 0}（凹陷）才弹，\textbf{保留共线点}（题目要求「凸包上所有点」时用）。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point
+//   cross(Point, Point) 与三参数 cross(Point, Point, Point)
+// strict = true:  严格凸包（不保留三点共线的中间点）
+// strict = false: 弱凸包  （保留三点共线的中间点）
+vector<Point> make_convex_hull(vector<Point> A, bool strict) {
+	size_t n = A.size();
+	if (n <= 2) return A;
+	vector<Point> ans(n * 2);
+	// Andrew：先按 X 排序，X 相同按 Y 排序
+	sort(A.begin(), A.end());
+	// strict 时 cross == 0 共线也弹；弱凸只在 cross < 0 凹陷时弹
+	auto fail = [&](ll s) { return strict ? s >= 0 : s > 0; };
+	int now = -1;
+	for (int i = 0; i < n; i++) {
+		// 三参数 cross：以 A[i] 为锚点判 ans[now] -> ans[now-1] 的转向
+		while (now > 0 && fail(sgn(cross(A[i], ans[now], ans[now - 1]))))
+			now--;
+		ans[++now] = A[i];
+	}
+	int pre = now;
+	// 从右向左扫维护上凸包
+	for (int i = n - 2; i >= 0; i--) {
+		while (now > pre && fail(sgn(cross(A[i], ans[now], ans[now - 1]))))
+			now--;
+		ans[++now] = A[i];
+	}
+	ans.resize(now);
+	return ans;
+}
+		\end{minted}
+
+		\subsection{凸多边形直径（旋转卡壳）}
+
+		\href{https://vjudge.net/problem/QOJ-784}{QOJ 784}（凸多边形直径模板题）。
+
+		给一个 \textbf{逆时针顺序}的 $n$ 凸多边形（允许三点共线），求最远点对的距离。\textcolor{blue}{\textbf{旋转卡壳}}的标准技巧：把每条边 $A[r] \to A[r{+}1]$ 当成一条「卡尺」，对踵点 $A[l]$ 是离这条边最远的顶点。$r$ 沿 CCW 扫一圈时 $l$ 单调（不回退），整体 $O(n)$。
+
+		\textbf{关键判据}：$l$ 该不该往前推一步？看「以边 $(r,\,r{+}1)$ 为底、$l{+}1$ vs $l$ 为顶」的两个三角形面积——后者 $\ge$ 前者就推。\textbf{比直接比距离平方更鲁棒}：曲率非均匀的凸包（如 spike 形 $r(\theta) = 1 + 0.1\sin(7\theta)$）下 $|A[l] - A[r]|^2$ 沿 $r$ 不是单峰会卡死，但「以边为底的三角形面积」仍是单峰。
+
+		\textbf{4 个不要踩的坑}（QOJ 784 session 实录，每个都有真实反例）：
+		\begin{enumerate}
+					\setlength\itemsep{0pt}
+				\item \textbf{不要做点对踵}：以 $|A[l] - A[r]|^2$ 沿 $r$ 找单峰只在「曲率均匀」凸包成立，cyaron 默认凸包形是盲区——必死于 spike 形；
+				\item \textbf{$l, r$ 角色不能反}：必须「外层 $r$ 是边、内层 $l$ 是点」，反过来 $|\text{edge}|$ 乘子会破坏单峰；
+				\item \textbf{ans 候选取两个}：$(A[l], A[r])$ 和 $(A[l], A[r{+}1])$ 都要更新，只取一个会漏掉「边端点本身就是最远对」的情形；
+				\item \textbf{推进用 $\le$ 不是 $<$}：plateau（两个候选三角形面积相等）起点要继续推到 plateau 末端，严格 $<$ 会卡在起点。
+		\end{enumerate}
+
+		\textbf{对拍提醒}：几何题对拍\textbf{必须用曲率非均匀的形状}（spike / heart / lemon / 椭圆），cyaron \texttt{Polygon.convex\_hull} 默认是近圆形，stress 5000+ case 全过会让你错误推断「算法对」。详见 \texttt{cyaron-stress} skill。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, sqrtL（基础模板已定义）
+//   cross（含三参数）, isConvex（LOCAL 校验用，弱凸口径）
+//   宏 SZ, all（用户自定义）
+
+// 距离平方（不开方）：旋转卡壳里 ans 反复更新，留到最后一次 sqrt
+auto distancePPNorm(const Point &a, const Point &b) {
+	return (a - b).norm();
+}
+
+// 以 CCW 顺序给定 n 点凸多边形（允许三点共线），求直径（最远点对距离）
+long double convex_diameter(const vector<Point> &A) {
+#ifdef LOCAL
+	vector<Point> B(all(A));
+	assert(isConvex(B, false)); // 弱凸即可，允许三点共线
+#endif
+	// 退化输入特判：n <= 2 时 area() 恒 0 会让 need_l_move 永真死循环
+	if (SZ(A) <= 1) return 0;
+	if (SZ(A) == 2) return sqrtL(distancePPNorm(A[0], A[1]));
+	auto ans = (A[0] - A[0]).norm(); // 零值，类型由 norm 继承
+	// 以边 (r, r+1) 为底，A[l] 为顶的三角形 2 倍面积
+	auto area = [&](ll l, ll r) {
+		auto res = cross(A[r], A[(r + 1) % SZ(A)], A[l]);
+		if (res < 0) res = -res;
+		return res;
+	};
+	// l 是否还要向前推？比较 (l, r) vs (l+1, r) 三角形面积
+	// 用 <= 推到 plateau 末端，严格 < 会卡在 plateau 起点
+	auto need_l_move = [&](ll l, ll r) -> bool {
+		return area(l, r) <= area((l + 1) % SZ(A), r);
+	};
+	for (int l = 0, r = 0; r < SZ(A); ++r) {
+		while (need_l_move(l, r)) l = (l + 1) % SZ(A);
+		ans = max(ans, distancePPNorm(A[l], A[r]));
+		ans = max(ans, distancePPNorm(A[l], A[(r + 1) % SZ(A)])); // 第二候选
+	}
+	return sqrtL(ans);
+}
+		\end{minted}
+
+		\subsection{最远点对（旋转卡壳，返回原始下标）}
+
+		\href{https://www.luogu.com.cn/problem/P16223}{Luogu P16223}。
+
+		\texttt{convex\_diameter} 只返回距离；要把最远点对的原始输入下标也输出回来，靠 \texttt{Point::id} 字段：读入时填 \texttt{A[i].id = i}，\texttt{make\_convex\_hull} 不做派生运算（仅 \texttt{sort} + 拷贝原点入栈），凸包顶点继承原始 \texttt{id}。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point（带 id 字段）
+//   cross（三参数）, distancePPNorm, make_convex_hull
+//   宏 SZ（用户自定义）
+pair<int, int> furthest_pair_of_point(vector<Point> A) {
+	A = make_convex_hull(A, true);
+	// 退化短路：hull == 1 全重合；hull == 2 全共线（area=0 死循环）
+	if (SZ(A) == 1) return {A[0].id, A[0].id};
+	if (SZ(A) == 2) return {A[0].id, A[1].id};
+	i128 ans = 0;
+	auto area = [&](ll l, ll r) {
+		auto res = cross(A[r], A[(r + 1) % SZ(A)], A[l]);
+		if (res < 0) res = -res;
+		return res;
+	};
+	auto need_l_move = [&](ll l, ll r) -> bool {
+		return area(l, r) <= area((l + 1) % SZ(A), r);
+	};
+	pair<int, int> ans_pair;
+	for (int l = 0, r = 0; r < SZ(A); ++r) {
+		while (need_l_move(l, r)) l = (l + 1) % SZ(A);
+		if (distancePPNorm(A[l], A[r]) > ans) {
+			ans = distancePPNorm(A[l], A[r]);
+			ans_pair = {A[l].id, A[r].id};
+		}
+		int rn = (r + 1) % SZ(A);
+		if (distancePPNorm(A[l], A[rn]) > ans) {
+			ans = distancePPNorm(A[l], A[rn]);
+			ans_pair = {A[l].id, A[rn].id};
+		}
+	}
+	return ans_pair;
+}
+		\end{minted}
+
+		\textbf{调用样板}（读入时给 \texttt{id}）：
+		\begin{minted}{cpp}
+ll N; cin >> N;
+vector<Point> A(N);
+for (int i = 0; i < N; ++i) {
+	cin >> A[i];
+	A[i].id = i;
+}
+auto [l, r] = furthest_pair_of_point(A);
+cout << l << " " << r << '\n';
+		\end{minted}
+
+		\subsection{最小矩形覆盖（旋转卡壳，4 指针）}
+
+		\href{https://vjudge.net/problem/Luogu-P3187}{Luogu P3187 [HNOI2007] 最小矩形覆盖}。
+
+		给一个点集，求面积最小、把所有点框住的矩形（不必轴对齐）。\textbf{关键定理}：最小覆盖矩形必有一条边与凸包某条边重合。所以枚举每条凸包边 $e$ 当矩形底边，三指针单调推进维护：
+		\begin{itemize}
+				\setlength\itemsep{0pt}
+			\item \texttt{up}：以 $e$ 为底时离 $e$ 最远的顶点（决定矩形高 $h$）；
+			\item \texttt{r} / \texttt{l}：在 $e$ 方向上投影最大 / 最小的顶点（决定宽 $w$ 的右 / 左端）。
+		\end{itemize}
+		外层 \texttt{edge} 沿 CCW 扫一圈，内层 \texttt{up}, \texttt{r}, \texttt{l} 各自单调（不回退），整体 $O(n)$。
+
+		\textbf{比较时不要早除}：实现里用 \texttt{w = dot(e, A[r] - A[l])}（长度乘子 $|e|$）和 \texttt{h = cross(e, A[up] - A[edge])}（同样乘子 $|e|$），所以 \texttt{area = w * h} 是真实矩形面积的 $|e|^2$ 倍。比较两条不同底边 $e$ 给出的候选时，正确做法是\textbf{交叉相乘}：
+		\[
+			\texttt{area} \cdot |e_{\text{best}}|^2 \quad\text{vs.}\quad \texttt{mn\_area} \cdot |e|^2
+		\]
+		这样保留整数趣味（\texttt{Real = ll} 时也成立），避免提前除 $|e|^2$ 丢精度。\textbf{还原 4 顶点}：底 / 顶切线方向 $\parallel e$，左 / 右切线方向 $\perp e$，4 条切线两两相交即得（用 \texttt{getintersect}，所以最终调用时 \texttt{Real} 必须是 \texttt{DB}）。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point, struct Line
+//   cross（含三参数）, dot, getintersect
+//   make_convex_hull(strict = true), Point::norm()
+//   宏 SZ（用户自定义）
+// 注意：调用时 Real 必须是 DB（getintersect 走浮点除法）
+pair<DB, array<Point, 4>> minimum_rectangle_cover(vector<Point> A) {
+#ifdef LOCAL
+	assert(is_floating_point_v<Real>);
+#endif
+	A = make_convex_hull(A, true);
+	int n = SZ(A);
+	auto e_of = [&](int i) { return A[(i + 1) % n] - A[i]; }; // 第 i 条边方向
+	int up = 0, l = 0, r = 0;
+	using Type = decltype(dot(A[0], A[0])); // 整数 Real 下是 i128，浮点是 Real
+	Type mn_area = 0;
+	// 第一遍：以 edge = 0 为底，暴力找 up / l / r 与初始 mn_area
+	{
+		auto e0 = e_of(0);
+		for (int i = 0; i < n; ++i) {
+			if (cross(e0, A[i] - A[0]) > cross(e0, A[up] - A[0])) up = i;
+			if (dot(e0, A[i] - A[0])   > dot(e0, A[r] - A[0]))   r  = i;
+			if (dot(e0, A[i] - A[0])   < dot(e0, A[l] - A[0]))   l  = i;
+		}
+		mn_area = dot(e0, A[r] - A[l]) * cross(e0, A[up] - A[0]);
+	}
+	int bestL = l, bestR = r, bestE = 0, bestUp = up;
+	// 第二遍：edge 沿 CCW 扫，三指针单调推进
+	for (int edge = 0; edge < n; ++edge) {
+		Point e = e_of(edge);
+		while (cross(e, A[(up + 1) % n] - A[edge]) > cross(e, A[up] - A[edge]))
+			up = (up + 1) % n;
+		while (dot(e, A[(r + 1) % n] - A[edge]) > dot(e, A[r] - A[edge]))
+			r = (r + 1) % n;
+		while (dot(e, A[(l + 1) % n] - A[edge]) < dot(e, A[l] - A[edge]))
+			l = (l + 1) % n;
+		auto w = dot(e, A[r] - A[l]);
+		auto h = cross(e, A[up] - A[edge]);
+		auto area = w * h;
+		// 交叉相乘比较，避免早除丢精度
+		if (area * e_of(bestE).norm() < mn_area * e.norm()) {
+			mn_area = area;
+			tie(bestL, bestR, bestE, bestUp) = make_tuple(l, r, edge, up);
+		}
+	}
+	// 还原 4 顶点：4 条切线（底 / 顶 平行 e；左 / 右 垂直 e）两两相交
+	Point e = e_of(bestE);
+	Point e_perp(-e.y, e.x); // CCW 90° 旋转
+	Line bottom(A[bestE],  A[bestE]  + e);
+	Line top_  (A[bestUp], A[bestUp] + e);
+	Line right_(A[bestR],  A[bestR]  + e_perp);
+	Line left_ (A[bestL],  A[bestL]  + e_perp);
+	array<Point, 4> corners = {
+		getintersect(bottom, left_),  // BL
+		getintersect(bottom, right_), // BR
+		getintersect(top_,   right_), // TR
+		getintersect(top_,   left_),  // TL
+	};
+	return {(long double) mn_area / e.norm(), corners};
+}
+		\end{minted}
+
+		\subsection{平面最近点对}
+
+		经典分治：把所有点按 $x$ 排序后，递归求左右两半的最小距离 $d$，再处理跨越中线、与中线 $x$ 距离 $< \sqrt{d}$ 的「窄带」候选点。
+
+		\textbf{难点}在于把窄带内的候选点收集起来后再按 $y$ 暴力扫一遍——技巧是从中线向两侧分别推进，一旦 $|\Delta x| \ge \sqrt{d}$ 立刻 \texttt{break}，避免把窄带退化成 $O(n)$。
+
+		\begin{minted}{cpp}
+// 依赖：
+//   struct Point
+//   dot(Point, Point)
+//   宏 SZ, FOR, ROF, EB（用户自定义）
+//   全局数组 Point A[MAXN]
+Point A[MAXN];
+struct Best {
+	Real d;
+	Point a, b;
+	bool operator<(const Best &o) const { return d < o.d; }
+};
+
+// 暴力求平面最近点对（按 y 排序后扫）
+Best mindis(vector<Point> &a, Best res) {
+	sort(all(a), [&](Point a, Point b) { return a.y < b.y; });
+	FOR(i, 1, SZ(a) - 1) {
+		ROF(j, i - 1, 0) {
+			Point p = a[i], q = a[j];
+			// y 距离平方已超出当前最优就早停
+			if ((p.y - q.y) * (p.y - q.y) > res.d) break;
+			Point v = p - q;
+			res = min(res, {dot(v, v), p, q});
+		}
+	}
+	return res;
+}
+
+Best dfs(int l, int r) {
+	if (l >= r) return {(ld) INF, A[l], A[l]};
+	if (r - l == 1) {
+		Point v = A[r] - A[l];
+		return {dot(v, v), A[l], A[r]};
+	}
+	int mid = r + l >> 1;
+	Best ret = dfs(l, mid);
+	ret = min(ret, dfs(mid + 1, r));
+	Real x = A[mid + 1].x;
+	vector<Point> wp;
+	// 左半向左推进，超出 sqrt(ret.d) 就停
+	ROF(i, mid, l) {
+		Real d = abs(A[i].x - x);
+		if (d * d < ret.d) wp.EB(A[i]);
+		else break;
+	}
+	// 右半向右推进
+	FOR(i, mid + 1, r) {
+		Real d = abs(A[i].x - x);
+		if (d * d < ret.d) wp.EB(A[i]);
+		else break;
+	}
+	return mindis(wp, ret);
+}
+		\end{minted}
+
+	\end{multicols*}
+
+	\newpage
+
+	\subsection{常用公式}
+
+	\subsubsection{正多边形面积公式}
+
+	设边数为 $n$、边长为 $l$：
+	$$
+	A = \dfrac{n \cdot l^2}{4 \cdot \tan\!\left(\dfrac{\pi}{n}\right)}
+	$$
+
+	\subsubsection{三角恒等式}
+
+	\textbf{和差角}：
+	\begin{align*}
+		\sin(\alpha \pm \beta) & = \sin\alpha\cos\beta \pm \cos\alpha\sin\beta                                  \\
+		\cos(\alpha \pm \beta) & = \cos\alpha\cos\beta \mp \sin\alpha\sin\beta                                  \\
+		\tan(\alpha \pm \beta) & = \dfrac{\tan\alpha \pm \tan\beta}{1 \mp \tan\alpha\tan\beta}
+	\end{align*}
+
+	\textbf{倍角}：
+	$$
+	\sin 2\theta = 2\sin\theta\cos\theta, \qquad
+	\cos 2\theta = \cos^2\theta - \sin^2\theta = 1 - 2\sin^2\theta = 2\cos^2\theta - 1
+	$$
+	$$
+	\tan 2\theta = \dfrac{2\tan\theta}{1 - \tan^2\theta}
+	$$
+
+	\textbf{降幂（把 $\theta$ 整体升到 $2\theta$）}：
+	$$
+	\sin^2\theta = \dfrac{1 - \cos 2\theta}{2}, \qquad
+	\cos^2\theta = \dfrac{1 + \cos 2\theta}{2}, \qquad
+	\sin\theta\cos\theta = \dfrac{\sin 2\theta}{2}
+	$$
+
+	\textbf{辅助角（线性叠加 $\to$ 单一正弦）}：
+	$$
+	a\sin\theta + b\cos\theta = \sqrt{a^2 + b^2}\,\sin(\theta + \varphi),
+	\qquad \tan\varphi = \dfrac{b}{a}
+	$$
+	极值即 $\pm\sqrt{a^2 + b^2}$，把单变量旋转优化变成闭式。
+
+	\textbf{积化和差}：
+	\begin{align*}
+		\sin\alpha\cos\beta & = \tfrac{1}{2}\bigl[\sin(\alpha+\beta) + \sin(\alpha-\beta)\bigr] \\
+		\cos\alpha\cos\beta & = \tfrac{1}{2}\bigl[\cos(\alpha+\beta) + \cos(\alpha-\beta)\bigr] \\
+		\sin\alpha\sin\beta & = \tfrac{1}{2}\bigl[\cos(\alpha-\beta) - \cos(\alpha+\beta)\bigr]
+	\end{align*}
+
+	\textbf{和差化积}：
+	\begin{align*}
+		\sin\alpha + \sin\beta & = 2\sin\tfrac{\alpha+\beta}{2}\cos\tfrac{\alpha-\beta}{2}  \\
+		\sin\alpha - \sin\beta & = 2\cos\tfrac{\alpha+\beta}{2}\sin\tfrac{\alpha-\beta}{2}  \\
+		\cos\alpha + \cos\beta & = 2\cos\tfrac{\alpha+\beta}{2}\cos\tfrac{\alpha-\beta}{2}  \\
+		\cos\alpha - \cos\beta & = -2\sin\tfrac{\alpha+\beta}{2}\sin\tfrac{\alpha-\beta}{2}
+	\end{align*}
+
+	\textbf{半角}：
+	$$
+	\sin\dfrac{\theta}{2} = \pm\sqrt{\dfrac{1-\cos\theta}{2}}, \qquad
+	\cos\dfrac{\theta}{2} = \pm\sqrt{\dfrac{1+\cos\theta}{2}}, \qquad
+	\tan\dfrac{\theta}{2} = \dfrac{\sin\theta}{1+\cos\theta} = \dfrac{1-\cos\theta}{\sin\theta}
+	$$
+	\newpage
