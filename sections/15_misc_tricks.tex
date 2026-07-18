@@ -224,6 +224,69 @@ int main() {
 }
 		\end{minted}
 
+		\subsection{对拍}
+
+		对拍程序大致框架（windows）（不写 \texttt{.exe} 也是可以的）
+
+		\begin{minted}{cpp}
+#include <bits/stdc++.h>
+
+int main() {
+  // For Windows
+  // 对拍时不开文件输入输出
+  // 当然，这段程序也可以改写成批处理的形式
+  while (true) {
+    system("gen > test.in");  // 数据生成器将生成数据写入输入文件
+    system("mySol.exe < test.in > a.out");  // 获取程序1输出
+    system("std.exe < test.in > b.out");  // 获取程序2输出
+    if (system("fc a.out b.out")) {
+      // 该行语句比对输入输出
+      // fc返回0时表示输出一致，否则表示有不同处
+      system("pause");  // 方便查看不同处
+      return 0;
+      // 该输入数据已经存放在test.in文件中，可以直接利用进行调试
+    }
+  }
+}
+		\end{minted}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/duipai_fc_output.png}
+		\end{center}
+
+		\texttt{fc} 函数的输出结果如上。
+
+		Linux 可以像下面这么写。（其实就是把 \texttt{fc} 改成了 \texttt{diff}，其他其实差不太多）
+
+		\begin{minted}{cpp}
+#include <bits/stdc++.h>
+
+using namespace std;
+
+int main() {
+    // 对拍时不开文件输入输出
+    // 当然，这段程序也可以改写成批处理的形式
+    int idx=0;
+    while (true) {
+        cerr<<"running on "<<++idx<<" test"<<"\n";
+        // 下面的这些都是可执行程序
+        // （相对）路径也是以这个可执行程序位置为准
+        system("./D2_Tree_Orientation_Gen > test.in");  // 数据生成器将生成数据写入输入文件
+        system("./D2_Tree_Orientation_Hard_Version < test.in > a.out");  // 获取希望检验输出
+        system("./D1_Tree_Orientation_Easy_Version < test.in > b.out");  // 获取暴力程序输出
+        if (system("diff a.out b.out")) {
+            // 该行语句比对输入输出
+            return 0;
+            // 该输入数据已经存放在test.in文件中，可以直接利用进行调试
+        }
+    }
+}
+		\end{minted}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/duipai_diff_output.png}
+		\end{center}
+
 		\subsection{打表}
 
 		用 \texttt{system()} 调用编译好的生成器和暴力程序，批量跑数据并输出结果，方便观察规律。
@@ -372,6 +435,20 @@ vector<Point<T>> gen_convex_polygon(int N, bool allow_collinear = false,
     }
 }
 		\end{minted}
+
+		\subsection{编译 shell}
+
+		\begin{minted}{bash}
+clang++ "$1" && ./a.out
+		\end{minted}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/compile_shell_usage_1.png}
+		\end{center}
+
+		\begin{center}
+			\includegraphics[width=\linewidth]{image/compile_shell_usage_2.png}
+		\end{center}
 
 	\end{multicols*}
 
