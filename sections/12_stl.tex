@@ -84,7 +84,7 @@ struct PointHash {
 unordered_map<Point, int, PointHash> mp;
 		\end{minted}
 
-		\textbf{坑}：\texttt{mp.reserve(n)} / \texttt{max\_load\_factor(0.25)} 只是把桶数顶大 / 保持稀疏，桶数\textbf{仍然可预测}——是弱防御 + 常数优化，\textbf{不能单独防 hack}，真正的防线永远是随机盐。\textbf{记忆口诀}：「桶数可猜，盐不可猜」。追求速度可换 \texttt{\_\_gnu\_pbds::gp\_hash\_table<K, V, custom\_hash>}（开放寻址，常数更小），\texttt{custom\_hash} 用法相同。
+		\textbf{坑}：\texttt{mp.reserve(n)} / \texttt{max\_load\_factor(0.25)} 只是把桶数顶大 / 保持稀疏，桶数\textbf{仍然可预测}——是弱防御 + 常数优化，\textbf{不能单独防 hack}，真正的防线永远是随机盐。追求速度可换 \texttt{\_\_gnu\_pbds::gp\_hash\_table<K, V, custom\_hash>}（开放寻址，常数更小），\texttt{custom\_hash} 用法相同。
 
 		\subsection{\texttt{sort + unique} 按 key 去重并保留指定值}
 
