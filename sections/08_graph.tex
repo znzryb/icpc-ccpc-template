@@ -94,7 +94,13 @@ struct DSU {
     }
 
     ll find(ll x) {
-        while (x != fa[x]) x = fa[x] = fa[fa[x]];
+        ll root = x;
+        while (root != fa[root]) {
+            root = fa[root];
+        }
+        while (x != root) {
+            tie(x, fa[x]) = make_tuple(fa[x], root);
+        }
         return x;
     }
 
