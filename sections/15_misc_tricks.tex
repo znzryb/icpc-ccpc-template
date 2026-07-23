@@ -294,12 +294,16 @@ int main() {
 		\begin{minted}{cpp}
 system("./gen > test.in");
 system("./smart < test.in > a.out");
-system("./brute < test.in > b.out");
-// checker 自己读三个文件: 通过返回 0, 有错返回非 0
-if (system("./checker test.in a.out b.out")) {
-    return 0;
+// 有 checker 的题一般没有 brute: checker 读 test.in + a.out 直接验合法性
+if (system("./checker test.in a.out")) {
+    system("cat test.in");   // Windows 下把 cat 换成 type
+    cout << "\n\n";
+    system("cat a.out");
+    return 0; // 反例数据已留在 test.in / a.out
 }
 		\end{minted}
+
+		抓到反例时顺手把 \texttt{test.in} / \texttt{a.out} \texttt{cat} 到终端，肉眼直接看现场（\textbf{Windows 下没有 \texttt{cat}，换成 \texttt{type}}，与打表一节相同）。
 
 		checker 骨架（\texttt{argv} 传文件名即可，本地对拍不必上 OJ 官方 checker 用的 \texttt{testlib.h}）：
 
