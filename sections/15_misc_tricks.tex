@@ -287,6 +287,46 @@ int main() {
 			\includegraphics[width=\linewidth]{image/duipai_diff_output.png}
 		\end{center}
 
+		\subsubsection{Special Judge（答案不唯一）题目怎么对拍}
+
+		答案不唯一时（「输出任意一组方案」/ \texttt{Yes} 后跟构造 / 浮点误差），\texttt{diff} 逐字节比对会把「两个都对但长得不一样」误报成不一致。做法：把 \texttt{diff a.out b.out} 换成自己写的 \textbf{checker}，通过返回 $0$、发现错返回非 $0$——仍然沿用 \texttt{system()} 返回值判断，框架其余部分完全不变：
+
+		\begin{minted}{cpp}
+system("./gen > test.in");
+system("./smart < test.in > a.out");
+system("./brute < test.in > b.out");
+// checker 自己读三个文件: 通过返回 0, 有错返回非 0
+if (system("./checker test.in a.out b.out")) {
+    return 0;
+}
+		\end{minted}
+
+		checker 骨架（\texttt{argv} 传文件名即可，本地对拍不必上 OJ официальный 的 \texttt{testlib.h}）：
+
+		\begin{minted}{cpp}
+// checker.cpp: 任一步失败 => cerr 打出原因, return 1
+int main(int argc, char **argv) {
+	ifstream in(argv[1]);   // 输入数据
+	ifstream ans(argv[2]);  // smart 输出 (待验)
+	ifstream ref(argv[3]);  // brute 输出 (参考)
+	// 1. 从 in 读题目数据
+	// 2. 从 ans 读方案, 按题面规则逐条验证合法性
+	//    (格式 / 越界 / 重复 / 违反约束 -> return 1)
+	// 3. 算出该方案的目标值, 与 ref 的最优值比对
+	return 0; // 全部通过
+}
+		\end{minted}
+
+		\textbf{按答案形态选比对口径}：
+
+		\begin{itemize}
+			\item \textbf{方案不唯一、目标值唯一}（「输出任意一组最优解」）：brute 只输出最优\textbf{值}（不必输出方案）；checker 验证 smart 的方案合法，且其目标值恰等于 brute 的最优值。
+			\item \textbf{\texttt{Yes}/\texttt{No} + 构造}：可行性是唯一的，先比两边 \texttt{Yes}/\texttt{No} 是否一致；smart 答 \texttt{Yes} 时再验它给出的构造确实满足题面约束。
+			\item \textbf{浮点答案}：不逐字节比，按 $|a - b| \le 10^{-6} \cdot \max(1, |b|)$ 判等（绝对或相对误差任一达标即过，和多数 OJ 口径一致）。
+		\end{itemize}
+
+		\textbf{两条铁律}：(1) checker 只按\textbf{题面规则}验证，禁止复用 smart 里的函数 / 思路——共用逻辑会「同错互过」，对拍就失去意义了；(2) 「验证」往往比「求解」简单得多，若题目只要求任意合法解而\textbf{无最优性要求}，可以不写 brute，\texttt{gen + smart + checker} 三件套直接拍合法性。
+
 		\subsection{打表}
 
 		用 \texttt{system()} 调用编译好的生成器和暴力程序，批量跑数据并输出结果，方便观察规律。

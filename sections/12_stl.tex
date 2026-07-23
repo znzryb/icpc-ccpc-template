@@ -166,6 +166,10 @@ istream &operator>>(istream &is, __int128 &x) {
 }
 		\end{minted}
 
-		输出走递归除 $10$（深度 $\le 39$ 层，无爆栈风险）；读入按字符串整体读进来再逐位累加，支持前导 \texttt{-} / \texttt{+}。\textbf{坑}：输出对负数先 \texttt{x = -x}，恰为 $-2^{127}$（\texttt{\_\_int128} 最小值）时取负溢出是 UB——竞赛值域顶到 $\pm 1.7 \times 10^{38}$ 边界才会踩，正常使用不受影响。
+		输出走递归除 $10$（深度 $\le 39$ 层，无爆栈风险）；读入按字符串整体读进来再逐位累加，支持前导 \texttt{-} / \texttt{+}。
+
+		\textbf{读入开头 \texttt{if (!(is >> s)) return is;} 的用意}：让 \texttt{while (cin >> v)} 「多组输入读到 EOF 自动停」的写法对 \texttt{\_\_int128} 同样成立。\texttt{is >> s} 返回流本身，流可以转 \texttt{bool}（语义是「上一次读取成功与否」）：EOF 时读不到内容、流被置上失败位、转出 \texttt{false}，这行就直接带着失败位原样返回且\textbf{不动} \texttt{x}——与内建整型 \texttt{cin >> n} 读失败的行为对齐，外层循环条件拿到 \texttt{false} 正确退出。
+
+		\textbf{坑}：输出对负数先 \texttt{x = -x}，恰为 $-2^{127}$（\texttt{\_\_int128} 最小值）时取负溢出是 UB——竞赛值域顶到 $\pm 1.7 \times 10^{38}$ 边界才会踩，正常使用不受影响。
 	\end{multicols*}
 
