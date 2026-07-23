@@ -138,5 +138,34 @@ auto it = upper_bound(es.begin(), es.end(), target,
 		\textbf{坑（编译错 vs 静默逻辑错）}：比较器喂错函数的后果取决于\textbf{元素类型与目标值类型是否同构}。本例元素是 \texttt{node}、目标值是 \texttt{int}，二者\textbf{异构且不可互转}：把场景 B 的 \texttt{(int, node)} 比较器误传给 \texttt{lower\_bound}，它要按 \texttt{comp(node, int)} 调，参数对不上又无 \texttt{node}/\texttt{int} 转换，\textbf{直接编译失败}。但若元素与目标值\textbf{同类型}（如拿 \texttt{node} 二分 \texttt{node}），顺序写反\textbf{能编译通过，却是静默错的二分边界}——更难查。
 
 		\textbf{记忆口诀}：「\texttt{lower} 找 $\ge$，元素在前；\texttt{upper} 找 $>$，目标在前」。
+
+		\subsection{\texttt{\_\_int128} 读入输出（重载运算符版）}
+
+		\texttt{iostream} 原生不支持 \texttt{\_\_int128}。重载 \texttt{<<} / \texttt{>>} 后，\texttt{cin} / \texttt{cout} 就能像内建整型一样直接读写（也自动覆盖 \texttt{Point<i128>} 等模板类里转发的 \texttt{>>} / \texttt{<<}）：
+
+		\begin{minted}{cpp}
+ostream &operator<<(ostream &os, __int128 x) {
+	if (x < 0) os << '-', x = -x;
+	if (x > 9) os << x / 10;
+	return os << (char) ('0' + x % 10);
+}
+
+istream &operator>>(istream &is, __int128 &x) {
+	string s;
+	if (!(is >> s)) return is;
+	x = 0;
+	size_t i = 0;
+	bool neg = false;
+	if (s[0] == '-') {
+		neg = true;
+		i = 1;
+	} else if (s[0] == '+') { i = 1; }
+	for (; i < s.size(); ++i) x = x * 10 + (s[i] - '0');
+	if (neg) x = -x;
+	return is;
+}
+		\end{minted}
+
+		输出走递归除 $10$（深度 $\le 39$ 层，无爆栈风险）；读入按字符串整体读进来再逐位累加，支持前导 \texttt{-} / \texttt{+}。\textbf{坑}：输出对负数先 \texttt{x = -x}，恰为 $-2^{127}$（\texttt{\_\_int128} 最小值）时取负溢出是 UB——竞赛值域顶到 $\pm 1.7 \times 10^{38}$ 边界才会踩，正常使用不受影响。
 	\end{multicols*}
 
