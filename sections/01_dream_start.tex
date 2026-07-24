@@ -143,6 +143,38 @@ EOF
 
 	\end{multicols*} % 结束双栏
 
+	\subsection{CLion 常用功能与快捷键（默认 keymap）}
+
+	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
+
+	\begin{center}
+		\begin{tabular}{l|l|l}
+			\hline
+			功能 & Windows / Linux & macOS \\
+			\hline
+			Run context configuration（跑光标所在目标）  & \texttt{Ctrl+Shift+F10}    & \texttt{Ctrl+Shift+R}      \\
+			\hline
+			Run（当前选中的配置）                        & \texttt{Shift+F10}         & \texttt{Ctrl+R}            \\
+			\hline
+			Debug（当前选中的配置）                      & \texttt{Shift+F9}          & \texttt{Ctrl+D}            \\
+			\hline
+			Build Project（只编译不跑）                  & \texttt{Ctrl+F9}           & \texttt{Cmd+F9}            \\
+			\hline
+			Reformat Code（格式化当前文件 / 选区）        & \texttt{Ctrl+Alt+L}        & \texttt{Cmd+Opt+L}         \\
+			\hline
+			注释 / 取消注释行                            & \texttt{Ctrl+/}            & \texttt{Cmd+/}             \\
+			\hline
+			复制当前行 / 选区                            & \texttt{Ctrl+D}            & \texttt{Cmd+D}             \\
+			\hline
+			删除整行                                    & \texttt{Ctrl+Y}            & \texttt{Cmd+Backspace}     \\
+			\hline
+			上 / 下移当前行                             & \texttt{Alt+Shift+Up/Down} & \texttt{Opt+Shift+Up/Down} \\
+			\hline
+			Find Action（搜任意功能 / 快捷键）            & \texttt{Ctrl+Shift+A}      & \texttt{Cmd+Shift+A}       \\
+			\hline
+		\end{tabular}
+	\end{center}
+
 	\subsection{Windows：禁用 \texttt{Shift} 切换中英文输入}
 
 	Windows 赛场机上敲代码，误碰 \texttt{Shift}（打大写、打符号松手稍慢）就会被输入法切到中文模式，接着敲出一串全角字符——开赛前先把这个切换键关掉。
