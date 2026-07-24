@@ -68,7 +68,7 @@ hash_map<ll, int> mp;
 		\end{me}
 
 		\begin{mentor}
-\textbf{不会，负数 key 完全安全。}关键在于 \texttt{custom\_hash} 的形参写死是 \texttt{uint64\_t}：往 \texttt{hash\_map<ll,int>} 里塞一个负的 \texttt{ll}（如 \(-5\)）时，会先做一次 \textbf{signed \(\to\) unsigned 隐式转换}再进哈希。C++ 标准规定这个转换是\textbf{良定义}的——结果 \(=\) 原值对 \(2^{64}\) 取模，即 \(-1 \to 2^{64}-1\)、\(-5 \to 2^{64}-5\)。
+\textbf{不会，负数 key 完全安全。}关键在于 \texttt{custom\_hash} 的形参是 \texttt{const ull \&}（\texttt{ull} 即 64 位无符号整数）：往 \texttt{hash\_map<ll,int>} 里塞一个负的 \texttt{ll}（如 \(-5\)）时，会先做一次 \textbf{signed \(\to\) unsigned 隐式转换}再进哈希。C++ 标准规定这个转换是\textbf{良定义}的——结果 \(=\) 原值对 \(2^{64}\) 取模，即 \(-1 \to 2^{64}-1\)、\(-5 \to 2^{64}-5\)。
 
 对 64 位的 \texttt{ll}，这个转换是一个\textbf{双射}（\(2^{64}\) 个有符号值一一对应 \(2^{64}\) 个位模式，无信息丢失），于是：
 
