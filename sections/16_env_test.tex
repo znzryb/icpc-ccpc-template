@@ -166,5 +166,25 @@ int main() {
 // 参考（N=2^20 一轮）：本机 440ms; CF ~2434ms (judge Used ~1988ms); QOJ 1024-1558ms（连发越跑越快，冷启动 +50%）
 	\end{minted}
 
+	\subsection{常用 Python 命令（当计算器）}
+
+	赛场想快速估算（阶乘 / 组合数 / $\log$ / 大整数幂会不会爆 \texttt{ll}）时，起一个 Python 交互解释器当计算器。\textbf{启动命令因环境而异，依次试}：\texttt{python3} / \texttt{python} / \texttt{py}（Linux 一般只有 \texttt{python3}；Windows 官方安装器装的是 py launcher，敲 \texttt{py}；有的环境 \texttt{python} 直接可用）。进去先敲这两行：
+
+	\begin{minted}{python}
+>>> from math import *
+>>> def p(x): print(f"{x:.2e}")
+...
+>>> p(factorial(20))
+2.43e+18
+>>> p(comb(30, 15))
+1.55e+08
+>>> p(2**64)
+1.84e+19
+>>> log2(1e9)
+29.897352853986263
+	\end{minted}
+
+	\texttt{p(x)} 按科学计数法两位小数打印，配合 Python 天然无界的大整数，判「爆不爆 \texttt{ll}（上限 $\approx$ \texttt{9.22e18}）/ 复杂度量级多大」一眼出结果。退出：\texttt{exit()}（或 Unix \texttt{Ctrl-D} / Windows \texttt{Ctrl-Z} + \texttt{Enter}）。
+
 \end{multicols*}
 
