@@ -1,0 +1,37 @@
+	\begin{center}
+		\section{常用 Python 命令}
+	\end{center}
+
+\begin{multicols*}{2}
+
+	\subsection{启动交互解释器}
+
+	\textbf{启动命令因环境而异，依次试}：\texttt{python3} / \texttt{python} / \texttt{py}。
+
+	\begin{itemize}
+		\item \textbf{Linux 赛场机}：一般只有 \texttt{python3}（裸 \texttt{python} 可能不存在或指向 Python 2）。
+		\item \textbf{Windows}：官方安装器装的是 py launcher，敲 \texttt{py}；从 Microsoft Store 装的或勾了 PATH 的则 \texttt{python} 直接可用。
+		\item 退出：\texttt{exit()}（或 Unix \texttt{Ctrl-D} / Windows \texttt{Ctrl-Z} + \texttt{Enter}）。
+	\end{itemize}
+
+	\subsection{当计算器：科学计数法速估}
+
+	赛场想快速估算（阶乘 / 组合数 / $\log$ / 大整数幂会不会爆 \texttt{ll}）时，进解释器先敲这两行：
+
+	\begin{minted}{python}
+>>> from math import *
+>>> def p(x): print(f"{x:.2e}")
+...
+>>> p(factorial(20))
+2.43e+18
+>>> p(comb(30, 15))
+1.55e+08
+>>> p(2**64)
+1.84e+19
+>>> log2(1e9)
+29.897352853986263
+	\end{minted}
+
+	\texttt{p(x)} 按科学计数法两位小数打印，配合 Python 天然无界的大整数，判「爆不爆 \texttt{ll}（上限 $\approx$ \texttt{9.22e18}）/ 复杂度量级多大」一眼出结果。
+
+\end{multicols*}
