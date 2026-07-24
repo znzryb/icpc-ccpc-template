@@ -103,6 +103,22 @@ struct PointHash {
 unordered_map<Point, int, PointHash> mp;
 		\end{minted}
 
+		\textbf{变长序列（\texttt{vector<ll>}）做 key}：思路一样，只是字段数不定——用一个初值为随机盐 \texttt{R} 的 \texttt{h}，把每个元素\textbf{依次 fold} 进去（\texttt{h \^{} x} 再过 \texttt{splitmix64}）。这样天然\textbf{顺序敏感 + 长度敏感}，不会像裸异或那样让 \texttt{\{a,b\}} 和 \texttt{\{b,a\}} 撞成同值：
+
+		\begin{minted}{cpp}
+struct VecHash {
+	size_t operator()(const vector<ll> &v) const {
+		static const uint64_t R = rnd(); // 随机盐, rnd() 见上一节 mt19937
+		uint64_t h = R;
+		for (auto x : v) {
+			h = splitmix64(h ^ (uint64_t)x); // 逐元素 fold, 顺序/长度敏感
+		}
+		return h;
+	}
+};
+unordered_set<vector<ll>, VecHash> st; // vector 直接做 key
+		\end{minted}
+
 		\textbf{坑}：\texttt{mp.reserve(n)} / \texttt{max\_load\_factor(0.25)} 只是把桶数顶大 / 保持稀疏，桶数\textbf{仍然可预测}——是弱防御 + 常数优化，\textbf{不能单独防 hack}，真正的防线永远是随机盐。追求速度可换 \texttt{\_\_gnu\_pbds::gp\_hash\_table<K, V, custom\_hash>}（开放寻址，常数更小），\texttt{custom\_hash} 用法相同。
 
 		\subsection{\texttt{sort + unique} 按 key 去重并保留指定值}
