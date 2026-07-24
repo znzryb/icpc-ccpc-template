@@ -1,0 +1,232 @@
+	\begin{center}
+		\section{动态规划（dp）}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{二进制子集枚举技巧}
+		如果要枚举 $n$ 个元素的所有子集，最直接的写法是把每个集合看成一个二进制数，范围就是 $[0, 2^n - 1]$。
+
+		\begin{minted}{cpp}
+for (int s = 0; s < (1 << n); s++) {
+	// s 的二进制表示对应一个子集
+}
+		\end{minted}
+
+		\subsubsection{枚举某个集合的所有子集}
+		如果已经有一个集合 \texttt{mask}，想要只枚举它的所有子集，常用下面这个写法。
+
+		\begin{minted}{cpp}
+for (int sub = mask; sub; sub = (sub - 1) & mask) {
+	// sub 是 mask 的一个非空子集
+}
+		\end{minted}
+
+		它的原理是，\texttt{sub - 1} 会把 \texttt{sub} 最低位的一个 $1$ 变成 $0$，并把它右边的若干位全部变成 $1$。随后再与 \texttt{mask} 做一次按位与，就会把不属于 \texttt{mask} 的位置全部清掉，于是得到一个更小但仍然合法的子集。
+
+		因此，这个过程会按照从大到小的顺序，不重不漏地枚举出 \texttt{mask} 的所有非空子集。
+
+		如果还需要处理空集，可以写成下面这样。注意 \texttt{sub == 0} 时必须及时跳出，不然会死循环。
+
+		\begin{minted}{cpp}
+for (int sub = mask;; sub = (sub - 1) & mask) {
+	// sub 是 mask 的一个子集，包含空集
+	if (sub == 0) {
+		break;
+	}
+}
+		\end{minted}
+
+		这个技巧在状压 DP 中非常常见。若外层再枚举所有 \texttt{mask}，内层枚举它的全部子集，总复杂度是 $O(3^n)$。
+
+		\subsubsection{枚举固定大小的子集}
+		如果只关心恰好选了 \texttt{use} 个元素的状态，就没必要把所有状态都扫一遍再用 \texttt{popcount} 过滤。可以直接枚举二进制中恰好有 \texttt{use} 个 $1$ 的状态。
+
+		\begin{minted}{cpp}
+for (int use = 0; use <= K; ++use) {
+	long long sta = (1LL << use) - 1;
+	while (sta < (1LL << K)) {
+		// sta 的二进制中恰好有 use 个 1
+
+		if (sta == 0) break;  // use=0 时只对应空集这一个状态，避免下面除零
+		long long c = sta & -sta;
+		long long r = sta + c;
+		sta = (((r ^ sta) >> 2) / c) | r;
+	}
+}
+		\end{minted}
+
+		这里先令 \texttt{sta = (1LL << use) - 1}，也就是二进制下最小的、恰好含有 \texttt{use} 个 $1$ 的状态。后面的转移则负责直接跳到“下一个同样有 \texttt{use} 个 $1$ 的状态”。
+
+		\texttt{c = sta \& -sta} 会取出最低位的 $1$，\texttt{r = sta + c} 可以理解为把最靠右、还能向左移动的一位 $1$ 往前推一格。这样一来，右侧结构会被打乱，再用最后那一行把剩余的若干个 $1$ 重新挪到最右边，于是就得到了下一个更大的合法状态。
+
+		这个写法常被称为 \texttt{Gosper's hack}。它会按照从小到大的顺序，直接跳到下一个二进制中有相同个数 $1$ 的状态。若 \texttt{use = 0}，则只对应空集这一个状态。
+
+		\subsection{SOS DP（Sum / Max over Subsets，高维前缀和）}
+
+		给定一个长度为 $2^N$ 的数组 $f[\,\cdot\,]$（下标看成 $N$ 位二进制掩码），希望对每个 $mask$ 求出
+		$$F[mask] = \bigoplus_{sub \subseteq mask} f[sub]$$
+		其中 $\bigoplus$ 可以是 $+$ / $\max$ / $\min$ / 异或等任何幺半群运算。直接枚举子集是 $O(3^N)$；SOS DP 通过\textbf{逐位扩展}把它压到 $O(N \cdot 2^N)$。
+
+		核心思想是把每一位看成一个维度，依次做「沿第 $i$ 维的一维前缀」：当处理到第 $i$ 位时，若 $mask$ 第 $i$ 位是 $1$，就把 $mask$ 与 $mask \oplus (1 \!\ll\! i)$（去掉第 $i$ 位）合并。等价于沿 $N$ 个超立方体维度各做一遍一维前缀和。
+
+		\textbf{对偶版}：超集而非子集，即 $F[mask] = \bigoplus_{mask \subseteq sup} f[sup]$。把转移方向反过来，把「有第 $i$ 位的从无第 $i$ 位的吸收」改成「无第 $i$ 位的从有第 $i$ 位的吸收」即可。
+
+		\subsubsection{典型应用：按位无交最大值}
+
+		问题：给定 $n$ 个非负整数 $a_1, \dots, a_n$，对每个 $i$ 找出最大的 $a_j$ 使得 $a_i \,\&\, a_j = 0$（按位无交集，二进制位上互不相交）。
+
+		做法：
+		\begin{itemize}
+			\item 用 $dp[mask] = \max\{a_j : a_j \subseteq mask\}$（位掩码意义下的子集），初值 $dp[a_j] = a_j$。
+			\item 跑一遍\textbf{子集 max}的 SOS DP，得到「掩码 $mask$ 下所有子集中最大的 $a_j$」。
+			\item 对询问 $i$，答案 = $dp[\,\overline{a_i}\,]$，因为 $a_j$ 与 $a_i$ 按位无交 $\iff a_j \subseteq \overline{a_i}$。
+		\end{itemize}
+
+		复杂度 $O((V + n) \cdot \log V)$，其中 $V = \max a_i$。
+
+		\begin{minted}{cpp}
+void solve() {
+	int n;
+	cin >> n;
+	vector<int> a(n);
+	for (int &x : a) cin >> x;
+	const int V = ranges::max(a);
+	const int N = 32 - __builtin_clz(V); // 用到的位数
+	vector<int> dp(1 << N);
+	for (int x : a) dp[x] = x;           // 标记原始集合
+
+	// SOS DP：dp[mask] = max{a_j : a_j 的位是 mask 的子集}
+	for (int i = 0; i < N; i++) {
+		for (int mask = (1 << N) - 1; mask >= 0; mask--) {
+			if ((mask >> i) & 1) {
+				dp[mask] = max(dp[mask],
+				               dp[mask ^ (1 << i)]);
+			}
+		}
+	}
+
+	// 查询：与 a[i] 按位无交 等价于 是 ~a[i] 的子集
+	for (int i = 0; i < n; i++) {
+		int q = (~a[i]) & ((1 << N) - 1);
+		cout << (dp[q] == 0 ? -1 : dp[q]) << " \n"[i == n - 1];
+	}
+}
+		\end{minted}
+
+		\textbf{要点}：
+		\begin{itemize}
+			\item 第二重循环\textbf{方向无关}（顺序、逆序都对），因为转移只涉及「同一 $i$ 位下，$mask$ 与去掉该位的 $mask \oplus (1 \!\ll\! i)$」，去掉位的 $mask$ 在本轮不会被本轮的更新二次覆盖（它的第 $i$ 位是 $0$，进不了 \texttt{if} 分支）。
+			\item 用「0 表示未出现」的哨兵时，要确保 $a_j \neq 0$；否则要换 \texttt{-INF} 或者额外的 \texttt{exists} 标志位。
+			\item 改成求\textbf{方案数}就把 \texttt{max} 换成 \texttt{+}，求\textbf{异或}就换成 \texttt{\^{}}，模板完全一致。
+		\end{itemize}
+
+		\subsection{线段树维护 dp 求最大独立集}
+
+		把「区间最大独立集」拍成可合并信息：每个区间维护 $dp[i][j]$，$i, j \in \{0, 1\}$ 表示该区间左端点是否选、右端点是否选时的最大权和。合并时若左区间右端 $j = 1$ 且右区间左端 $x = 1$ 则非法（相邻同选）。单点 \texttt{Info(x)}：\texttt{dp[1][1] = x}，\texttt{dp[0][0] = 0}，对角 $-\infty$。区间查询直接 \texttt{seg.query(l, r)} 得到该段最大独立集（四个状态取 max）。
+
+		参考提交：\href{https://atcoder.jp/contests/abc456/submissions/75466400}{ABC 456 提交 75466400}。
+
+		\begin{minted}{cpp}
+struct Info {
+  array<array<ll, 2>, 2> dp;
+  Info(ll x = 0) {
+    dp[0][1] = dp[1][0] = -INF;
+    dp[1][1] = x;
+    dp[0][0] = 0;
+  }
+};
+
+Info operator+(const Info &a, const Info &b) {
+  Info fa;
+  for (int i = 0; i <= 1; i++) {
+    for (int j = 0; j <= 1; j++) {
+      if (a.dp[i][j] == -INF) continue;
+      for (int x = 0; x <= 1; x++) {
+        for (int y = 0; y <= 1; y++) {
+          if (b.dp[x][y] == -INF) continue;
+          if (j == 1 && x == 1) continue;
+          fa.dp[i][y] = max(a.dp[i][j] + b.dp[x][y], fa.dp[i][y]);
+        }
+      }
+    }
+  }
+  return fa;
+}
+
+template <class InfoType = Info>
+class LazySegmentTree {
+  int n;
+  vector<InfoType> tree;
+
+  void pushUp(int id) {
+    tree[id] = tree[id << 1] + tree[id << 1 | 1];
+  }
+
+  void build(int id, int l, int r, const vector<InfoType> &a) {
+    if (l == r) { tree[id] = a[l]; return; }
+    int mid = (l + r) >> 1;
+    build(id << 1, l, mid, a);
+    build(id << 1 | 1, mid + 1, r, a);
+    pushUp(id);
+  }
+
+  InfoType query(int id, int l, int r, int ql, int qr) {
+    if (ql <= l && r <= qr) return tree[id];
+    int mid = (l + r) >> 1;
+    if (qr <= mid) return query(id << 1, l, mid, ql, qr);
+    if (ql > mid)  return query(id << 1 | 1, mid + 1, r, ql, qr);
+    return query(id << 1, l, mid, ql, qr) +
+           query(id << 1 | 1, mid + 1, r, ql, qr);
+  }
+
+public:
+  LazySegmentTree(int n = 0) { init(n); }
+  LazySegmentTree(const vector<InfoType> &a) { build(a); }
+
+  void init(int n_) {
+    n = n_;
+    tree.assign(4 * n + 5, InfoType());
+  }
+
+  void build(const vector<InfoType> &a) {
+    init((int)a.size() - 1);
+    if (n > 0) build(1, 1, n, a);
+  }
+
+  InfoType query(int l, int r) {
+    if (l > r) return 0;
+    return query(1, 1, n, l, r);
+  }
+};
+
+void solve() {
+  int n, k;
+  cin >> n >> k;
+  vector<ll> a(n + 1);
+  for (int i = 1; i <= n; i++) cin >> a[i];
+  vector<Info> b(n + 1);
+  for (int i = 1; i <= n; i++) b[i] = Info(a[i]);
+  for (int i = 1; i <= n; i++) a[i] = a[i] + a[i - 1];
+  LazySegmentTree<Info> seg;
+  seg.build(b);
+  ll ans = INF;
+  for (int len = k - 1; len <= k; len++) {
+    for (int l = 1; l + len <= n; l++) {
+      int r = l + len;
+      ll candidate = a[r] - a[l - 1];
+      auto info = seg.query(l + 1, r - 1);
+      ll maxi = -INF;
+      for (int i = 0; i <= 1; i++)
+        for (int j = 0; j <= 1; j++)
+          maxi = max(maxi, info.dp[i][j]);
+      candidate -= maxi;
+      ans = min(ans, candidate);
+    }
+  }
+  cout << ans << "\n";
+}
+		\end{minted}
+
+	\end{multicols*}
+

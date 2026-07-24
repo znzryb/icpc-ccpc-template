@@ -1,0 +1,170 @@
+	\begin{center}
+		\section{环境测试}
+	\end{center}
+
+\begin{multicols*}{2}
+
+	\subsection{试机赛与纪律}
+
+	\begin{itemize}
+		\item 检查身份证件：护照、学生证、胸牌以及现场所需通行证。
+		\item 确认什么东西能带进场。特别注意：智能手表、金属（钥匙）等等。
+		\item 测试鼠标、键盘、显示器和座椅。如果有问题，立刻联系工作人员。
+		\item 测试比赛提交方式。如果有 \texttt{submit} 命令，确认如何使用。
+		\item 设置自动保存、自动备份。
+	\end{itemize}
+
+	\subsection{编译器版本与扩展头}
+
+	测试编译器版本。C++20 \verb|cin >> (s + 1)|；C++17 \verb|auto [x, y] : a|；C++14 \verb|[](auto x, auto y)|；C++11 \verb|auto|；\texttt{bits/stdc++.h}；\texttt{pb\_ds}。
+
+	\begin{minted}{cpp}
+#include <ext/rope>
+using namespace __gnu_cxx;
+rope<int> R; R.insert(y, x); R[x]; R.erase(x, 1);
+
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+using namespace __gnu_pbds;
+tree<int, null_type, less<int>, rb_tree_tag,
+     tree_order_statistics_node_update> s;
+s.insert(1); s.find_by_order(0); s.order_of_key(5);
+	\end{minted}
+
+	\subsection{\texttt{\_\_int128}, \texttt{\_\_float128}, \texttt{long double} 实测}
+
+	\textcolor{blue}{\textbf{long double 不是跨平台稳定类型}}：在 \textcolor{blue}{\textbf{x86-64 Linux + GCC}}（CF / AtCoder / QOJ 评测机）上是 80-bit x87 扩展精度（尾数 64 bits、约 18--19 位有效、\texttt{LDBL\_EPSILON} $\approx 1.08 \times 10^{-19}$），但 \textcolor{blue}{\textbf{Apple arm64 / MSVC}} 上 \texttt{long double == double}（尾数 53 bits、约 15 位、$\epsilon \approx 2.22 \times 10^{-16}$）。本机过 $\not\Rightarrow$ 评测机过。
+
+%	\textcolor{blue}{\textbf{评测机看不到 stdout，必须用 \texttt{assert} 把判定接到 verdict 上}}：AC = 条件成立、RE = 条件不成立、CE = 类型 / 头文件不可用。开赛随便挑一道签到题，把下面塞进 \texttt{main} 顶部提交：
+
+	\begin{minted}{cpp}
+#include <bits/stdc++.h>
+// pb_ds / rope 是否可用：能编过即 OK
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/rope>
+
+// long double 是不是真扩展精度（CE = 退化成 double 或编译器异常）
+static_assert(sizeof(long double) > sizeof(double), "ld == double");
+static_assert(LDBL_MANT_DIG >= 64, "ld mantissa < 64 bits");
+
+int main() {
+    std::cout << "sizeof(long double)=" << sizeof(long double) << '\n';
+    std::cout << "LDBL_MANT_DIG=" << LDBL_MANT_DIG << '\n';
+    // QOJ x86-64 Linux 实测 sizeof=16 (10B 80-bit 数据 + 6B 对齐 padding), mant=64
+    // 相对精度 LDBL_EPSILON ~ 2^-63 ~ 1.08e-19（vs double 2.22e-16，多 ~3 位有效数字）
+    // __int128 是否可用（不可用直接 CE）。assert 必须在函数体内，namespace scope 不合法
+    __int128 x = (__int128)1 << 100; assert(x > 0);
+    // __float128 是否可用（GCC 扩展，MSVC 无；不可用 CE）
+    // 1.0Q 字面量需 -fext-numeric-literals 才认；用 cast 跨编译选项更稳
+    __float128 y = (__float128)1; assert(y == 1);
+}
+	\end{minted}
+
+	注意 \texttt{\_\_int128} 的 \texttt{cin/cout} 不支持，需手写 read/print；\texttt{\_\_float128} 是软件模拟，慢一档。重载 \texttt{operator<<} / \texttt{operator>>} 后 \texttt{cin >> x} / \texttt{cout << x} 即可直接吃 \texttt{\_\_int128}：
+
+	\begin{minted}{cpp}
+ostream &operator<<(ostream &os, __int128 x) {
+    if (x < 0) os << '-', x = -x;
+    if (x > 9) os << x / 10;
+    return os << (char) ('0' + x % 10);
+}
+
+istream &operator>>(istream &is, __int128 &x) {
+    string s;
+    if (!(is >> s)) return is;
+    x = 0;
+    size_t i = 0;
+    bool neg = false;
+    if (s[0] == '-') {
+        neg = true;
+        i = 1;
+    } else if (s[0] == '+') { i = 1; }
+    for (; i < s.size(); ++i) x = x * 10 + (s[i] - '0');
+    if (neg) x = -x;
+    return is;
+}
+	\end{minted}
+
+	\subsection{评测机限制与编译选项}
+
+	\begin{itemize}
+		\item 测试代码长度限制，尝试触发 \texttt{NO-OUTPUT}、\texttt{OUTPUT-LIMIT}、\texttt{RUN-ERROR}。
+		\item 测试 \verb|#pragma GCC optimize| / \verb|#pragma GCC target| 是否会被判为 CE（本机自带一半答案，详见下面「\texttt{\#pragma} 开优化 / SIMD 实测」一节）。
+		\item 测试 clarification：如果问不同类型的愚蠢问题，得到的回复是否不一样？
+		\item 测试 \verb|-fsanitize=address|、\verb|-fsanitize=undefined|、\verb|-D_GLIBCXX_DEBUG| 是否可用。
+		\item 测试 \verb|/usr/bin/time -v ./a.out| 是否能显示内存占用。
+	\end{itemize}
+
+	\subsection{\texttt{\#pragma} 开优化 / SIMD 实测}
+
+	开 O3 三条路径，可叠加；\textcolor{blue}{\textbf{源码 pragma 优先级高于命令行}}（同 TU 内覆盖 \texttt{-O} flag）。
+
+	\begin{minted}{cpp}
+// 命令行：本机训练默认；-march=native 评测机别带
+// g++ -O3 -std=c++20 a.cpp
+
+// optimize 放 include 之前；target 必须放 include 之后（见下方踩坑 d）
+#pragma GCC optimize("O3,unroll-loops")
+#include <bits/stdc++.h>
+#ifdef __x86_64__
+#pragma GCC target("avx2,bmi,bmi2")
+#endif
+int main() { std::vector<int> v(5); v[0] = 1; }  // 自检要触发 STL 实例化
+	\end{minted}
+
+	实测（$N = 2^{20}$ 浮点 mul-add 200 轮，5 次中位数）：
+
+	\begin{center}
+		\small
+		\begin{tabular}{l|l}
+			\hline
+			编译方式                                 & 时间      \\
+			\hline
+			\texttt{-O2}（评测机默认）               & $120$ ms  \\
+			\texttt{-O3}                              & $117$ ms  \\
+			\texttt{-O3 -funroll-loops}               & $113$ ms  \\
+			\texttt{\#pragma optimize("O3,unroll-loops")} & $114$ ms  \\
+			\hline
+		\end{tabular}
+	\end{center}
+
+	评测机默认 \texttt{-O2}，所以 \texttt{\#pragma optimize("O3")} 的实际收益是 \textbf{O3 比 O2 快约 3\%、加 \texttt{unroll-loops} 共约 6\%}——不是"几倍加速"。其更主要价值是兜底：评测机若被设成 \texttt{-O0/-O1}（少见但确实有），pragma 自动把模板抬回 O3。
+
+	\textbf{踩坑}：(a) \texttt{target("avx2")} 在 arm64 硬 CE，模板里此类代码段默认假设 x86 评测机。(b) pragma 路径下 \texttt{\_\_OPTIMIZE\_\_} 不定义（后端才 apply），不能拿来自检。(c) Mac 系统 \texttt{g++} 是 clang shim、不认这套 pragma 也找不到 \texttt{bits/stdc++.h}，本地必须显式调 \texttt{g++-15}。(d) \textcolor{blue}{\textbf{\texttt{\#pragma GCC target} 必须放在 \texttt{\#include <bits/stdc++.h>} 之后}}：放之前会让 libstdc++ 头里 \texttt{always\_inline} 模板（如 \texttt{\textasciitilde{}allocator} / \texttt{\_Vector\_impl}）带上 SIMD target，CF 用的 winlibs MinGW GCC 上 user 代码用 \texttt{vector<>} 等触发 inline 时报 \texttt{target specific option mismatch} CE（Linux GCC 不触发）。
+
+	\textbf{评测机自检}：把上段提交到任意评测机——CE 就是 pragma 被拒，AC 就是 pragma 全收。\textbf{自检源码必须实例化 STL}（如 \texttt{vector<int> v(5)}），空 \texttt{main} 不触发模板 inline、是假绿灯。
+
+	\subsection{性能基准（map 跑分）}
+
+	跑分覆盖 \textcolor{blue}{\textbf{STL 容器 + 随机访存 + 比较器内联}}这套 CP 真实热点。\texttt{std::map} 的插入查找把红黑树指针追逐 + L2/L3 miss + \texttt{operator<} 内联效果都能压出来。计时用 \texttt{chrono::steady\_clock}（wall-clock，纳秒分辨率，跨平台语义一致）而不是 \texttt{clock()}（Windows MSVC 上是 wall-clock、Linux glibc 上是 CPU 时间，跨评测机数字没法直接比）。标定 \texttt{1s} 能跑多少次：
+
+	\begin{minted}{cpp}
+#include <bits/stdc++.h>
+using namespace std;
+
+// 文件作用域：高精度 steady_clock 种子 + splitmix64 非线性混合（同 §10.4）
+mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
+uint64_t splitmix64(uint64_t x) {
+    x ^= x >> 30; x *= 0xbf58476d1ce4e5b9ULL;
+    x ^= x >> 27; x *= 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
+}
+
+int main() {
+    const int N = 1 << 20;
+    vector<uint64_t> keys(N);
+    for (int i = 0; i < N; i++) keys[i] = splitmix64(rng());
+    auto t0 = chrono::steady_clock::now();
+    map<uint64_t, int> mp;
+    for (int i = 0; i < N; i++) mp[keys[i]] = i;          // 插入
+    long long s = 0;
+    for (int i = 0; i < N; i++) s += mp[keys[i]];         // 查找
+    assert(s != 0);                                        // 防 DCE + 弱正确性
+    auto dt = chrono::steady_clock::now() - t0;
+    cout << chrono::duration_cast<chrono::milliseconds>(dt).count() << "ms\n";
+}
+// 参考（N=2^20 一轮）：本机 440ms; CF ~2434ms (judge Used ~1988ms); QOJ 1024-1558ms（连发越跑越快，冷启动 +50%）
+	\end{minted}
+
+\end{multicols*}
+

@@ -1,0 +1,175 @@
+	\begin{center}
+		\section{STL 及其使用}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{\texttt{string::find} 的起始位置参数与 \texttt{string\_view}}
+		\texttt{find} 可以指定「从哪个下标开始找」，但不能直接指定「查找到哪个下标结束」。
+
+		\begin{minted}{cpp}
+string s = "abacaba";
+string t = "aba";
+
+size_t pos = s.find(t, 2); // 从下标 2 开始找
+if (pos == string::npos) { // string::npos 就是 -1
+	// 没找到
+}
+		\end{minted}
+
+		如果要限制在区间 \verb|[l, r]| 内查找，可以先从 \verb|l| 开始找，再判断匹配是否完整落在区间内（\verb|std::string_view| 是在 \verb|C++ 17| 引入的）。
+
+		\begin{minted}{cpp}
+string_view sv = s;
+auto sub = sv.substr(l, r - l + 1); // 只看 [l, r]
+size_t p = sub.find(t);
+if (p != string::npos) {
+	size_t real_pos = l + p; // 映射回原串下标
+}
+		\end{minted}
+
+		\subsection{\texttt{mt19937\_64} 套 \texttt{splitmix64} 抗 BM 攻击}
+
+		\begin{minted}{cpp}
+std::mt19937_64 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+
+// 把 rng() 输出再过一层非线性混合，挡住 F2 上的 Berlekamp–Massey 攻击
+uint64_t splitmix64(uint64_t x) {
+	x ^= x >> 30; x *= 0xbf58476d1ce4e5b9ULL;
+	x ^= x >> 27; x *= 0x94d049bb133111ebULL;
+	return x ^ (x >> 31);
+}
+uint64_t rnd() { return splitmix64(rng()); } // XOR hashing 等场景用这个，别用裸 rng()
+		\end{minted}
+
+		\textbf{攻击模型出处}：\href{https://codeforces.com/blog/entry/153335}{\textit{Hacking Incorrect XOR Hashing with \texttt{mt19937\_64}}}（Sugar\_fan，CF blog）。\texttt{mt19937\_64} 的 \texttt{XOR}、移位、稀疏 $\mathbb{F}_2$ 矩阵乘全部在 $\mathbb{F}_2$ 上线性，Berlekamp–Massey 拿前 $2 \times 19937$ 个输出位即可复盘最小多项式、预测后续输出，构造 \texttt{XOR} 多重集 hash 碰撞。换种子、加 \texttt{seed\_seq}、混 \texttt{random\_device} 全无效——线性结构和种子无关。
+
+		\textbf{\texttt{splitmix64} 包装够不够}：本地 Apple M5 + GCC 15.2 上的 benchmark（\href{https://gist.github.com/znzryb/a867eefeb8575e1c5f599a5044273614}{gist}）实证——裸 \texttt{mt19937\_64} 上 BM 在 5 个 bit lane 一致复盘出 \texttt{degree = 19937}、命中率 $100\%$；套上 \texttt{splitmix64} 后 BM 度数饱和到训练长度的一半、命中率锁在 $50\%$（bit 要么 0，要么 1，基本就是闭眼瞎猜），攻击失效。
+
+		\subsection{\texttt{unordered\_map} 自定义 hash \& 结构体做 key}
+
+		\textbf{为何要自定义}：GCC 整数默认 hash 是恒等（\texttt{hash<ll>(x) == x}）、桶数又走内部写死的质数序列，二者都可离线预测。攻击者构造大量落同一桶的 key，让查询退化 $O(n)$、整体 $O(n^2)$ TLE。防御 = 每次运行播一个 \texttt{static} 随机盐、混进 key 再过 \texttt{splitmix64} 打散（复用上一节的 \texttt{splitmix64}）：
+
+		\begin{minted}{cpp}
+struct custom_hash {
+	size_t operator()(uint64_t x) const {
+		static const uint64_t R =
+			chrono::steady_clock::now().time_since_epoch().count();
+		return splitmix64(x + R); // 盐 + avalanche
+	}
+};
+// 用 alias 一键注入, 声明处跟原生一样
+template <class K, class V>
+using hash_map = unordered_map<K, V, custom_hash>;
+hash_map<ll, int> mp;
+		\end{minted}
+
+		\textbf{自定义结构体做 key} 需要两样东西：(1) 一个 hash 把\textbf{每个字段逐个混入}（禁止直接异或，\texttt{(a,b)} 与 \texttt{(b,a)} 会撞成同值）；(2) \texttt{operator==} 供哈希冲突时比较。两个 \texttt{operator} \textbf{都要加 \texttt{const}}，否则 \texttt{unordered\_map} 对 const key 调用时编译不过：
+
+		\begin{minted}{cpp}
+struct Point {
+	ll x, y;
+	bool operator==(const Point &o) const { // ← const
+		return x == o.x && y == o.y;
+	}
+};
+struct PointHash {
+	size_t operator()(const Point &p) const { // ← const
+		static const uint64_t R =
+			chrono::steady_clock::now().time_since_epoch().count();
+		uint64_t h = splitmix64(p.x + R);
+		return splitmix64(p.y + h); // 逐字段混, 顺序敏感
+	}
+};
+unordered_map<Point, int, PointHash> mp;
+		\end{minted}
+
+		\textbf{坑}：\texttt{mp.reserve(n)} / \texttt{max\_load\_factor(0.25)} 只是把桶数顶大 / 保持稀疏，桶数\textbf{仍然可预测}——是弱防御 + 常数优化，\textbf{不能单独防 hack}，真正的防线永远是随机盐。追求速度可换 \texttt{\_\_gnu\_pbds::gp\_hash\_table<K, V, custom\_hash>}（开放寻址，常数更小），\texttt{custom\_hash} 用法相同。
+
+		\subsection{\texttt{sort + unique} 按 key 去重并保留指定值}
+
+		\texttt{std::unique} 把相邻相等元素合并为一个，\textbf{保留每段的第一个}（不是最后）。配合 \texttt{sort} 可以做「按某个 key 分组、每组只留一个特定属性最大 / 最小的元素」。
+
+		\textbf{标准套路}：(1) 主 key 升序排（保证同 key 元素挤在一起）；(2) 次 key \textbf{反向}排，让"想留的"挤到每组最前面；(3) \texttt{unique} 用主 key 比较器去重，留下每组第一个。
+
+		\textbf{例（\href{https://www.luogu.com.cn/problem/P3194}{洛谷 P3194} 上半包络题 dedupe 步骤）}：直线 $y = A_i x + B_i$，同斜率 $A$ 多条只留 $B$ 最大那条（其余被同斜率平行压死，对偶点全部出现在上凸壳「同 $x$ 不同 $y$ 竖边」上 strict 也救不了）。
+
+		\begin{minted}{cpp}
+sort(poly.begin(), poly.end(), [](const Point<ll> &a, const Point<ll> &b) {
+	if (a.x != b.x) return a.x < b.x; // 主 key 升序
+	return a.y > b.y;                 // 次 key 降序: 想留的 (B 大) 在前
+});
+poly.erase(unique(poly.begin(), poly.end(), [](const Point<ll> &a, const Point<ll> &b) {
+	return a.x == b.x;                // 比较器只看主 key, 不看次 key
+}), poly.end());
+		\end{minted}
+
+		\textbf{坑}：次 key 写反成 \texttt{a.y < b.y}（升序），\texttt{unique} 留下的是每组 B \textbf{最小}那条——和题意完全相反，是高频低级错误。\textbf{记忆口诀}：「\texttt{unique} 留前 $\to$ 想留谁就 \texttt{sort} 把谁放最前」。
+
+		\subsection{\texttt{lower\_bound} / \texttt{upper\_bound} 自定义比较器参数顺序相反}
+
+		\textbf{先厘清概念}：\texttt{lower\_bound} / \texttt{upper\_bound} 的第三个参数是\textbf{待查找的值}（拿来和元素的排序键比较的目标值），\textbf{不是下标 / 位置}；返回的迭代器才是「位置」。即\textbf{输入一个值，输出一个位置}。下例数组 \texttt{es} 按 \texttt{node::val} 升序排好，\texttt{target} 是要找的目标值，\texttt{e.val} 是元素的排序键字段（也是个值，不是下标）。
+
+		带自定义比较器时，\texttt{lower\_bound} 与 \texttt{upper\_bound} 的比较器两个参数\textbf{谁前谁后是相反的}——标准强制，记反轻则二分边界静默错、重则编译不过：
+
+		\begin{itemize}
+			\item \texttt{lower\_bound(first, last, target, comp)} 内部按 \texttt{comp(*it, target)} 调用——\textbf{数组元素在前，目标值在后}，返回首个满足 \texttt{e.val} $\ge$ \texttt{target} 的位置。
+			\item \texttt{upper\_bound(first, last, target, comp)} 内部按 \texttt{comp(target, *it)} 调用——\textbf{目标值在前，数组元素在后}，返回首个满足 \texttt{e.val} $>$ \texttt{target} 的位置。
+		\end{itemize}
+
+		\textbf{场景 A —— 找第一个 \texttt{e.val} $\ge$ \texttt{target} 的元素}，用 \texttt{lower\_bound}：
+
+		\begin{minted}{cpp}
+auto it = lower_bound(es.begin(), es.end(), target,
+	[](const node &e, int t) {   // 元素 node 在前, 目标值 int 在后
+		return e.val < t;
+	});
+		\end{minted}
+
+		\textbf{场景 B —— 找第一个 \texttt{e.val} $>$ \texttt{target} 的元素}，用 \texttt{upper\_bound}：
+
+		\begin{minted}{cpp}
+auto it = upper_bound(es.begin(), es.end(), target,
+	[](int t, const node &e) {   // 目标值 int 在前, 元素 node 在后
+		return t < e.val;
+	});
+		\end{minted}
+
+		\textbf{坑（编译错 vs 静默逻辑错）}：比较器喂错函数的后果取决于\textbf{元素类型与目标值类型是否同构}。本例元素是 \texttt{node}、目标值是 \texttt{int}，二者\textbf{异构且不可互转}：把场景 B 的 \texttt{(int, node)} 比较器误传给 \texttt{lower\_bound}，它要按 \texttt{comp(node, int)} 调，参数对不上又无 \texttt{node}/\texttt{int} 转换，\textbf{直接编译失败}。但若元素与目标值\textbf{同类型}（如拿 \texttt{node} 二分 \texttt{node}），顺序写反\textbf{能编译通过，却是静默错的二分边界}——更难查。
+
+		\textbf{记忆口诀}：「\texttt{lower} 找 $\ge$，元素在前；\texttt{upper} 找 $>$，目标在前」。
+
+		\subsection{\texttt{\_\_int128} 读入输出（重载运算符版）}
+
+		\texttt{iostream} 原生不支持 \texttt{\_\_int128}。重载 \texttt{<<} / \texttt{>>} 后，\texttt{cin} / \texttt{cout} 就能像内建整型一样直接读写（也自动覆盖 \texttt{Point<i128>} 等模板类里转发的 \texttt{>>} / \texttt{<<}）：
+
+		\begin{minted}{cpp}
+ostream &operator<<(ostream &os, __int128 x) {
+	if (x < 0) os << '-', x = -x;
+	if (x > 9) os << x / 10;
+	return os << (char) ('0' + x % 10);
+}
+
+istream &operator>>(istream &is, __int128 &x) {
+	string s;
+	if (!(is >> s)) return is;
+	x = 0;
+	size_t i = 0;
+	bool neg = false;
+	if (s[0] == '-') {
+		neg = true;
+		i = 1;
+	} else if (s[0] == '+') { i = 1; }
+	for (; i < s.size(); ++i) x = x * 10 + (s[i] - '0');
+	if (neg) x = -x;
+	return is;
+}
+		\end{minted}
+
+		输出走递归除 $10$（深度 $\le 39$ 层，无爆栈风险）；读入按字符串整体读进来再逐位累加，支持前导 \texttt{-} / \texttt{+}。
+
+		\textbf{读入开头 \texttt{if (!(is >> s)) return is;} 的用意}：让 \texttt{while (cin >> v)} 「多组输入读到 EOF 自动停」的写法对 \texttt{\_\_int128} 同样成立。\texttt{is >> s} 返回流本身，流可以转 \texttt{bool}（语义是「上一次读取成功与否」）：EOF 时读不到内容、流被置上失败位、转出 \texttt{false}，这行就直接带着失败位原样返回且\textbf{不动} \texttt{x}——与内建整型 \texttt{cin >> n} 读失败的行为对齐，外层循环条件拿到 \texttt{false} 正确退出。
+
+		\textbf{坑}：输出对负数先 \texttt{x = -x}，恰为 $-2^{127}$（\texttt{\_\_int128} 最小值）时取负溢出是 UB——竞赛值域顶到 $\pm 1.7 \times 10^{38}$ 边界才会踩，正常使用不受影响。
+	\end{multicols*}
+

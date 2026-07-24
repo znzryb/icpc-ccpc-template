@@ -1,0 +1,105 @@
+	\begin{center}
+		\section{debug 技巧}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{除了打印之外，善用 \texttt{assert}}
+
+		我们在头文件中已经定义了 \texttt{dbg} 宏，用来在本地把变量、容器打印到 \texttt{cerr}。但打印并不是调试的唯一手段，\textbf{配合 \texttt{assert} 把关键的「不变量」写成断言}，往往能更快定位错误。
+
+		\texttt{assert} 的好处是：一旦条件不成立，程序会立刻崩溃在出错的那一行，而不是让错误悄悄蔓延到很久之后再体现为 \texttt{WA} 或段错误。这对于 \texttt{DP}、图论、状压之类有很多前置约束的算法尤其有用，能帮我们把「这里应该满足某个条件」这种口头约定，变成程序能自检的硬约束。
+
+		下面是一段 Color Coding 的代码（随机染色 + 状压 DP，求包含 \texttt{K} 个不同颜色的最短路），我们同时使用了 \texttt{dbg} 打印和 \texttt{assert} 断言。
+
+		\begin{minted}{cpp}
+void execColorCoding() {
+	for (int i = 1; i <= N; ++i) {
+		dp[i][1 << color[i]] = {0, A[i]};
+		timeId[i][1 << color[i]] = curT;
+	}
+	for (int sta = 1; sta < (1 << K); ++sta) {
+		for (int u = 1; u <= N; ++u) {
+			if (!check(u, sta)) continue;
+			for (auto [to, w] : g[u]) {
+				if (sta & (1 << color[to])) continue;
+				ll toSta = sta | (1 << color[to]);
+				if (!check(to, toSta)) {
+					dp[to][toSta] = {INF, -1};
+					timeId[to][toSta] = curT;
+				}
+#ifdef LOCAL
+				assert(check(u, sta));
+				assert(check(to, toSta));
+#endif
+				// 省略与 debug 无关的正常转移
+			}
+		}
+	}
+	dbg(dp);
+	dbg(timeId);
+	cEnd;
+}
+		\end{minted}
+
+% 这段代码里混用了两类调试手段，各自承担不同的任务：
+
+% \begin{itemize}
+% \item \texttt{dbg(dp)} 和 \texttt{dbg(timeId)}：在一轮 DP 结束后把整个数组打印出来，方便人眼检查「每个状态的最终值是不是符合预期」。这种手段更适合在算完一段之后做总览。
+% \item \texttt{assert(check(u, sta))} 和 \texttt{assert(check(to, toSta))}：写在循环内部，表达的是「走到这里时，\texttt{(u, sta)} 和 \texttt{(to, toSta)} 这两个状态必须都是已经被当前测试轮初始化过的」这一不变量。它关心的是「过程中每一步的状态合不合法」，而不是「最后结果长什么样」。
+% \end{itemize}
+
+		这道题目是一个\textbf{随机化算法}，每次跑出来的结果大概率是错的，\textbf{常规的这个 \texttt{dbg} 打印其实效果不是很好}。因为我们不知道预期输出是什么。在这种情况下，我们就不得不采用这个 \textcolor{red}{\textbf{\texttt{assert} 来进行 debug}}。
+
+		这道题目当中，我们使用这个 \texttt{assert} 来判断来源状态，即\textbf{即将进行转移的这个状态是否已经被初始化过了}。
+
+		\subsubsection{增量 debug}
+
+		如果一份代码原本是对的，而你后来\textbf{只新加了两样东西}，随后程序就挂了，那么一个很自然的想法就是做\textbf{增量 debug}。
+
+		具体来说，不要一上来就在新代码里到处打印，而是先把其中\textbf{一处改动暂时注释掉}，只保留另一处，然后重新运行：
+
+		\begin{itemize}
+			\item 如果问题消失了，说明刚刚注释掉的那部分很可疑。
+			\item 如果问题还在，说明更可能是剩下那部分导致的。
+		\end{itemize}
+
+		这样就能把「两个新增改动共同成锅」的局面，快速缩小成「大概率是哪一个改动出了问题」。如果还有更多新增内容，也可以继续按这个思路一段一段地回退，逐步缩小可疑范围。
+
+		这个方法本质上是在做\textbf{控制变量}。很多时候，真正高效的 debug 不是打印更多信息，而是\textbf{一次只改一个东西}，让错误来源自己暴露出来。
+
+		\subsection{\texttt{std::string} 条件断点的陷阱}
+
+		在调试器（GDB、LLDB、CLion 等）里设置\textbf{条件断点}时，如果条件写成：
+
+		\begin{minted}{cpp}
+ops == "?00?00?00"
+		\end{minted}
+
+		你会发现断点\textbf{根本不按预期停}——它可能在条件完全不成立时就触发，退化成了无条件断点。
+
+		\textbf{原因：}调试器的表达式求值器在求值条件时，需要在运行时调用 \texttt{std::string::operator==}。但这个运算符是一个重载函数，调试器往往\textbf{无法可靠地解析并调用}它，导致比较结果始终为真（或行为未定义），断点每次都停。这一问题在 JetBrains、VS Code、GDB 等主流工具的 issue tracker 上均有记录（另见 \href{https://gist.github.com/znzryb/9b23d0b1db7bd9f831c0a5f96f41f090}{gist 整理}）。
+
+		\textbf{正确写法：}改用成员函数 \texttt{compare}，调试器能正确调用它：
+
+		\begin{minted}{cpp}
+ops.compare("?00?00?00") == 0
+		\end{minted}
+
+		或者用 C 风格的 \texttt{strcmp}（部分调试器更容易解析 C 函数符号）：
+
+		\begin{minted}{cpp}
+strcmp(ops.c_str(), "?00?00?00") == 0
+		\end{minted}
+
+% 如果以上两种写法都不稳定，最保险的方法是\textbf{直接在源码里加辅助断点行}：
+
+% \begin{minted}{cpp}
+% if (ops == "?00?00?00") { int bp = 0; } // 把断点打在这一行
+% \end{minted}
+
+% 这样完全不依赖调试器的表达式求值，行为100\%可预期。
+
+
+	\end{multicols*}
+

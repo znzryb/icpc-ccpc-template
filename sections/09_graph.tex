@@ -1,0 +1,1542 @@
+	\begin{center}
+		\section{图论}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		\subsection{倍增法求 LCA}
+
+		倍增法 LCA 用 \texttt{Anc[u][k]} 存「\texttt{u} 的第 $2^k$ 级祖先」。先把两点跳到同深度，再一起往上跳直到分叉，跳完返回 \texttt{Anc[a][0]} 就是 LCA。模板题 \href{https://www.luogu.com.cn/problem/P3398}{P3398 仓鼠找 sugar}：判两条树上路径是否相交，技巧是用 LCA 把"两条路径"翻译成"两个区间端点祖先关系"。
+
+		\begin{minted}{cpp}
+ll N,M,Q,K,T;
+ll Deep[MAXN],Anc[MAXN][30];
+bool vis[MAXN];
+vector<ll> g[MAXN];
+
+void dfs(ll x,ll fa){
+    if(vis[x]) return;
+    vis[x]=true;
+    Deep[x]=Deep[fa]+1;
+    Anc[x][0]=fa;
+    FOR(i,0,SZ(g[x])-1){
+        ll vnode=g[x][i];
+        if(vis[vnode]) continue;
+        dfs(vnode,x);
+    }
+}
+
+inline ll LCA(ll a,ll b){    // 倍增法求 LCA
+    if(Deep[a]<Deep[b]) swap(a,b);
+    ROF(i,18,0){
+        if(Deep[Anc[a][i]]>=Deep[b]){
+            a=Anc[a][i];
+        }
+    }
+    if(a==b) return a;
+    ROF(i,18,0){
+        if(Anc[a][i]!=Anc[b][i]){
+            a=Anc[a][i],b=Anc[b][i];
+        }
+    }
+    return Anc[a][0];
+}
+
+inline void solve(){
+    cin>>N>>Q;
+    FOR(i,1,N-1){
+        ll u,v; cin>>u>>v;
+        g[u].pb(v); g[v].pb(u);
+    }
+    dfs(1,0);
+    FOR(j,1,18) FOR(i,1,N) Anc[i][j]=Anc[Anc[i][j-1]][j-1];
+
+    FOR(i,1,Q){
+        ll a,b,c,d; cin>>a>>b>>c>>d;
+        if(Deep[a]<Deep[b]) swap(a,b);
+        if(Deep[c]<Deep[d]) swap(c,d);
+        ll lcaAB=LCA(a,b);
+        ll lcaCD=LCA(c,d);
+        // 保证共线：lcaCD 在 lcaAB 子树内 且 lcaAB 在 c-d 路径上
+        if(LCA(lcaAB,lcaCD)==lcaCD && LCA(c,lcaAB)==lcaAB){ cout<<"Y\n"; continue; }
+        if(LCA(lcaAB,lcaCD)==lcaCD && LCA(lcaAB,d)==lcaAB){ cout<<"Y\n"; continue; }
+        // 看 lcaCD 在不在 a->lcaAB 上
+        if(LCA(lcaCD,lcaAB)==lcaAB && LCA(lcaCD,a)==lcaCD){ cout<<"Y\n"; continue; }
+        if(LCA(lcaCD,lcaAB)==lcaAB && LCA(lcaCD,b)==lcaCD){ cout<<"Y\n"; continue; }
+        cout<<"N\n";
+    }
+}
+// AC https://www.luogu.com.cn/record/217989209
+		\end{minted}
+
+
+		\subsection{并查集（DSU）与 DSU on next 技巧}
+
+		朴素并查集 + 路径压缩，外加 \texttt{taglr(l, r)} 把 $[l, r]$ 这段区间整段标记为「已处理」——具体做法是让区间里的每个点都不指向自己（指向 $r+1$）。\texttt{find(x)} 因此天然返回 \texttt{x} 之后第一个未被标记的位置，扫描时常用来\textbf{跳过整段已处理区间}。
+
+		\begin{minted}{cpp}
+/**   并查集（DSU）+ DSU on next
+ *    find(x) 表示 x 之后第一个没有被标记的数字。
+ *    构造函数传入的 n 必须不多不少，否则 countFa 会出错。
+ *    base = 0 / 1 切换 0-based 与 1-based，合法下标范围分别是 [0, n) 与 [1, n]。
+ */
+struct DSU {
+    vector<int> fa;
+    ll n;
+    int base;                          // 0 或 1，决定合法下标的起点
+
+    DSU() {}
+    DSU(ll n, int base = 0) : n(n), base(base) { init(n); }
+
+    void init(ll n) {
+        fa.resize(n + base + 5);
+        for(int i = 0; i < SZ(fa); ++i) fa[i] = i;
+    }
+
+    ll find(ll x) {
+        ll root = x;
+        while (root != fa[root]) {
+            root = fa[root];
+        }
+        while (x != root) {
+            tie(x, fa[x]) = make_tuple(fa[x], root);
+        }
+        return x;
+    }
+
+    bool same(ll x, ll y) { return find(x) == find(y); }
+
+    bool merge(ll x, ll y) {           // 注意方向：fa[x] = y，配合 dsu on next
+        x = find(x); y = find(y);
+        if (x == y) return false;
+        fa[x] = y;
+        return true;
+    }
+
+    // 把 [l, r] 这段区间整段标记，标记后这段区间内任意点 find 都会越过去
+    void taglr(ll l, ll r) {
+        l = max((ll)base, l);
+        r = min((ll)SZ(fa) - 2, r);
+        l = find(l);
+        while(l <= r) {
+            merge(l, l + 1);
+            l = find(l + 1);
+        }
+    }
+
+    ll countFa() {                     // 当前还有多少个独立的根
+        ll res = 0;
+        for(ll i = base; i < base + n; ++i) if (fa[i] == i) ++res;
+        return res;
+    }
+};
+		\end{minted}
+
+		有时候这套思路别僵在数组上，\textbf{用 \texttt{map} 当并查集容器}也行，没出现过的 key 默认就是它自己当根。参考 \href{https://codeforces.com/contest/2157/submission/355136647}{CF Round 1077E 的提交}：
+
+		\begin{minted}{cpp}
+map<ll,ll> fa;
+auto find = [&](ll x) {
+    ll root = x;
+    while (fa.contains(root)) root = fa[root];   // 没 contain 默认就是 root
+    while (fa.contains(x)) {                      // 路径压缩
+        ll p = fa[x];
+        fa[x] = root;
+        x = p;
+    }
+    return root;
+};
+auto merge = [&](ll x, ll y) {
+    ll fax = find(x), fay = find(y);
+    fa[fax] = fay;
+};
+		\end{minted}
+
+		\textbf{维护到祖宗节点距离的并查集}（带权并查集）：\texttt{d[x]} 存 \texttt{x} 到 \texttt{p[x]} 的距离，\texttt{find} 的同时累加距离。
+
+		\begin{minted}{cpp}
+int p[N], d[N];
+// p[] 存每个点的祖宗节点, d[x] 存 x 到 p[x] 的距离
+
+int find(int x) {
+    if (p[x] != x) {
+        int u = find(p[x]);
+        d[x] += d[p[x]];
+        p[x] = u;
+    }
+    return p[x];
+}
+
+// 初始化（节点 1..n）
+for (int i = 1; i <= n; ++i) { p[i] = i; d[i] = 0; }
+
+// 合并 a 与 b 所在的两个集合：
+p[find(a)] = find(b);
+d[find(a)] = distance;   // 根据具体问题，初始化 find(a) 的偏移量
+		\end{minted}
+
+
+		\subsubsection{带权并查集（class 封装，维护到根距离与连通块大小）}
+
+		把「路径压缩 + 维护 \texttt{dis[x]}（\texttt{value[x] - value[fa[x]]}）」与按大小合并打包成完整类。\texttt{find} 递归回程时把 \texttt{fa[x]} 直接压到 root、\texttt{dis[x]} 累成 \texttt{value[x] - value[root]}；\texttt{merge(x, y, w)} 加入约束 \texttt{value[y] - value[x] = w}，若和已有关系矛盾返回 \texttt{false}；\texttt{query(x, y)} 返回同一连通块下的 \texttt{value[y] - value[x]}。
+
+		\begin{minted}{cpp}
+// 带权DSU维护点到父节点的距离
+class WeightedDSU
+{
+private:
+    vector<int> fa, siz;
+    vector<ll> dis; // dis[x] = value[x] - value[fa[x]]，find 后变成 value[x] - value[root]
+
+public:
+    WeightedDSU(int n)
+    {
+        fa.resize(n + 1);
+        siz.assign(n + 1, 1);
+        dis.assign(n + 1, 0);
+        iota(fa.begin(), fa.end(), 0);
+    }
+    int find(int x)
+    {
+        if (fa[x] == x)
+            return x;
+        int oldFa = fa[x];
+        int root = find(oldFa);
+        dis[x] += dis[oldFa]; // x 到旧父亲 + 旧父亲到根 = x 到根
+        fa[x] = root;
+        return root;
+    }
+    bool same(int x, int y)
+    {
+        return find(x) == find(y);
+    }
+
+    // 加入约束：value[y] - value[x] = w
+    // 返回 false 表示和已有关系矛盾
+    bool merge(int x, int y, ll w)
+    {
+        int rootX = find(x);
+        int rootY = find(y);
+
+        if (rootX == rootY)
+            return dis[y] - dis[x] == w;
+
+        // 按大小合并
+        if (siz[rootX] > siz[rootY])
+        {
+            swap(x, y);
+            swap(rootX, rootY);
+            w = -w;
+        }
+        // 让 rootX 挂到 rootY 下面
+        fa[rootX] = rootY;
+        siz[rootY] += siz[rootX];
+        // 推导：
+        // value[y] - value[x] = w
+        // value[x] = dis[x] + value[rootX]
+        // value[y] = dis[y] + value[rootY]
+        //
+        // 所以：
+        // dis[y] + value[rootY] - dis[x] - value[rootX] = w
+        //
+        // 得：
+        // value[rootX] - value[rootY] = dis[y] - dis[x] - w
+        dis[rootX] = dis[y] - dis[x] - w;
+
+        return true;
+    }
+    // 查询 value[x] - value[root]
+    ll distToRoot(int x)
+    {
+        find(x);
+        return dis[x];
+    }
+    // 查询 value[y] - value[x]
+    // 调用前最好保证 same(x, y)
+    ll query(int x, int y)
+    {
+        find(x);
+        find(y);
+        return dis[y] - dis[x];
+    }
+};
+		\end{minted}
+
+
+		\subsection{Borůvka 最小生成树}
+
+		每轮让每个连通块各挑一条最小出边一次性合并，块数至少减半，故至多 $O(\log V)$ 轮、每轮 $O(E)$ 扫边，总 $O(E\log V)$。边以 \texttt{(w, u, v)} 数组给入，节点 0-based，函数自带精简 \texttt{DSU}（与上一节的 \texttt{DSU} 独立）。
+
+		\begin{minted}{cpp}
+struct DSU {
+    vector<int> f;
+    DSU(int n) : f(n) { iota(all(f), 0); }
+    int find(int x) { return f[x] == x ? x : f[x] = find(f[x]); } // 真递归路径压缩
+    bool unite(int a, int b) { a = find(a); b = find(b); if (a == b) return false; f[a] = b; return true; }
+};
+
+// 返回 MST 总权；edges: (w, u, v)
+ll boruvka(int n, vector<array<ll, 3>> &edges) {
+    DSU d(n);
+    int comps = n;
+    ll total = 0;
+    while (comps > 1) {
+        vector<int> cheap(n, -1);                 // cheap[块根] = 最优出边下标
+        for (int i = 0; i < (int)edges.size(); ++i) {
+            auto [w, u, v] = edges[i];
+            int ru = d.find(u), rv = d.find(v);
+            if (ru == rv) continue;               // 同块，不是出边
+            if (cheap[ru] == -1 || w < edges[cheap[ru]][0]) cheap[ru] = i;
+            if (cheap[rv] == -1 || w < edges[cheap[rv]][0]) cheap[rv] = i;
+        }
+        for (int r = 0; r < n; ++r) {
+            if (cheap[r] == -1) continue;
+            auto [w, u, v] = edges[cheap[r]];
+            if (d.unite(u, v)) { total += w; --comps; }  // 兜底跳过本轮已连通者
+        }
+    }
+    return total;
+}
+		\end{minted}
+
+
+		\subsection{树上背包}
+
+		经典做法：每个点合并儿子时，外层倒序枚举背包总容量，内层正序枚举划分给当前儿子的容量。这样总复杂度可以做到 $O(n \cdot \mathrm{budget})$。下面这份带 "父亲买了 / 父亲没买" 两种状态（来自 LeetCode-style 题 maxProfit），\texttt{dp[1][u][i]} = 父没买时 $u$ 子树用预算 $i$ 的最大收益，\texttt{dp[2][u][i]} = 父买了时（当前点享半价）。
+
+		\begin{minted}{cpp}
+class Solution {
+public:
+    int maxProfit(int n, vector<int>& present, vector<int>& future,
+                  vector<vector<int>>& hierarchy, int budget) {
+        int dp[3][170][170];
+        for(int i = 1; i <= 2; ++i)
+            for(int j = 0; j <= n + 5; ++j)
+                for(int k = 0; k <= budget + 5; ++k)
+                    dp[i][j][k] = 0;
+        vector<vector<int>> g(n + 5);
+        for(auto &t : hierarchy) g[t[0]].push_back(t[1]);
+
+        // ism == 1: 父亲没买; ism == 2: 父亲买了（享半价）
+        auto dfs = [&](this auto &&self, int u, int p) -> void {
+            for(auto v : g[u]) { if(v == p) continue; self(v, u); }
+
+            // memo: 暂时不考虑当前节点 u 的儿子合并结果
+            vector<array<int,3>> memo(budget + 5, {0,0,0});
+            for(auto &v : g[u]) {
+                for(int i = budget; i >= 0; --i) {
+                    for(int j = 0; j <= i; ++j) {       // 内层必须正序
+                        memo[i][1] = max(memo[i][1], memo[i-j][1] + dp[1][v][j]);
+                        memo[i][2] = max(memo[i][2], memo[i-j][2] + dp[2][v][j]);
+                    }
+                }
+            }
+            for(int i = budget; i >= 0; --i) {
+                for(int j = 1; j <= 2; ++j) {
+                    int cost = present[u-1] / j;
+                    dp[j][u][i] = max(dp[j][u][i], memo[i][1]);
+                    if(i >= cost) {
+                        dp[j][u][i] = max(dp[j][u][i],
+                          future[u-1] - cost + memo[i-cost][2]);
+                    }
+                }
+            }
+        };
+        dfs(1, 1);
+        int ans = 0;
+        for(int i = budget; i >= 0; --i) ans = max({ans, dp[1][1][i]});
+        return ans;
+    }
+};
+		\end{minted}
+
+
+		\subsection{Floyd 全源最短路}
+
+		三层循环，外层 $i$ 是「中转点」，必须放最外面。复杂度 $O(n^3)$，写起来最简单。
+
+		\begin{minted}{cpp}
+const ll N = 110;
+ll n, m, D[N][N];
+
+inline void Floyd() {
+    for(int i = 1; i <= n; ++i)             // 中转点 i 必须在最外层
+        for(int j = 1; j <= n; ++j) {
+            if(j == i) continue;
+            for(int k = 1; k <= n; ++k) {
+                if(k == i) continue;
+                D[j][k] = min(D[j][k], D[j][i] + D[i][k]);
+            }
+        }
+}
+
+int main() {
+    ios::sync_with_stdio(false); cin.tie(0); cout.tie(0);
+    cin >> n >> m;
+    memset(D, 0x3f, sizeof(D));
+    for(int i = 1; i <= n; ++i) D[i][i] = 0;
+    for(int i = 1; i <= m; ++i) {
+        ll u, v, w; cin >> u >> v >> w;
+        D[u][v] = min(D[u][v], w);          // 处理重边、自环
+        D[v][u] = min(D[v][u], w);
+    }
+    Floyd();
+}
+// AC https://www.luogu.com.cn/record/186274091
+		\end{minted}
+
+
+		\subsection{Dijkstra（堆优化）}
+
+		核心：小根堆存 \texttt{\{点, 距离\}}，每次取距离最小的点。同一点可能以不同距离多份入堆，第一次出堆即为最短路、定为已固定点，靠 \texttt{vis} 懒删除跳过其余过期记录。松弛成功（能让邻居更短）才把邻居压回堆；堆开在函数里，多测天然清空。
+
+		\begin{minted}{cpp}
+struct Node {
+    ll node, dis;
+    bool operator<(const Node &o) const {
+        return dis > o.dis;                        // dis 大的优先级低 -> 小根堆
+    }
+};
+
+void Solve() {
+    ll N, M, s;
+    cin >> N >> M >> s;
+    vector<vector<pair<ll,ll>>> g(N + 3);          // g[u] = {邻点 v, 边权 w}
+    for (int i = 1; i <= M; ++i) {
+        ll u, v, w;
+        cin >> u >> v >> w;
+        g[u].emplace_back(v, w);
+    }
+    vector<ll> dist(N + 3, INF);
+    vector<char> vis(N + 3);
+    priority_queue<Node> pq;
+    dist[s] = 0;
+    pq.push({s, 0});
+    while (!pq.empty()) {
+        auto [u, dis] = pq.top();
+        pq.pop();
+        if (vis[u]) continue;                      // 过期记录, 懒删除
+        vis[u] = true;                             // 第一次出堆即定点
+        for (auto [to, w] : g[u]) {
+            if (dis + w < dist[to]) {              // 松弛成功才入堆
+                dist[to] = dis + w;
+                pq.push({to, dis + w});
+            }
+        }
+    }
+}
+// AC https://acm.hdu.edu.cn/contest/view-code?cid=1203&rid=10964
+		\end{minted}
+
+
+		\subsection{二分图判定（染色法）}
+
+		DFS 给每个点染 $1$ 或 $2$，相邻点必须异色；用 \texttt{3 - c} 在 $1$ 和 $2$ 之间翻转就够。注意图可能不连通，外层要对每个未染色的点都启动一次。
+
+		\begin{minted}{cpp}
+const ll N = 1e5 + 10;
+ll n, m;
+short int color[N];
+vector<ll> g[N];
+bool isErfen = true;
+
+void dfs(int x, int c) {
+    if(!isErfen) return;
+    if(color[x] == 0) color[x] = c;
+    else {
+        if(color[x] != c) { isErfen = false; return; }
+        return;
+    }
+    for(int i = 0; i < (int)g[x].size(); ++i) {
+        dfs(g[x][i], 3 - c);              // 1 和 2 之间翻转的小 trick
+    }
+}
+
+int main() {
+    cin >> n >> m;
+    for(int i = 1; i <= m; ++i) {
+        int u, v; cin >> u >> v;
+        g[u].push_back(v); g[v].push_back(u);
+    }
+    for(int i = 1; i <= n; ++i) {         // 处理不连通
+        if(color[i] == 0) dfs(i, 1);
+        if(!isErfen) break;
+    }
+    cout << (isErfen ? "Yes" : "No") << endl;
+}
+		\end{minted}
+
+
+		\subsection{匈牙利算法（二分图最大匹配）}
+
+		把 \texttt{match[]} 哨兵值设为 $-1$（不是 $0$），可以避免 0-based 编号造成歧义。每次给左侧某点 \texttt{u} 找匹配时清空 \texttt{vis}，DFS 沿增广路尝试腾位。
+
+		\begin{minted}{cpp}
+/* 二分图最大匹配，匈牙利算法
+ * 2026-03-31 AC https://acm.hdu.edu.cn/contest/view-code?cid=1198&rid=18859
+ */
+struct Bi_graph_matcher {
+    vector<vector<ll>> g;
+    vector<char> vis;
+    vector<ll> match;
+    ll left_cnt;
+
+    Bi_graph_matcher(vector<vector<ll>> _g, ll _left_cnt)
+        : g(std::move(_g)), vis(SZ(g) + 2), match(SZ(g) + 2, -1), left_cnt(_left_cnt) {}
+
+    bool find(ll u) {
+        for (auto to : g[u]) {
+            if (vis[to]) continue;
+            vis[to] = true;
+            // v 还没匹配 / v 原本匹配的人能腾出位置去找别人
+            if (match[to] == -1 || find(match[to])) {
+                match[to] = u;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    ll mx_match() {
+        ll ans = 0;
+        for (int i = 0; i <= left_cnt; ++i) {
+            vis.assign(SZ(g) + 2, 0);
+            if (find(i)) ++ans;
+        }
+        return ans;
+    }
+};
+		\end{minted}
+
+		\subsubsection{Hall 婚配定理（完美匹配判定）}
+
+		给定二分图 $G = (L \cup R, E)$。$L$ 存在完美匹配（即所有 $L$ 中的点都被匹配）当且仅当：对 $L$ 的任意子集 $S \subseteq L$，都有
+		$$|N(S)| \ge |S|$$
+		其中 $N(S)$ 是 $S$ 在 $R$ 中所有邻居构成的集合。
+
+		\textbf{推论（亏量定理 / Deficiency form）}：$L$ 的最大匹配大小为
+		$$|L| - \max_{S \subseteq L} \bigl(|S| - |N(S)|\bigr)$$
+		右边的 $\max$ 项称为 Hall 亏量，刻画 $L$ 中"必然落单的点数下界"。
+
+%		\textbf{赛时用法}：Hall 定理是\textbf{判定}定理，告诉你"完美匹配存不存在"；匈牙利 / Hopcroft-Karp / Dinic 是\textbf{构造}算法，告诉你"匹配怎么连"。题目里若只需要回答 \enquote{能 / 不能完美匹配} 或推一个组合下界，先尝试构造一个 $|S| > |N(S)|$ 的反例集 $S$（贪心常常用得上），比直接跑匹配算法更省心。常见套路：把约束翻译成 $|S| \le |N(S)|$ 的全称命题，再贪心找最紧的 $S$。
+
+		\subsection{差分约束}
+
+		差分约束就是把一组形如 $x \leq y + a$ 的约束转化成最短路问题：把约束写成三角不等式 $\mathrm{dist}(v) \leq \mathrm{dist}(u) + w(u, v)$，每条约束就是一条有向边 $u \to v$ 边权 $a$，跑最短路得到的 \texttt{dist[]} 就是一组合法解（超级源点的 \texttt{dist} 值不重要，差值才重要）。
+
+		例题 \href{https://atcoder.jp/contests/abc395/tasks/abc395_f}{ABC 395F Smooth Occlusion}：相邻牙齿高度差 $\leq X$，转成 $\mathrm{dist}_v \leq \mathrm{dist}_u + X$ 跑 Dijkstra。
+
+		\begin{minted}{cpp}
+ll N, X;
+arr ud[MAXN];
+
+inline void solve(){
+    cin >> N >> X;
+    ll sumUd = 0;
+    vector<ll> dist(N + 5, INF);
+    vector<vector<ll>> g(N + 5);
+    vector<bool> vis(N + 5, false);
+    priority_queue<arr, vector<arr>, cmp> q;
+    FOR(i, 1, N) {
+        cin >> ud[i][0] >> ud[i][1];
+        sumUd += (ud[i][0] + ud[i][1]);
+        if(i != N) g[i+1].pb(i), g[i].pb(i+1);
+        dist[i] = ud[i][0];
+        q.push({i, dist[i]});
+    }
+    // 在差分约束图上跑 Dijkstra
+    while(!q.empty()) {
+        ll u = q.top()[0], dis = q.top()[1]; q.pop();
+        if(vis[u]) continue;
+        vis[u] = true; dist[u] = dis;
+        FOR(i, 0, SZ(g[u]) - 1) {
+            ll v = g[u][i];
+            if(!vis[v]) q.push({v, dis + X});
+        }
+    }
+    ll H = INF;
+    FOR(i, 1, N) H = min(H, dist[i] + ud[i][1]);
+    cout << sumUd - N * H << "\n";
+}
+// AC https://atcoder.jp/contests/abc395/submissions/64194370
+		\end{minted}
+
+		\subsection{Tarjan 缩点为边双连通分量（EBCC）}
+
+		把求桥和缩点合在一起：先一遍 Tarjan 标出所有桥，再绕开桥跑一遍连通块染色，每个连通块就是一个 EBCC。输入是带边编号（\texttt{eid}）的无向图，重边用不同 \texttt{eid} 区分。
+
+		\begin{minted}{cpp}
+// Tarjan_EBCC: 在原图上(带边编号)求割边(桥)并缩点为边双连通分量(edge-biconnected components)
+// 下标约定: EBCC 数组下标采用 0-base, 但是点所在的 EBCC_ID(comp[u]) 采用 1-base
+class Tarjan_EBCC {
+    int n;
+    vector<int> dfn, low;
+    int timer;
+    vector<int> bridges;
+    vector<int> comp;
+    int comp_cnt;
+
+public:
+    vector<vector<pair<int,int>>> g;
+    Tarjan_EBCC(int n = 0) : n(n), g(n+1), dfn(n+1,0), low(n+1,0), timer(0), comp(n+1,0), comp_cnt(0) {}
+
+    void add_edge(int u, int v, int id) {
+        g[u].push_back({v,id});
+        g[v].push_back({u,id});
+    }
+
+    void run() {
+        for(int i=1;i<=n;i++){
+            if(!dfn[i]) dfs_bridge(i,-1);
+        }
+        unordered_set<int> bridgeSet;
+        bridgeSet.reserve(bridges.size()*2+10);
+        for(int eid: bridges) bridgeSet.insert(eid);
+        for(int i=1;i<=n;i++){
+            if(!comp[i]){
+                ++comp_cnt;
+                dfs_comp(i, comp_cnt, bridgeSet);
+            }
+        }
+    }
+
+    vector<int> get_bridges() const { return bridges; }
+    vector<int> get_components() const { return comp; }
+    int get_comp_cnt() const { return comp_cnt; }
+
+private:
+    void dfs_bridge(int u, int peid) {
+        dfn[u] = low[u] = ++timer;
+        for(auto [v,eid] : g[u]){
+            if(!dfn[v]){
+                dfs_bridge(v,eid);
+                low[u] = min(low[u], low[v]);
+                if(low[v] > dfn[u]) bridges.push_back(eid);
+            } else if(eid != peid){
+                low[u] = min(low[u], dfn[v]);
+            }
+        }
+    }
+
+    void dfs_comp(int u, int cid, const unordered_set<int> &bridgeSet) {
+        comp[u] = cid;
+        for(auto [v,eid] : g[u]){
+            if(bridgeSet.count(eid)) continue;
+            if(!comp[v]) dfs_comp(v, cid, bridgeSet);
+        }
+    }
+};
+		\end{minted}
+
+
+		\subsection{Tarjan 求强连通分量（SCC）}
+
+		单次 DFS 维护栈：入栈时打 \texttt{tin / low}，遇到栈中点用 \texttt{low[v]} 而非 \texttt{tin[v]} 更新（书上常见两种写法都对）。退栈条件 \texttt{tin[u] == low[u]} 时把栈顶到 \texttt{u} 全部弹出，组成一个 SCC。
+
+		\begin{minted}{cpp}
+vector<ll> tin(N + 5), low(N + 5);
+vector<ll> stk;
+vector<char> instk(N + 5);
+vector<ll> scc(N + 5);
+vector<ll> scca(N + 5);                   // 每个 scc 的点权之和（按需）
+ll idx = 0, sccidx = 0;
+
+auto dfs1 = [&](auto self, ll u) -> void {
+    tin[u] = low[u] = ++idx;
+    stk.PB(u);
+    instk[u] = 1;
+    for (auto v : g[u]) {
+        if (!tin[v]) {
+            self(self, v);
+            low[u] = min(low[u], low[v]);
+        } else if (instk[v]) {
+            low[u] = min(low[u], low[v]);
+        }
+    }
+    if (tin[u] == low[u]) {               // u 是当前 scc 的根
+        ++sccidx;
+        ll y = 0;
+        do {
+            y = stk.back(); stk.pop_back();
+            instk[y] = 0;
+            scc[y] = sccidx;
+            scca[sccidx] += A[y];
+        } while (y != u);
+    }
+};
+
+FOR(i, 1, N) if(!tin[i]) dfs1(dfs1, i);
+		\end{minted}
+
+
+		\subsection{点分治}
+
+		\textbf{找重心 $\to$ 统计经过重心的路径 $\to$ 删掉重心递归}。把当前重心记为 \texttt{c}，删掉 \texttt{c} 之后整棵树被分成若干棵子树，每棵子树的根是 \texttt{c} 的某个儿子 \texttt{v}。任意一条\textbf{跨子树路径}（比如从 \texttt{v1} 子树某点 $x$ 走到 \texttt{v2} 子树某点 $y$）都一定经过 \texttt{c}。
+
+		\textbf{标准套路}：
+
+		\begin{enumerate}
+			\item 对每个儿子 \texttt{v}，跑一次 DFS：从 \texttt{c} 出发把"以 \texttt{c} 为起点到这棵子树任意点的路径信息"（长度 / 最值 / 计数等）收进 \texttt{bucket\_v}。
+			\item 一棵子树一棵子树处理：当前子树 = \texttt{bucket\_v}，之前已处理过的所有子树用一个全局桶维护（\texttt{map} / \texttt{vector} / Fenwick 都可）。
+			\item 处理某棵子树时，先用它的每条路径信息和"之前所有子树"配对，统计跨子树路径；配对完再把这棵子树的信息塞进全局桶，留给后面的子树用。
+			\item 重心 \texttt{c} 自己若也能作为路径端点，最后单独处理一下（如 \texttt{ans += cnt[A[root]]}）。
+		\end{enumerate}
+
+		\textbf{为什么不重不漏}：每条路径的「最高层重心」（点分治那棵重心树最上面的那个）唯一，所以每条路径只在它的最高层重心处算一次；不经过 \texttt{c} 的路径，等递归下去到那棵子树自己的重心时再算。
+
+		模板（来自 \href{https://ac.nowcoder.com/acm/contest/view-submission?submissionId=80398271}{Nowcoder 提交}）：把"DFS 收集"和"在重心处合并"两个钩子分别叫 \texttt{collector / merger}，外面的题目逻辑通过 lambda 传进去。
+
+		\begin{minted}{cpp}
+const ll INF = (ll)1e17 + 9;
+
+// 题意相关：每条"从当前重心某儿子出发"的路径上，
+// 我们关心的只是"成为严格新最小值"的点的权值 A[x]
+struct Info { ll val; };
+
+// 点分治结构体：负责树、找重心、递归分治。题意通过 collector / merger 传入。
+struct CentroidDecomp {
+    int n;
+    vector<vector<int>> g;
+    vector<int> sz;
+    vector<char> vis;
+    int centroid, best;
+
+    CentroidDecomp(int n_ = 0) { init(n_); }
+    void init(int n_) {
+        n = n_;
+        g.assign(n + 1, {}); sz.assign(n + 1, 0); vis.assign(n + 1, 0);
+    }
+    void add_edge(int u, int v) { g[u].push_back(v); g[v].push_back(u); }
+
+    template <class InfoT, class Collector, class Merger>
+    void run(int rt, Collector collector, Merger merger) {
+        int tot = get_size(rt, 0);
+        best = tot; centroid = rt;
+        get_centroid(rt, 0, tot);
+        decompose<InfoT>(centroid, collector, merger);
+    }
+
+private:
+    int get_size(int u, int p) {
+        sz[u] = 1;
+        for (int v : g[u]) if (v != p && !vis[v]) sz[u] += get_size(v, u);
+        return sz[u];
+    }
+    void get_centroid(int u, int p, int tot) {
+        int mx = tot - sz[u];
+        for (int v : g[u]) {
+            if (v == p || vis[v]) continue;
+            get_centroid(v, u, tot);
+            mx = max(mx, sz[v]);
+        }
+        if (mx < best) { best = mx; centroid = u; }
+    }
+
+    template <class InfoT, class Collector, class Merger>
+    void decompose(int c, Collector &collector, Merger &merger) {
+        vis[c] = 1;
+        // 1) 对当前重心 c 的每棵未删子树 dfs 收集信息
+        vector<vector<InfoT>> buckets;
+        buckets.reserve(g[c].size());
+        for (int v : g[c]) {
+            if (vis[v]) continue;
+            buckets.push_back(collector(v, c, c));
+        }
+        // 2) 在重心 c 这里把这些子树的信息合并进答案
+        merger(c, buckets);
+        // 3) 对每棵子树递归
+        for (int v : g[c]) {
+            if (vis[v]) continue;
+            int tot = get_size(v, c);
+            best = tot; centroid = v;
+            get_centroid(v, c, tot);
+            decompose<InfoT>(centroid, collector, merger);
+        }
+    }
+};
+
+// 用法：求树上「严格递减最小值序列」的有序对 (u, v) 数（举例）
+// auto collector = [&](int u, int p, int root) -> vector<Info> {
+//     vector<Info> vec;
+//     function<void(int,int,ll)> dfs = [&](int x, int fa, ll mn) {
+//         if (mn > A[x]) vec.push_back({A[x]});   // 严格新最小值才收
+//         mn = min(mn, A[x]);
+//         for (int y : cd.g[x]) if (y != fa && !cd.vis[y]) dfs(y, x, mn);
+//     };
+//     dfs(u, p, INF);                              // 关键：初始 mn = INF，不是 A[root]
+//     return vec;
+// };
+// auto merger = [&](int root, vector<vector<Info>> &buckets) {
+//     map<ll,ll> cnt;
+//     for (auto &vec : buckets) {
+//         for (auto &info : vec) {
+//             ll a = info.val;
+//             if (a >= A[root]) continue;
+//             auto it = cnt.find(a);
+//             if (it != cnt.end()) ans += it->second;
+//         }
+//         for (auto &info : vec) cnt[info.val]++;
+//     }
+//     ans += cnt[A[root]];
+// };
+// cd.run<Info>(1, collector, merger);
+		\end{minted}
+
+
+		\subsection{重链剖分（HLD + 线段树）}
+
+		参考实现：\href{https://www.codechef.com/viewsolution/1209757778}{CodeChef Beautiful Sum (XPS)} 的提交。把树拆成若干条重链，每条链在线段树上变成一段连续区间；路径修改/查询 $O(\log^2 n)$，子树修改/查询 $O(\log n)$（一段连续区间 \texttt{[dfn[u], dfn[u] + siz[u] - 1]}）。下面这套含奇偶深度分开的异或 Tag、按位拆分的 Info、ZKW 线段树、HLD 的路径 / 子树双接口，以及对边权题"边挂儿子 + 子树边接口排除自身"的处理。
+
+		\begin{minted}{cpp}
+static constexpr int LOG = 21;
+
+// --- 核心数据结构 ---
+struct Tag {
+    ll xor_val[2];      // [0]: 偶深, [1]: 奇深
+    explicit Tag(ll e = 0, ll o = 0) { xor_val[0] = e; xor_val[1] = o; }
+    void apply(const Tag &t) { xor_val[0] ^= t.xor_val[0]; xor_val[1] ^= t.xor_val[1]; }
+    bool empty() const { return xor_val[0] == 0 && xor_val[1] == 0; }
+};
+
+struct Info {
+    int cnt[2];                    // 偶深 / 奇深 节点数
+    int bit_num[2][LOG];           // bit_num[p][i]: p 奇偶性中第 i 位为 1 的个数
+
+    Info() { memset(cnt, 0, sizeof(cnt)); memset(bit_num, 0, sizeof(bit_num)); }
+
+    static Info make_structure(int depth) {
+        Info res;
+        res.cnt[depth & 1] = 1;
+        return res;
+    }
+    static Info merge(const Info &l, const Info &r) {
+        Info res;
+        FOR(p, 0, 1) {
+            res.cnt[p] = l.cnt[p] + r.cnt[p];
+            FOR(i, 0, LOG-1) res.bit_num[p][i] = l.bit_num[p][i] + r.bit_num[p][i];
+        }
+        return res;
+    }
+    void apply(const Tag &t) {
+        FOR(p, 0, 1) {
+            if (t.xor_val[p] == 0) continue;
+            FOR(i, 0, LOG-1) {
+                if ((t.xor_val[p] >> i) & 1)
+                    bit_num[p][i] = cnt[p] - bit_num[p][i];
+            }
+        }
+    }
+    static Info zero() { return Info(); }
+};
+
+// --- ZKW 线段树（懒标记） ---
+struct SEG {
+    int n, sz, dep;
+    vector<Info> info;
+    vector<Tag> tag;
+
+    SEG(int n_) {
+        n = n_ + 2;
+        dep = __lg(n) + 1;
+        sz = 1 << dep;
+        info.assign(sz * 2 + 5, Info());
+        tag.assign(sz * 2 + 5, Tag());
+    }
+    static void pull(Info &fa, const Info &lc, const Info &rc) { fa = Info::merge(lc, rc); }
+    void apply_one(int o, const Tag &t) { info[o].apply(t); tag[o].apply(t); }
+    void pushdown(int o) {
+        if (tag[o].empty()) return;
+        int l = o << 1, r = l | 1;
+        apply_one(l, tag[o]); apply_one(r, tag[o]);
+        tag[o] = Tag();
+    }
+    void assign_raw(int i, const Info &v) { info[i + sz] = v; }
+    void build() {
+        for (int o = sz - 1; o >= 1; --o)
+            pull(info[o], info[o << 1], info[o << 1 | 1]);
+    }
+    void push_path(int l, int r) {
+        l = l - 1 + sz; r = r + 1 + sz;
+        int i = dep, j = __lg(l ^ r);
+        while (i > j) pushdown(l >> i--);
+        while (i) { pushdown(l >> i); pushdown(r >> i); --i; }
+    }
+    Info query(int L, int R) {
+        if (L > R) return Info::zero();
+        push_path(L, R);
+        int l = L - 1 + sz, r = R + 1 + sz;
+        Info left = Info::zero(), right = Info::zero();
+        for (; l ^ r ^ 1; l >>= 1, r >>= 1) {
+            if (~l & 1) left = Info::merge(left, info[l ^ 1]);
+            if (r & 1)  right = Info::merge(info[r ^ 1], right);
+        }
+        return Info::merge(left, right);
+    }
+    void range_apply(int L, int R, const Tag &t) {
+        if (L > R) return;
+        push_path(L, R);
+        int l = L - 1 + sz, r = R + 1 + sz;
+        int L0 = l, R0 = r;
+        for (; l ^ r ^ 1; l >>= 1, r >>= 1) {
+            if (~l & 1) apply_one(l ^ 1, t);
+            if (r & 1)  apply_one(r ^ 1, t);
+        }
+        for (L0 >>= 1; L0; L0 >>= 1) pull(info[L0], info[L0 << 1], info[L0 << 1 | 1]);
+        for (R0 >>= 1; R0; R0 >>= 1) pull(info[R0], info[R0 << 1], info[R0 << 1 | 1]);
+    }
+};
+
+// --- HLD ---
+struct HLD {
+    int n, cur;
+    vector<vector<int>> g;
+    vector<int> fa, dep, heavy, head, dfn, siz;
+
+    HLD(int n_) : n(n_), cur(0), g(n_ + 1), fa(n_ + 1), dep(n_ + 1),
+                  heavy(n_ + 1), head(n_ + 1), dfn(n_ + 1), siz(n_ + 1) {}
+
+    void addEdge(int u, int v) { g[u].push_back(v); g[v].push_back(u); }
+    int dfs1(int u, int f) {
+        fa[u] = f; dep[u] = dep[f] + 1; siz[u] = 1;
+        int maxsz = 0;
+        for (int v : g[u]) if (v != f) {
+            int sub = dfs1(v, u);
+            siz[u] += sub;
+            if (sub > maxsz) { maxsz = sub; heavy[u] = v; }
+        }
+        return siz[u];
+    }
+    void dfs2(int u, int h) {
+        head[u] = h; dfn[u] = ++cur;
+        if (heavy[u]) dfs2(heavy[u], h);
+        for (int v : g[u]) if (v != fa[u] && v != heavy[u]) dfs2(v, v);
+    }
+    void build(int root = 1) { cur = 0; dfs1(root, 0); dfs2(root, root); }
+
+    int lca(int u, int v) {
+        while (head[u] != head[v]) {
+            if (dep[head[u]] > dep[head[v]]) u = fa[head[u]];
+            else v = fa[head[v]];
+        }
+        return dep[u] < dep[v] ? u : v;
+    }
+    template<class F> void for_subtree(int u, F &&op) { op(dfn[u], dfn[u] + siz[u] - 1); }
+    template<class F> void for_path(int u, int v, F &&op) {
+        while (head[u] != head[v]) {
+            if (dep[head[u]] < dep[head[v]]) swap(u, v);
+            op(dfn[head[u]], dfn[u]);
+            u = fa[head[u]];
+        }
+        if (dep[u] > dep[v]) swap(u, v);
+        op(dfn[u], dfn[v]);
+    }
+};
+
+// --- HLD + ZKW 组合：路径/子树修改、路径/子树查询、边接口 ---
+struct HLDZKW {
+    HLD hld;
+    SEG seg;
+    HLDZKW(int n) : hld(n), seg(n) {}
+    void addEdge(int u, int v) { hld.addEdge(u, v); }
+    void build() {
+        hld.build(1);
+        FOR(i, 1, hld.n) seg.assign_raw(hld.dfn[i], Info::make_structure(hld.dep[i]));
+        seg.build();
+    }
+    void applySubtreeNode(int u, const Tag &t) {
+        hld.for_subtree(u, [&](int L, int R) { seg.range_apply(L, R, t); });
+    }
+    void applyPathNode(int u, int v, const Tag &t) {
+        hld.for_path(u, v, [&](int L, int R) { seg.range_apply(L, R, t); });
+    }
+    Info querySubtreeNode(int u) {
+        Info res = Info::zero();
+        hld.for_subtree(u, [&](int L, int R) { res = Info::merge(res, seg.query(L, R)); });
+        return res;
+    }
+    Info queryPathNode(int u, int v) {
+        Info res = Info::zero();
+        hld.for_path(u, v, [&](int L, int R) { res = Info::merge(res, seg.query(L, R)); });
+        return res;
+    }
+    // 边接口：边 (u, fa[u]) 挂在儿子 u 上；子树边集 = 子树点集 \ {u}
+    void applySubtreeEdge(int u, const Tag &t) {
+        applySubtreeNode(u, t);
+        int pos = hld.dfn[u];
+        seg.range_apply(pos, pos, t);     // 撤销 u 自己（其代表的边不在子树边集中）
+    }
+};
+		\end{minted}
+
+
+		\subsection{欧拉回路与欧拉路径}
+
+		\textbf{欧拉回路存在的充要条件}（无向连通图）：每个顶点的度数都是偶数。
+
+		\textbf{欧拉路径存在的充要条件}（无向连通图）：奇数度顶点数等于 $0$ 或 $2$。$0$ 时是回路，$2$ 时起点和终点恰好是这两个奇度点。
+
+		构造时 DFS 在\textbf{弹栈时}（递归回来时）才把当前边塞进 \texttt{ans\_ls}，最后整体 \texttt{reverse}。\textbf{为什么要反着塞}：因为最后要 \texttt{reverse(ans\_ls)}，所以当前边必须等递归完后续点之后再 \texttt{push\_back}，反过来才会得到正确顺序——和正常 DFS 顺序\textbf{反着写}。
+
+		\begin{minted}{cpp}
+if (odd_cnt != 0 && odd_cnt != 2) {
+    cout << "NO\n";
+    return;
+}
+
+vector<ll> ans_ls;
+auto dfs = [&](auto &&self, ll u) -> void {
+    while (!g[u].empty()) {
+        auto it = g[u].begin();
+        auto [to, id] = *it;
+        g[u].erase(it);
+        g[to].erase({u, id});
+        self(self, to);
+        ans_ls.push_back(id);             // 弹栈时才塞，最后 reverse
+    }
+};
+dfs(dfs, max(start_node, g.begin()->first));
+
+// 判断图是否连通：边数对不上就是不连通
+if (SZ(ans_ls) != N) {
+    cout << "NO\n";
+    return;
+}
+reverse(all(ans_ls));
+cout << "YES\n";
+for (auto u : ans_ls) cout << u << " ";
+cout << "\n";
+		\end{minted}
+
+
+		\subsection{Color Coding（随机染色 + 状压 DP）}
+
+		Color Coding 适合处理这类题：图很大，但只需要找一个\textbf{点数不超过 \texttt{K}} 的简单路径或小子图，并且 \texttt{K} 本身很小。它的核心想法是\textcolor{red}{\textbf{把“判重节点”改写成“判重颜色”}}。
+
+		每一轮先给所有点随机染上 \texttt{0} 到 \texttt{K - 1} 中的一种颜色。之后只允许路径走到\textbf{新颜色}的点上。于是状态里的 \texttt{sta} 不再表示“访问过哪些点”，而是表示“已经用过哪些颜色”。
+
+		这样做的好处是非常直接的：如果一条路径上颜色两两不同，那么这些点一定也两两不同，所以它天然就是简单路径。原本要维护一个 \texttt{n} 位的访问集合，现在只需要维护一个 \texttt{K} 位的颜色集合，复杂度就从“看起来完全做不了”变成了“\texttt{K} 小时可以接受”。
+
+		像 \href{https://acm.hdu.edu.cn/contest/problem?cid=1201&pid=1009}{1009 走马观花} 这题里，点权都在 \texttt{[0, K - 1]}，还要求路径点权和 $\bmod K = 0$。这时还有一个很关键的前置结论：\textbf{最优解至多只会经过 \texttt{K} 个点}。因为如果一条合法路径超过了 \texttt{K} 个点，那么看它的前缀和模 \texttt{K}，按鸽巢原理一定会有两个前缀余数相同，于是中间那一段的点权和就 $\equiv 0 \pmod K$。把这段删掉以后，合法性不变，但边权和更小，因此最优解不可能更长。
+
+		实现中状态是 \texttt{dp[u][sta]}，其中存的是一个二元组：
+
+		\begin{itemize}
+			\item \texttt{dp[u][sta][0]} 表示走到 \texttt{u}、颜色集合为 \texttt{sta} 时，当前最小的边权和。
+			\item \texttt{dp[u][sta][1]} 表示这条最优方案对应的花韵总值模 \texttt{K} 的结果。
+		\end{itemize}
+
+		\texttt{timeId[u][sta]} 是一个用来时间戳优化的这个数组。
+
+		\subsubsection{转移骨架}
+
+		那么实际上，我们在转移的时候是\textbf{只对这个最短路进行优化}，我们\textbf{不会对这个花韵值有任何的这个选择}，\textbf{是最短路径，就直接接收其花韵总值}。
+
+		\begin{minted}{cpp}
+for (int i = 1; i <= N; ++i) {
+	color[i] = uniform_int_distribution<int>(0, K - 1)(rng);
+}
+for (int i = 1; i <= N; ++i) {
+	dp[i][1 << color[i]] = {0, A[i]};
+	timeId[i][1 << color[i]] = curT;
+	if (A[i] == 0) {
+		ans = min(ans, 0ll);
+		return;
+	}
+}
+for (int use = 1; use <= K; ++use) {
+	for (int sta = 1; sta < (1 << K); ++sta) {
+		if (__builtin_popcount(sta) != use) continue;
+		for (int u = 1; u <= N; ++u) {
+			if (!check(u, sta)) continue;
+			for (auto [to,w]: g[u]) {
+				if (sta & (1 << color[to])) continue;
+				ll tow = dp[u][sta][0] + w;
+				if (tow >= ans) {
+					break;
+				}
+				ll toSta = sta | (1 << color[to]);
+				if (!check(to, toSta)) {
+					dp[to][toSta] = {INF, -1};
+					timeId[to][toSta] = curT;
+				}
+				if (tow < dp[to][toSta][0]) {
+					dp[to][toSta][0] = tow;
+					dp[to][toSta][1] = (A[to] + dp[u][sta][1]) % K;
+					if (dp[to][toSta][1] == 0) {
+						ans = min(dp[to][toSta][0], ans);
+					}
+				}
+			}
+		}
+	}
+}
+		\end{minted}
+
+		上面这段代码里，真正的灵魂只有两句：
+
+		\begin{itemize}
+			\item \texttt{if (sta \& (1 << color[to])) continue;}，表示这个颜色已经用过了，这一轮就不允许再走到这个点。
+			\item \texttt{dp[to][toSta][1] = (A[to] + dp[u][sta][1]) \% K;}，表示直接把“花韵和模 \texttt{K}”塞在状态二元组的第二项里维护，而不是额外拆出一维。
+		\end{itemize}
+
+		\subsubsection{剪枝技巧}
+
+		这份代码里还有两个很值得加进模板的剪枝和优化细节。
+
+		\begin{itemize}
+			\item 邻接表先按边权升序排序。这样在枚举 \texttt{u} 的出边时，一旦发现 \texttt{d + w >= ans}，后面的边只会更大，可以直接 \texttt{break}。（实测这个效果比较好）
+			\item 不要每一轮都整块清空 DP。可以采用时间戳优化。
+		\end{itemize}
+
+		\subsubsection{复杂度}
+
+		如果一轮染色的状态是 \texttt{dp[u][sta]}，复杂度大致是 $O(2^K (N + M))$。像这题再加一维 \texttt{sum} 以后，可以记成 $O(K \cdot 2^K (N + M))$。单轮只会在目标路径刚好被染成“彩虹路径”时成功，所以要独立重复若干轮。最坏情况下，长度恰好为 \texttt{K} 的目标路径在一轮里全异色的概率是 $\frac{K!}{K^K}$，因此 \texttt{K = 6} 时通常要跑几百轮才稳。
+
+		\subsubsection{一句话总结}
+
+		Color Coding 的本质，就是用\textbf{“\texttt{K} 个颜色的 bitmask”}去近似代替\textbf{“真实访问点集合”}。只要题目的目标结构规模小，且简单路径这个限制卡得很死，它往往就是那种平时用不上，一旦出现就很致命的技巧。
+
+		\subsection{\texorpdfstring{合法括号序列 $\leftrightarrow$ 有根有序树}{合法括号序列 <-> 有根有序树}}
+
+		\textbf{结论}：长度为 $2n$ 的合法括号序列与 $n + 1$ 个结点的有根有序树一一对应；计数公式见前文“Catalan 数（合法括号串数量）”小节。扫描建树的过程就是一次 DFS 的进栈/出栈轨迹——遇到 \texttt{(} 在当前结点下新建一个"最右儿子"并下去，遇到 \texttt{)} 回到父结点，扫完恰好回到根。有一个"虚根"承担最外层括号，方便统一处理。
+
+		\textbf{具体例子}：序列 \texttt{(()(()))}（$n = 4$）。上方是序列与配对弧（同色弧属同一对），下方是对应的 $5$ 结点有根有序树（\texttt{root} 是虚根）。每个实心结点对应一对配对括号：
+
+		\begin{center}
+			\begin{tikzpicture}[pairarc/.style={thick, line cap=round}]
+				% 用 matrix of nodes：每一列宽度由内容自动撑开，不必手算坐标
+				\matrix (m) [
+					matrix of nodes,
+					column sep=2pt,
+					row sep=4pt,
+					row 1/.style={nodes={font=\ttfamily\large, inner sep=2pt}},
+					row 2/.style={nodes={font=\scriptsize\sffamily, text=gray, inner sep=1pt}},
+				] {
+					( & ( & ) & ( & ( & ) & ) & ) \\
+					0 & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+				};
+				% 配对弧 + 结点字母标签（颜色与下方树上结点完全对应）
+				\tikzset{arclabel/.style={font=\scriptsize\sffamily\bfseries, inner sep=1pt}}
+				\draw[pairarc, teal]   (m-1-2.north) to[bend left=95] node[arclabel, text=teal,   above] {B} (m-1-3.north);
+				\draw[pairarc, violet] (m-1-5.north) to[bend left=95] node[arclabel, text=violet, above] {D} (m-1-6.north);
+				\draw[pairarc, orange] (m-1-4.north) to[bend left=60] node[arclabel, text=orange, above] {C} (m-1-7.north);
+				\draw[pairarc, blue]   (m-1-1.north) to[bend left=40] node[arclabel, text=blue,   above] {A} (m-1-8.north);
+			\end{tikzpicture}
+
+			\vspace{0.6em}
+
+			\begin{forest}
+				for tree={circle, draw, minimum size=1.8em, inner sep=0.5pt, s sep=5mm, l=8mm, edge={-stealth}},
+				[{root}, draw=gray, dashed, font=\scriptsize\sffamily
+				[A, draw=blue, label={[font=\scriptsize\sffamily, text=blue]right:{A 包含 B、C 区间}}
+				[B, draw=teal]
+				[C, draw=orange, label={[font=\scriptsize\sffamily, text=orange]right:{C 包含 D 区间}}
+				[D, draw=violet]]
+				]
+				]
+			\end{forest}
+		\end{center}
+
+		\textbf{位置 $\leftrightarrow$ 结点}：\texttt{A} 对应位置 $0$–$7$，\texttt{B} 对应 $1$–$2$，\texttt{C} 对应 $3$–$6$，\texttt{D} 对应 $4$–$5$。注意 \texttt{A} 的两个儿子 \texttt{B, C} 就是位置上\textbf{相邻的两对最外层配对}——"兄弟 $\leftrightarrow$ 并排配对"在这张图里一眼能看出。
+
+		\textbf{对照表}（括号序列位置从 $0$ 编号）：
+
+
+
+		\textbf{为什么有用}：把"括号序列区间 $[l, r]$"翻译成"子树"之后，问题立刻具备\textbf{"子树内独立、跨子树只通过根交互"}的分治/树形 DP 结构。像 \href{https://codeforces.com/contest/2210/problem/D}{CF 2210D} 这类"对合法括号序列做变换后再计数/极值"的题，先把序列想成树几乎是本能动作。
+
+		\textbf{配对位置预处理（$O(n)$，栈一遍扫）}：
+
+		\begin{minted}{cpp}
+// match[i]: 位置 i 的括号与哪个位置配对
+vector<int> build_match(const string &s) {
+	int n = s.size();
+	vector<int> match(n);
+	stack<int> st;
+	for (int i = 0; i < n; ++i) {
+		if (s[i] == '(') st.push(i);
+		else {
+			int j = st.top(); st.pop();
+			match[i] = j;
+			match[j] = i;
+		}
+	}
+	return match;
+}
+		\end{minted}
+
+		\textbf{顺手建真树}：如果题目要的不止 \texttt{match[]}，而要父指针、儿子列表，只需在扫的时候每遇 \texttt{(} 就 \texttt{++cnt} 开一个新结点并挂到栈顶结点儿子末尾，同样 $O(n)$：
+
+		\begin{minted}{cpp}
+// 返回 {par, children}；结点从 0 开始，0 号为虚根
+// 约定输入 s 合法（可外面先 assert）
+struct ParenTree {
+	vector<int> par;
+	vector<vector<int>> ch;
+};
+
+ParenTree build_tree(const string &s) {
+	ParenTree t;
+	t.par.push_back(-1);
+	t.ch.emplace_back();
+	stack<int> st;
+	st.push(0);
+	for (char c : s) {
+		if (c == '(') {
+			int u = (int)t.par.size();
+			t.par.push_back(st.top());
+			t.ch.emplace_back();
+			t.ch[st.top()].push_back(u);
+			st.push(u);
+		} else {
+			st.pop();
+		}
+	}
+	return t;
+}
+		\end{minted}
+
+		\textbf{常见踩坑}：很多题\textbf{不需要显式建树}，只要"配对数组 \texttt{match[]} + 深度数组"就足够做区间 $\to$ 子树的翻译；显式建树往往只在需要跨子树合并信息（例如儿子之间按下标有序 DP）时才值得做。
+
+		\subsection{网络流（Dinic）：最大流 / 最小割容量及割边集合}
+
+		Dinic 求最大流 $O(V^2 E)$，二分图匹配 $O(E\sqrt{V})$。核心思路：BFS 在残量网络上分层，DFS 只沿层数 $+1$ 的边增广；\texttt{cur[u]} 当前弧优化保证每条边在一轮里只被无效访问一次。
+
+		\textbf{典型用法}：
+
+		\begin{itemize}
+			\item \textbf{最大流 / 最小割容量}：\texttt{maxFlow(s, t)}。由最大流最小割定理，返回值同时是 $s\text{-}t$ 最小割容量。
+			\item \textbf{最小割顶点集}：跑完 \texttt{maxFlow} 后调 \texttt{minCutSide(s)}，返回 \texttt{vis[]}：\texttt{vis[u]=1} 表示 $u$ 在 $S$ 侧。原理是残量网络里从 $s$ 沿剩余容量 $>0$ 的边能到的就是 $S$ 侧。
+			\item \textbf{最小割边集}：\texttt{minCutEdges(s)} 返回所有"\texttt{from} 在 $S$ 侧、\texttt{to} 在 $T$ 侧"的原图边的输入编号。前提是 \texttt{addEdge} 时传过 \texttt{id}。
+			\item \textbf{某条边实际流量}：\texttt{getFlow(id)} 返回 \texttt{originCap - cap}。
+		\end{itemize}
+
+		\textbf{建图约定}：点编号 1-based，\texttt{Dinic dinic(n)} 后 0 号点空着不用。无向容量边用 \texttt{addUndirectedEdge(u, v, c)}，等价于两个方向各加一条容量 $c$ 的有向边。多测用 \texttt{dinic.init(n)} 重置。
+
+		\begin{minted}{cpp}
+class Dinic {
+private:
+    struct Edge {
+        int from, to;
+        ll cap;                               // 当前剩余容量
+        ll originCap;                         // 原始容量，用于求割边代价 / 查询流量
+        int id;                               // 输入边编号，不需要输出割边时可以不管
+    };
+
+    int n;
+    vector<Edge> edges;
+    vector<vector<int>> g;
+    vector<int> level, cur;
+    vector<int> edgeIdToIndex;
+
+    bool bfs(int s, int t) {
+        fill(all(level), -1);
+        queue<int> q;
+        level[s] = 0;
+        q.push(s);
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int edgeIndex : g[u]) {
+                Edge &e = edges[edgeIndex];
+                if (e.cap > 0 && level[e.to] == -1) {
+                    level[e.to] = level[u] + 1;
+                    q.push(e.to);
+                }
+            }
+        }
+        return level[t] != -1;
+    }
+
+    ll dfs(int u, int t, ll pushed) {
+        if (u == t) return pushed;
+        if (pushed == 0) return 0;
+        for (int &i = cur[u]; i < (int)g[u].size(); i++) {
+            int edgeIndex = g[u][i];
+            Edge &e = edges[edgeIndex];
+            if (e.cap == 0) continue;
+            if (level[e.to] != level[u] + 1) continue;
+            ll tr = dfs(e.to, t, min(pushed, e.cap));
+            if (tr == 0) continue;
+            e.cap -= tr;
+            edges[edgeIndex ^ 1].cap += tr;
+            return tr;
+        }
+        return 0;
+    }
+
+public:
+    // 建立一个 1-base 流图，可用点编号 1..n，0 号点空着不用。
+    Dinic(int n = 0) { init(n); }
+
+    // 多测时用 dinic.init(n) 清空旧图。
+    void init(int n_) {
+        n = n_;
+        edges.clear();
+        g.assign(n + 1, {});
+        level.assign(n + 1, -1);
+        cur.assign(n + 1, 0);
+        edgeIdToIndex.clear();
+    }
+
+    // 加有向边 from -> to，容量 cap。
+    // 只求最大流不需要传 id；要输出最小割边就把输入编号 i 传进来。
+    void addEdge(int from, int to, ll cap, int id = -1) {
+        if (id >= 0) {
+            if ((int)edgeIdToIndex.size() <= id) {
+                edgeIdToIndex.resize(id + 1, -1);
+            }
+            edgeIdToIndex[id] = (int)edges.size();
+        }
+        edges.push_back({from, to, cap, cap, id});
+        g[from].push_back((int)edges.size() - 1);
+        edges.push_back({to, from, 0, 0, -1});
+        g[to].push_back((int)edges.size() - 1);
+    }
+
+    // 加无向容量边：u -> v 和 v -> u 都加容量 cap。
+    // 普通无向图最小割通常这样建。
+    void addUndirectedEdge(int u, int v, ll cap, int id = -1) {
+        addEdge(u, v, cap, id);
+        addEdge(v, u, cap, id);
+    }
+
+    // s 到 t 的最大流；由最大流最小割定理也是 s-t 最小割容量。
+    ll maxFlow(int s, int t) {
+        ll flow = 0;
+        while (bfs(s, t)) {
+            fill(all(cur), 0);
+            while (true) {
+                ll pushed = dfs(s, t, INF);
+                if (pushed == 0) break;
+                flow += pushed;
+            }
+        }
+        return flow;
+    }
+
+    // 跑完 maxFlow(s, t) 后调用。
+    // vis[u] = 1 表示 u 在最小割 S 侧；vis[u] = 0 表示在 T 侧。
+    // 原理：残量网络里从 s 沿剩余容量 > 0 的边能到的点。
+    vector<int> minCutSide(int s) {
+        vector<int> vis(n + 1, 0);
+        queue<int> q;
+        vis[s] = 1;
+        q.push(s);
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int edgeIndex : g[u]) {
+                Edge &e = edges[edgeIndex];
+                if (e.cap > 0 && !vis[e.to]) {
+                    vis[e.to] = 1;
+                    q.push(e.to);
+                }
+            }
+        }
+        return vis;
+    }
+
+    // 跑完 maxFlow(s, t) 后调用，返回一组最小割边的输入编号。
+    // 一条原图边 u -> v 属于最小割 <=> u 在 S 侧且 v 在 T 侧。
+    // 使用前提：addEdge 时传过 id。
+    vector<int> minCutEdges(int s) {
+        vector<int> vis = minCutSide(s);
+        vector<int> cutEdges;
+        for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2) {
+            Edge &e = edges[edgeIndex];
+            if (e.id != -1 && vis[e.from] && !vis[e.to]) {
+                cutEdges.push_back(e.id);
+            }
+        }
+        return cutEdges;
+    }
+
+    // 跑完 maxFlow(s, t) 后调用，返回当前这组最小割边的原始容量之和。
+    // 正常情况下 dinic.minCutCost(s) == dinic.maxFlow(s, t)。
+    ll minCutCost(int s) {
+        vector<int> vis = minCutSide(s);
+        ll cost = 0;
+        for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2) {
+            Edge &e = edges[edgeIndex];
+            if (vis[e.from] && !vis[e.to]) {
+                cost += e.originCap;
+            }
+        }
+        return cost;
+    }
+
+    // 查询某条输入边实际流了多少；前提是 addEdge 时传过 id。
+    ll getFlow(int id) {
+        int edgeIndex = edgeIdToIndex[id];
+        return edges[edgeIndex].originCap - edges[edgeIndex].cap;
+    }
+};
+		\end{minted}
+
+
+		\subsection{最小费用最大流（SPFA 势能 + Dijkstra 增广）}
+
+		在最大流的基础上，每条边带单位流量费用，要求在所有最大流方案中费用最小的那个。核心思路：每次沿\emph{费用最短的}增广路推流。直接 SPFA 找最短路也对，但残量网络可能出现负边权（反向边费用为 $-cost$），所以引入\textbf{势能}（Johnson 思想）做边权修正，让 Dijkstra 可用：把边 $u\to v$ 的权由 $cost$ 改成 $cost + h_u - h_v$，正确势能下这个修正后的权一定非负，每次 Dijkstra 跑完用 $h_v \mathrel{+}= dist_v$ 同步即可。
+
+		\textbf{复杂度}：$O(\text{SPFA} + A \cdot m \log n)$，$A$ 为增广次数（每条增广路至少一条边饱和）。
+
+		\textbf{典型用法}：
+
+		\begin{itemize}
+			\item \textbf{原始边费用非负}：直接 \texttt{minCostMaxFlow(s, t)}，$h$ 初始化为 $0$，第一次 Dijkstra 等价于在原图上跑费用最短路，势能自然生效。
+			\item \textbf{原始边费用可能为负}：传 \texttt{useSPFA=true}，先用 SPFA 跑出从 $s$ 到每点的初始势能再走 Dijkstra。注意是\emph{原始}边出现负费用；反向边一开始 \texttt{cap=0} 不参与最短路。
+		\end{itemize}
+
+		\textbf{建图约定}：点编号 1-based，反向边随 \texttt{addEdge} 自动加（容量 $0$、费用 $-cost$）。返回 \texttt{\{最大流, 最小费用\}} 的二元组。
+
+		\begin{minted}{cpp}
+class MinCostMaxFlow {
+private:
+    struct Edge {
+        int from, to;                         // 边的起点和终点
+        ll cap;                               // 当前残余容量
+        ll cost;                              // 单位流量费用
+    };
+
+    int n;
+    vector<Edge> edges;
+    vector<vector<int>> g;
+
+    // SPFA 初始化势能 h
+    // 作用：当原始费用可能为负时，先算出从 s 到每个点的最短路势能
+    void initPotentialBySPFA(int s, vector<ll> &h) {
+        vector<int> inq(n + 1, 0);
+        queue<int> q;
+        fill(all(h), INF);
+        h[s] = 0;
+        q.push(s);
+        inq[s] = 1;
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            inq[u] = 0;
+            for (int id : g[u]) {
+                Edge &e = edges[id];
+                if (e.cap <= 0) continue;
+                int v = e.to;
+                if (h[v] > h[u] + e.cost) {
+                    h[v] = h[u] + e.cost;
+                    if (!inq[v]) {
+                        inq[v] = 1;
+                        q.push(v);
+                    }
+                }
+            }
+        }
+        // 不可达点的势能设为 0，避免后续计算 INF 参与运算
+        for (int i = 1; i <= n; i++) {
+            if (h[i] == INF) h[i] = 0;
+        }
+    }
+
+public:
+    MinCostMaxFlow(int n) : n(n), g(n + 1) {}
+
+    // 加一条 u -> v 的边，容量为 cap，费用为 cost
+    // 同时加反向边 v -> u，容量为 0，费用为 -cost，用于撤销流量
+    void addEdge(int u, int v, ll cap, ll cost) {
+        int id = edges.size();
+        edges.push_back({u, v, cap, cost});
+        edges.push_back({v, u, 0, -cost});
+        g[u].push_back(id);
+        g[v].push_back(id ^ 1);
+    }
+
+    // 返回 {最大流, 最小费用}
+    // useSPFA 表示是否使用 SPFA 初始化势能
+    pair<ll, ll> minCostMaxFlow(int s, int t, bool useSPFA = false) {
+        ll maxFlow = 0;
+        ll minCost = 0;
+        vector<ll> h(n + 1, 0);               // 势能，让 Dijkstra 可处理残量网络中的负边
+        vector<ll> dist(n + 1);               // 最短路距离
+        vector<int> pre(n + 1);               // pre[v] = 最短路上到达 v 的边编号
+
+        if (useSPFA) {
+            initPotentialBySPFA(s, h);
+        }
+
+        while (true) {
+            fill(all(dist), INF);
+            fill(all(pre), -1);
+            priority_queue<pair<ll, int>, vector<pair<ll, int>>, greater<pair<ll, int>>> pq;
+            dist[s] = 0;
+            pq.push({0, s});
+
+            // 在残量网络上跑 Dijkstra，找费用最短的增广路
+            while (!pq.empty()) {
+                auto [d, u] = pq.top(); pq.pop();
+                if (d != dist[u]) continue;
+                for (int id : g[u]) {
+                    Edge &e = edges[id];
+                    if (e.cap <= 0) continue;
+                    int v = e.to;
+                    // 势能修正后的边权，正确势能下一定 >= 0
+                    ll newCost = e.cost + h[u] - h[v];
+                    if (dist[v] > dist[u] + newCost) {
+                        dist[v] = dist[u] + newCost;
+                        pre[v] = id;
+                        pq.push({dist[v], v});
+                    }
+                }
+            }
+
+            // t 不可达，说明已经没有增广路
+            if (pre[t] == -1) break;
+
+            // 更新势能
+            for (int i = 1; i <= n; i++) {
+                if (dist[i] < INF) {
+                    h[i] += dist[i];
+                }
+            }
+
+            // 找这条增广路上的瓶颈容量
+            ll addFlow = INF;
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                addFlow = min(addFlow, edges[pre[cur]].cap);
+            }
+
+            // 沿着最短费用路增广
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                int id = pre[cur];
+                edges[id].cap -= addFlow;
+                edges[id ^ 1].cap += addFlow;
+                minCost += addFlow * edges[id].cost;
+            }
+
+            maxFlow += addFlow;
+        }
+
+        return {maxFlow, minCost};
+    }
+};
+		\end{minted}
+
+
+		\subsection{图论常见结论}
+
+		\subsubsection{树直径端点的"远点"性质}
+
+		对于任意点 $a$，树直径的两个端点中至少有一个是距离 $a$ 最远的点。这就是为什么"两遍 BFS 求树直径"成立：第一遍从任意点 $a$ 出发找最远点 $u$，$u$ 一定是直径端点；第二遍从 $u$ 出发找最远点 $v$，$(u, v)$ 就是一条直径。可以用反证法证明。例题 \href{https://atcoder.jp/contests/abc428/submissions/70535587}{ABC 428}。
+
+		\subsubsection{相邻点单源最短路差不超过 $1$}
+
+		在无权图里，对任意一条边 $(u, v)$，恒有 $|dis_u - dis_v| \leq 1$（$dis_u$ 是某固定根到 $u$ 的最短路长度，BFS 层数）。看起来像废话，但偶尔确实有用，如 \href{https://codeforces.com/contest/2179/submission/355080390}{CF 2179}。
+
+		\textbf{进一步地，若图是二分图}，可以加强为 $|dis_u - dis_v| = 1$。原因：二分图 $\iff$ 所有环长度为偶数 $\iff$ 从固定根出发的最短路距离的奇偶性给出一个合法二分划分。所以对任意边 $(u, v)$，$dis_u$ 与 $dis_v$ 的奇偶性必相反，因此不可能相等。
+
+		\subsubsection{广义凯莱公式（森林连通块版）}
+
+		给定一个 $n$ 个顶点 $m$ 条边的森林，设有 $k$ 个连通块、大小分别为 $s_1, s_2, \dots, s_k$。把它们加 $k - 1$ 条边合成一棵树的方案数为：
+		$$
+		n^{k-2} \prod_{i=1}^{k} s_i.
+		$$
+
+		直观理解：长度为 $k - 2$ 的 prufer 序列贡献 $n^{k - 2}$；乘以 $\prod_{i=1}^{k} s_i$ 是因为对所有非根连通块要确定它的"发送端"（每块只有一个发送端，否则会成环），还要确定根连通块的"接收端"——这个在 prufer 序列中没有直接体现，严格讲是\textbf{最后一个被删除的连通块}所连到的根连通块的接收点。
+
+
+	\end{multicols*}
+
