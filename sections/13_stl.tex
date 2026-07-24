@@ -171,5 +171,25 @@ istream &operator>>(istream &is, __int128 &x) {
 		\textbf{读入开头 \texttt{if (!(is >> s)) return is;} 的用意}：让 \texttt{while (cin >> v)} 「多组输入读到 EOF 自动停」的写法对 \texttt{\_\_int128} 同样成立。\texttt{is >> s} 返回流本身，流可以转 \texttt{bool}（语义是「上一次读取成功与否」）：EOF 时读不到内容、流被置上失败位、转出 \texttt{false}，这行就直接带着失败位原样返回且\textbf{不动} \texttt{x}——与内建整型 \texttt{cin >> n} 读失败的行为对齐，外层循环条件拿到 \texttt{false} 正确退出。
 
 		\textbf{坑}：输出对负数先 \texttt{x = -x}，恰为 $-2^{127}$（\texttt{\_\_int128} 最小值）时取负溢出是 UB——竞赛值域顶到 $\pm 1.7 \times 10^{38}$ 边界才会踩，正常使用不受影响。
+
+		\subsection{\texttt{next\_permutation} 枚举全排列}
+
+		\texttt{next\_permutation(first, last)} 把区间 $[\texttt{first}, \texttt{last})$ 原地重排成\textbf{字典序的下一个排列}并返回 \texttt{true}；当前已是最大排列（完全降序）时返回 \texttt{false}，并把区间重排回最小排列（完全升序）。标准套路——\textbf{先 \texttt{sort} 到最小排列，再 \texttt{do-while}}：
+
+		\begin{minted}{cpp}
+vector<int> p = {3, 1, 2};
+sort(p.begin(), p.end());  // 必须从最小排列出发, 否则枚举不全
+do {
+	// 处理当前排列 p (do-while 保证初始排列本身也被处理)
+} while (next_permutation(p.begin(), p.end()));
+		\end{minted}
+
+		\begin{itemize}
+			\item \textbf{不 \texttt{sort} 就 \texttt{do-while} 是高频错误}：只会从当前排列往字典序后面枚举，前面的排列全部漏掉。
+			\item \textbf{复杂度}：单次调用均摊 $O(1)$（最坏 $O(n)$），枚举全部共 $n!$ 个——$n = 10$ 约 $3.6 \times 10^6$ 随便跑，$n = 11$ 约 $4 \times 10^7$ 是边界，$n \ge 12$ 基本不可行。
+			\item \textbf{有重复元素时自动去重}：按「不同的排列」恰好各枚举一次（如 \texttt{\{1, 1, 2\}} 只出 3 种），这是它比手写 DFS 全排列省心的地方。
+			\item \textbf{枚举组合的技巧}：开一个 $n - k$ 个 \texttt{0} + $k$ 个 \texttt{1} 的 01 数组，\texttt{sort} 后用同一套 \texttt{do-while} 枚举它的全部排列，就是 $\binom{n}{k}$ 个组合的指示向量。
+			\item 对称版本 \texttt{prev\_permutation}：字典序上一个，完全升序时返回 \texttt{false}；\texttt{string} / 数组 / \texttt{vector} 都能用（任何双向迭代器区间）。
+		\end{itemize}
 	\end{multicols*}
 
