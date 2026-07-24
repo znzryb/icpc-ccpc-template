@@ -601,35 +601,39 @@ void sieve(int n) {
 	\textbf{倍数形式}：若在有限（或收敛）范围内对任意正整数 $n$ 都有 $f(n) = \sum_{n \mid d} g(d)$，则
 	$$ g(n) = \sum_{n \mid d} \mu\!\left(\frac{d}{n}\right) f(d). $$
 
-	下面证明因数形式（倍数形式完全对称）。整个证明的核心是关键引理与一次求和次序交换。
+	下面给出证明（主体推导为手写稿）。核心是关键引理与一次\textbf{求和次序交换}；后者另配一张 $n=12$ 的示意图辅助理解。
 
 	\subsubsection{关键引理：\texorpdfstring{$\sum_{d\mid n}\mu(d)=[n=1]$}{sum mu(d) = [n=1]}}
 
 	$$ \sum_{d \mid n} \mu(d) = [\,n = 1\,] = \begin{cases} 1, & n = 1, \\ 0, & n > 1. \end{cases} $$
 
-	\textbf{证明.} $n = 1$ 时 $\mu(1) = 1$，成立。设 $n > 1$，其互异质因子为 $p_1, p_2, \dots, p_k$。由于 $\mu$ 在含平方因子处取 $0$，求和只需考虑\textbf{无平方因子}的约数——即从 $k$ 个质因子中\textbf{不重复}选取若干个相乘得到的 $d$（重复选取意味着某质因子的次数 $\ge 2$，此时 $\mu(d)=0$）。恰选 $i$ 个质因子的约数共有 $\binom{k}{i}$ 个，每个的 $\mu$ 值均为 $(-1)^i$，故
-	$$
-	\sum_{d \mid n} \mu(d)
-	= \sum_{i=0}^{k} \binom{k}{i}(-1)^i
-	= \binom{k}{0} - \binom{k}{1} + \binom{k}{2} - \cdots + (-1)^k\binom{k}{k}
-	= (1-1)^k = 0,
-	$$
-	最后一步使用二项式定理 $(1+x)^k = \sum_i \binom{k}{i} x^i$ 取 $x = -1$。$\blacksquare$
+	$n=1$ 显然成立。$n>1$ 时设其有 $k$ 个互异质因子，只有\textbf{无平方因子}的约数（从 $k$ 个质因子中不重复选取）贡献非零 $\mu$，按选取个数分组并用二项式定理即得 $(1-1)^k=0$：
+
+	\begin{center}
+		\includegraphics[width=0.92\linewidth]{image/mobius_proof_3_lemma.png}
+	\end{center}
 
 	\subsubsection{反演公式（因数形式）的证明}
 
-	已知 $f(n) = \sum_{d\mid n} g(d)$，要证 $g(n) = \sum_{d\mid n} \mu(n/d)\, f(d)$。把等式右边记为 $R$，代入 $f(d) = \sum_{k\mid d} g(k)$：
-	\begin{align*}
-	R &= \sum_{d \mid n} \mu\!\left(\frac{n}{d}\right) \left[\, \sum_{k \mid d} g(k) \right]
-	   = \sum_{k \mid n} g(k) \left[\, \sum_{\substack{d \mid n \\ k \mid d}} \mu\!\left(\frac{n}{d}\right) \right].
-	\end{align*}
-	第二个等号\textbf{交换求和次序}：原本外层枚举 $d \mid n$、内层枚举 $k \mid d$；交换后外层枚举 $k \mid n$、内层枚举同时满足 $k \mid d$ 且 $d \mid n$ 的 $d$（下方图示以 $n=12$ 说明这一交换）。
+	\textbf{命题.} 已知 $f(n)=\sum_{d\mid n}g(d)$，要证 $g(n)=\sum_{d\mid n}\mu(n/d)\,f(d)$：
 
-	对固定的 $k$，令 $x = \dfrac{n}{d}$。当 $d$ 取遍 $\{\,d : k \mid d \mid n\,\}$ 时，$x$ 恰好取遍 $\dfrac{n}{k}$ 的所有约数（因为 $k \mid d \mid n \iff x \mid \tfrac{n}{k}$）。于是内层中括号
-	$$ \sum_{\substack{d \mid n \\ k \mid d}} \mu\!\left(\frac{n}{d}\right) = \sum_{x \mid \frac{n}{k}} \mu(x) = \left[\, \frac{n}{k} = 1 \,\right] = [\,k = n\,], $$
-	最后一个等号正是上一节的关键引理。代回：
-	$$ R = \sum_{k \mid n} g(k)\, [\,k = n\,] = g(n) = \text{左边}. $$
-	即 $R = g(n)$，得证。$\blacksquare$
+	\begin{center}
+		\includegraphics[width=0.72\linewidth]{image/mobius_proof_1_statement.png}
+	\end{center}
+
+	\textbf{代入并交换求和次序.} 把右边的 $f(d)$ 代入为 $\sum_{k\mid d}g(k)$，交换求和次序后令 $x=n/d$，内层中括号化为 $\sum_{x\mid n/k}\mu(x)$：
+
+	\begin{center}
+		\includegraphics[width=0.80\linewidth]{image/mobius_proof_2_swap.png}
+	\end{center}
+
+	\textbf{用 $\mu$ 的性质收束.} 由关键引理 $\sum_{x\mid n/k}\mu(x)=[\,n/k=1\,]=[\,k=n\,]$，于是右边 $=\sum_{k\mid n}g(k)\,[\,k=n\,]=g(n)=$ 左边，得证：
+
+	\begin{center}
+		\includegraphics[width=0.82\linewidth]{image/mobius_proof_4_finish.png}
+	\end{center}
+
+	\textbf{求和次序交换示意（$n=12$）.} 上面「交换求和次序」一步，可用约数 incidence 网格直观理解——原式与交换后覆盖的是同一批 $(k,d)$ 点对：
 
 	\begin{center}
 	\begin{tikzpicture}[scale=1.0]
