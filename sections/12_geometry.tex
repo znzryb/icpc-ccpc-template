@@ -326,8 +326,8 @@ constexpr int ONLINE_FRONT      = -2;
 
 template<class T, class U>
 int CCW(Point<T> p, Line<U> l) {
-	Point<DB> a = l.p2 - l.p1;
-	Point<DB> b = p - l.p1;
+	auto a = l.p2 - l.p1;
+	auto b = p - l.p1;
 	if (sgn(cross(a, b)) > 0) {
 		return COUNTER_CLOCKWISE;
 	}
