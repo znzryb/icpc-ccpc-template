@@ -120,6 +120,23 @@ unordered_set<vector<ll>, VecHash> st; // vector 直接做 key
 
 		\textbf{坑}：\texttt{mp.reserve(n)} / \texttt{max\_load\_factor(0.25)} 只是把桶数顶大 / 保持稀疏，桶数\textbf{仍然可预测}——是弱防御 + 常数优化，\textbf{不能单独防 hack}，真正的防线永远是随机盐。追求速度可换 \texttt{\_\_gnu\_pbds::gp\_hash\_table<K, V, custom\_hash>}（开放寻址，常数更小），\texttt{custom\_hash} 用法相同。
 
+		\subsection{\texttt{views::keys} / \texttt{views::values} 遍历 map 的键 / 值（C++20 ranges）}
+
+		C++20 的 \texttt{<ranges>} 提供 \texttt{views::keys} / \texttt{views::values}，把 map（或任何 \texttt{pair} 序列）\textbf{投影}成「只有 key」/「只有 value」的惰性视图——省掉 \texttt{for (auto \&[k, v] : mp)} 里那个用不到、却还得写的另一半。视图元素是\textbf{原容器的引用}，\texttt{auto \&} 拿到就能\textbf{原地改}（如对每个 value 排序）：
+
+		\begin{minted}{cpp}
+#include <ranges>              // 需要
+namespace views = std::views; // 或 using namespace std::views;
+
+unordered_map<ll, vector<array<ll, 2> > > mp;
+// 只遍历 value: 免写 auto &[_, vec], 直接拿 value 的引用, 能原地改
+for (auto &vec : mp | views::values) sort(all(vec));
+// 只遍历 key: 关联容器 key 是 const, 这里拿到 const 引用
+for (ll k : mp | views::keys) cout << k << " ";
+		\end{minted}
+
+		\textbf{同族常用视图}（都能用 \texttt{|} 串接）：\texttt{views::filter(pred)} 过滤、\texttt{views::transform(f)} 逐元素映射、\texttt{views::reverse} 反序、\texttt{views::take(n)} / \texttt{views::drop(n)} 取前 / 弃前 \(n\) 个。视图\textbf{惰性求值}、不拷贝底层数据，遍历到才逐个算。
+
 		\subsection{\texttt{sort + unique} 按 key 去重并保留指定值}
 
 		\texttt{std::unique} 把相邻相等元素合并为一个，\textbf{保留每段的第一个}（不是最后）。配合 \texttt{sort} 可以做「按某个 key 分组、每组只留一个特定属性最大 / 最小的元素」。
