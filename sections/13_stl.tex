@@ -64,6 +64,25 @@ using hash_map = unordered_map<K, V, custom_hash>;
 hash_map<ll, int> mp;
 		\end{minted}
 
+		\begin{me}
+如果要存的东西里面有负数，会造成问题吗？
+		\end{me}
+
+		\begin{mentor}
+\textbf{不会，负数 key 完全安全。}关键在于 \texttt{custom\_hash} 的形参写死是 \texttt{uint64\_t}：往 \texttt{hash\_map<ll,int>} 里塞一个负的 \texttt{ll}（如 \(-5\)）时，会先做一次 \textbf{signed \(\to\) unsigned 隐式转换}再进哈希。C++ 标准规定这个转换是\textbf{良定义}的——结果 \(=\) 原值对 \(2^{64}\) 取模，即 \(-1 \to 2^{64}-1\)、\(-5 \to 2^{64}-5\)。
+
+对 64 位的 \texttt{ll}，这个转换是一个\textbf{双射}（\(2^{64}\) 个有符号值一一对应 \(2^{64}\) 个位模式，无信息丢失），于是：
+
+\begin{itemize}
+  \item \textbf{相等的 key} 转出\textbf{相等}的 \texttt{uint64\_t} \(\Rightarrow\) 哈希一致，一定查得到；
+  \item \textbf{不同的 key} 转出\textbf{不同}的 \texttt{uint64\_t} \(\Rightarrow\) 负数不会跟某个正数「假撞」，不会平白增加冲突。
+\end{itemize}
+
+后续 \texttt{x + R} 是 \texttt{uint64\_t} 的模 \(2^{64}\) 运算，无符号溢出回绕本身也是良定义的，而 \texttt{splitmix64} 的设计就是吃满 64 位输入。再兜一层底：即便两个 key 真落进同一个桶，\texttt{unordered\_map} 还会用 \texttt{std::equal\_to<ll>} 去比\textbf{真实的 \texttt{ll} 值}，\(-5\) 和 \(5\) 照样分得清。
+
+\textbf{唯一真会出事的不是「负数」，而是「key 宽于 64 位」}：如果拿 \texttt{\_\_int128} 当 key，形参 \texttt{uint64\_t} 会\textbf{截断}高 64 位，两个只差在高位的 key 才可能假撞。\texttt{ll} / \texttt{int} 的负数不涉及截断，安全。
+		\end{mentor}
+
 		\textbf{自定义结构体做 key} 需要两样东西：(1) 一个 hash 把\textbf{每个字段逐个混入}（禁止直接异或，\texttt{(a,b)} 与 \texttt{(b,a)} 会撞成同值）；(2) \texttt{operator==} 供哈希冲突时比较。两个 \texttt{operator} \textbf{都要加 \texttt{const}}，否则 \texttt{unordered\_map} 对 const key 调用时编译不过：
 
 		\begin{minted}{cpp}

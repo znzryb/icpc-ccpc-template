@@ -23,6 +23,17 @@
 \usetikzlibrary{matrix, positioning, arrows.meta, backgrounds, decorations.pathreplacing} % matrix of nodes 让字符序列 spacing 自动化
 \usepackage{forest} % 画树结构，语法 [root [A [B]]]
 \usepackage[a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm]{geometry}
+\usepackage{tcolorbox} % me/mentor 问答气泡（tex-qa 写回）
+\tcbuselibrary{breakable, skins}
+
+\newtcolorbox{me}{colback=orange!5, colframe=orange!70!black,
+  fonttitle=\bfseries, title={\textbf{Me (zzy)}},
+  breakable, enhanced, sharp corners=south,
+  left=8pt, right=8pt, top=4pt, bottom=4pt}
+\newtcolorbox{mentor}{colback=blue!4, colframe=blue!55!black,
+  fonttitle=\bfseries, title={\textbf{Mentor (Claude)}},
+  breakable, enhanced, sharp corners=south,
+  left=8pt, right=8pt, top=4pt, bottom=4pt}
 
 % 与原先 listings 外观大致对齐；
 \setminted{
