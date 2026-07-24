@@ -598,8 +598,8 @@ void sieve(int n) {
 	则
 	$$ g(n) = \sum_{d \mid n} \mu\!\left(\frac{n}{d}\right) f(d) = \sum_{d \mid n} \mu(d)\, f\!\left(\frac{n}{d}\right). $$
 
-	\textbf{倍数形式}：若在有限（或收敛）范围内对任意正整数 $n$ 都有 $f(n) = \sum_{n \mid m} g(m)$（$m$ 取遍 $n$ 的所有倍数），则
-	$$ g(n) = \sum_{n \mid m} \mu\!\left(\frac{m}{n}\right) f(m). $$
+	\textbf{倍数形式}：若在有限（或收敛）范围内对任意正整数 $d$ 都有 $f(d) = \sum_{d \mid n} g(n)$（$n$ 取遍 $d$ 的所有倍数），则
+	$$ g(d) = \sum_{d \mid n} \mu\!\left(\frac{n}{d}\right) f(n). $$
 
 	下面给出证明（主体推导为手写稿）。核心是关键引理与一次\textbf{求和次序交换}；后者另配一张 $n=12$ 的示意图辅助理解。
 
