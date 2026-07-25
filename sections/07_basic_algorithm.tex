@@ -71,6 +71,36 @@ public:
 };
 		\end{minted}
 
+		\textbf{原理解释（容斥原理）}：差分矩阵的特性是——对 $D[x][y]$ 加上 $V$ 后，在后续求前缀和还原矩阵时，以 $(x,y)$ 为左上角、直到矩阵右下角的所有元素都会被加上 $V$。所以想让矩形 $[x_1,x_2]\times[y_1,y_2]$ 恰好加 $V$，就是拿四个这样的「右下四分之一平面」互相抵消：
+
+		\begin{enumerate}
+			\item $D[x_1][y_1] \mathrel{+}= V$：让目标区域及右下方的所有点都加 $V$。
+			\item $D[x_2+1][y_1] \mathrel{-}= V$：把多加的下方区域减掉。
+			\item $D[x_1][y_2+1] \mathrel{-}= V$：把多加的右方区域减掉。
+			\item $D[x_2+1][y_2+1] \mathrel{+}= V$：右下方区域被减了两次，所以要加回一次来抵消。
+		\end{enumerate}
+
+		\begin{center}
+			\begin{tikzpicture}[x=0.62cm, y=-0.62cm, font=\scriptsize]
+				\fill[blue!14] (1,1) rectangle (4,4);
+				\draw[gray!55] (0,0) grid (6,6);
+				\node at (1.5,1.5) {$+V$};
+				\node at (4.5,1.5) {$-V$};
+				\node at (1.5,4.5) {$-V$};
+				\node at (4.5,4.5) {$+V$};
+				\node[left] at (0,1.5) {$x_1$};
+				\node[left] at (0,4.5) {$x_2{+}1$};
+				\node[above] at (1.5,0) {$y_1$};
+				\node[above] at (4.5,0) {$y_2{+}1$};
+				\draw[->, thick] (6.3,0) -- (6.3,2) node[midway, right] {$x$};
+				\draw[->, thick] (0,6.3) -- (2,6.3) node[midway, below] {$y$};
+			\end{tikzpicture}
+		\end{center}
+
+		蓝色是目标矩形，四个格子是打标记的位置：每个标记的作用范围都是「自己往右下无限延伸」，四者叠加后只有蓝色区域净得 $+V$。
+
+		代码里 \texttt{l1,l2} 是行（对应 $x_1,x_2$）、\texttt{r1,r2} 是列（对应 $y_1,y_2$）；四个 \texttt{if} 是越界保护：差分数组没有多开一圈，落在 $n$ 之外的标记本来就影响不到答案，直接丢弃即可。
+
 		\subsection{双指针模板}
 
 		\textbf{参考来源}：\href{https://www.acwing.com/}{AcWing}
