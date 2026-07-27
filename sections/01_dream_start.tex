@@ -179,41 +179,11 @@ EOF
 
 	\subsection{CLion 语言引擎：赛场机上先切 Nova}
 
-	CLion 有两套\textbf{语言引擎}，补全 / 高亮 / 跳转的行为由它决定，**赛场机开机后第一件事就是确认切到 Nova**：
+	CLion 有两套语言引擎：\textbf{Classic}（补全 / 高亮走 clangd）和 \textbf{Nova}（换成 ReSharper C++ 引擎，核心功能不走 clangd）。\textbf{赛场机开机先切 Nova}——最直接的好处是类模板补全带尖括号：敲 \texttt{vec} 回车，Nova 给 \texttt{vector<>} 且光标落在尖括号中间，Classic 只给 \texttt{vector}。竞赛里 \texttt{vector} / \texttt{map} 满屏都是，省下的按键很可观。
 
-	\begin{itemize}
-		\item \textbf{CLion Classic}——核心 code insight（补全、高亮）由 \textbf{clangd} 提供，另有一个 legacy 引擎负责重构等其余功能。
-		\item \textbf{CLion Nova}——换成 \textbf{ReSharper C++ / Rider C++ 引擎}，核心功能\textbf{完全不走 clangd}（JetBrains 的 clangd fork 仍在后台跑，但只管 ClangFormat / Clang-Tidy / MISRA / 数据流分析）。
-	\end{itemize}
+	Classic 这边\textbf{没有开关能打开}：clangd 只对函数模板补尖括号，类模板一律不补（C++17 有了 CTAD，\texttt{vector v\{1, 2\};} 本身合法，判断不出要不要那对尖括号）。
 
-	两套是彼此独立的实现，所以「同一个 IDE、同一份代码，两台机补全行为不一样」很正常——换引擎等于换了整个语言前端。对竞赛影响最大的一处差异：
-
-	\begin{center}
-		\begin{tabular}{l|l|l}
-			\hline
-			输入                                & CLion Nova                                     & CLion Classic                        \\
-			\hline
-			\mintinline{cpp}{vec} + \texttt{Enter}  & \mintinline{cpp}{vector<>}（光标落在尖括号中间） & \mintinline{cpp}{vector}（尖括号自己敲） \\
-			\hline
-			\mintinline{cpp}{#inc} + \texttt{Enter} & \mintinline{cpp}{#include}（只有指令）           & \mintinline{cpp}{#include <>} + 头文件列表 \\
-			\hline
-		\end{tabular}
-	\end{center}
-
-	第一行是\textbf{选 Nova 的主要理由}：竞赛里 \mintinline{cpp}{vector} / \mintinline{cpp}{map} / \mintinline{cpp}{priority_queue} 满屏都是，少敲一对尖括号累积起来很可观。Classic 这边\textbf{既不是 bug 也没有开关}——clangd 只对\textbf{函数模板}（且模板参数推导不出来时）补尖括号，\textbf{类模板一律不补}：C++17 起有了 CTAD，\mintinline{cpp}{vector v{1, 2};} 本身就合法，IDE 判断不出你要不要那对尖括号，索性不插（见 JetBrains issue \texttt{CPP-154}）。
-
-	第二行是反向的坑，切之前知道一下：Nova 目前\textbf{没有} \mintinline{cpp}{#include <...>} 的补全，只补一个光秃秃的 \mintinline{cpp}{#include}（issue \texttt{CPP-47569}，仍 open）。竞赛基本只写一行 \mintinline{cpp}{#include <bits/stdc++.h>}，影响不大。
-
-	\textbf{怎么切}（两条路径任选其一）：
-
-	\begin{enumerate}
-		\item 右侧工具栏齿轮（\textbf{IDE and Project Settings}）$\rightarrow$ \textbf{Switch to Nova Engine} $\rightarrow$ \textbf{Enable and Restart}。
-		\item \textbf{Settings} $\rightarrow$ \textbf{Advanced Settings} $\rightarrow$ 勾上 \textbf{Use the ReSharper C++ language engine (CLion Nova)} $\rightarrow$ \textbf{Apply}。
-	\end{enumerate}
-
-	切换要重启 IDE 并重新解析项目。竞赛工程就几个 \texttt{.cpp}，几秒的事，但\textbf{务必在热身赛就切好}，别等开赛才发现要重启。IDE 设置是每台机独立的，赛场机每次重装镜像都要重切一次。
-
-	\textbf{版本背景}：Nova 自 \textbf{CLion 2025.3} 起是所有用户的默认引擎；\textbf{2026.2} 把 Classic 从 IDE 里 unbundle 成可选插件（\texttt{C/C++ Language Support via Classic Engine}）；\textbf{2026.3}（2026 年 11 月）是最后一个兼容 Classic 的稳定版。所以赛场机若装了较新版本，默认就是 Nova、无需操心；只有还能看到「选不选 Nova」的机器（版本大致在 2024.2--2026.1 之间）才需要手动切。
+	切换：右侧工具栏齿轮 $\rightarrow$ \textbf{Switch to Nova Engine} $\rightarrow$ \textbf{Enable and Restart}；或 \textbf{Settings} $\rightarrow$ \textbf{Advanced Settings} $\rightarrow$ 勾 \textbf{Use the ReSharper C++ language engine (CLion Nova)}。要重启 + 重新解析项目，所以\textbf{热身赛就切好}；设置每台机独立，换机器要重切。CLion 2025.3 起 Nova 已是默认，新版本不用管这节。
 
 	\subsection{Windows：禁用 \texttt{Shift} 切换中英文输入}
 
