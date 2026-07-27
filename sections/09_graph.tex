@@ -1537,6 +1537,47 @@ public:
 
 		直观理解：长度为 $k - 2$ 的 prufer 序列贡献 $n^{k - 2}$；乘以 $\prod_{i=1}^{k} s_i$ 是因为对所有非根连通块要确定它的"发送端"（每块只有一个发送端，否则会成环），还要确定根连通块的"接收端"——这个在 prufer 序列中没有直接体现，严格讲是\textbf{最后一个被删除的连通块}所连到的根连通块的接收点。
 
+		\subsubsection{两条树上路径是否相交（LCA 判定）}
+
+		记两条路径的端点为 $(a, b)$ 与 $(c, d)$，$p = \operatorname{LCA}(a, b)$、$q = \operatorname{LCA}(c, d)$，则
+		$$
+		\text{两路径有公共点} \iff p \text{ 在路径 } c\text{-}d \text{ 上，或 } q \text{ 在路径 } a\text{-}b \text{ 上}.
+		$$
+
+		\textbf{证明}：路径 $a\text{-}b$ 是"$a$ 上升到 $p$ 再下降到 $b$"的 $\Lambda$ 形，$p$ 是其上深度最小的点，且路径上每个点都是 $p$ 的后代。设 $x$ 是两条路径的公共点，那么 $p$ 与 $q$ 都是 $x$ 的祖先（含自身），故 $p, q$ 必有祖先后代关系。不妨设 $\text{dep}(p) \geq \text{dep}(q)$，则 $q$ 是 $p$ 的祖先，而 $p$ 又是 $x$ 的祖先，所以 $p$ 落在 $x$ 上升到 $q$ 的那一段上——这一整段都属于路径 $c\text{-}d$，故 $p$ 在 $c\text{-}d$ 上。反向显然。$\square$
+
+		\textbf{推论}：只需检验 $p, q$ 中\textbf{深度较大}的那个是否落在另一条路径上；实现时懒得比深度就两个方向各判一遍。
+
+		判定"$x$ 是否在路径 $u\text{-}v$ 上"：$\operatorname{LCA}(u, x) = x$ 且 $\operatorname{LCA}(x, v) = \operatorname{LCA}(u, v)$（或把 $u, v$ 对调）；等价地 $\text{dis}(u, x) + \text{dis}(x, v) = \text{dis}(u, v)$。模板与例题见本章开头「倍增法求 LCA」的 P3398 仓鼠找 sugar。
+
+		\begin{center}
+		\begin{tikzpicture}[scale=0.92, every node/.style={font=\small},
+			vtx/.style={circle, draw, inner sep=0pt, minimum size=5.2mm, fill=white}]
+			\coordinate (q) at (0,0);
+			\coordinate (p) at (1.35,-1.15);
+			\coordinate (c) at (-1.35,-2.3);
+			\coordinate (a) at (0.35,-2.3);
+			\coordinate (b) at (1.35,-2.3);
+			\coordinate (d) at (2.35,-2.3);
+			% 路径 c-d：c 上升到 q 再下降经 p 到 d
+			\draw[line width=3pt, red!35] (c) -- (q) -- (p) -- (d);
+			% 路径 a-b：a 上升到 p 再下降到 b
+			\draw[line width=3pt, blue!35] (a) -- (p) -- (b);
+			% 树边
+			\draw (q) -- (c) (q) -- (p) (p) -- (a) (p) -- (b) (p) -- (d);
+			\draw (0,0.62) -- (q);
+			\node at (0,0.85) {$\vdots$};
+			\node[vtx] at (q) {$q$};
+			\node[vtx, draw=black, line width=1pt, fill=yellow!30] at (p) {$p$};
+			\node[vtx] at (c) {$c$};
+			\node[vtx] at (a) {$a$};
+			\node[vtx] at (b) {$b$};
+			\node[vtx] at (d) {$d$};
+		\end{tikzpicture}
+		\end{center}
+
+		图中 $\text{dep}(p) > \text{dep}(q)$，两条路径的交集恰是 $\{p\}$：蓝路径 $a\text{-}b$ 以 $p$ 为顶，红路径 $c\text{-}d$ 从 $q$ 下降时正好经过 $p$。若把 $p$ 从红路径上挪开（例如 $d$ 改挂到 $c$ 那一侧），两条路径就不相交了。
+
 
 	\end{multicols*}
 
