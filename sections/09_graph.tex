@@ -156,7 +156,7 @@ struct Tree {
         dfn.resize(n + 2);
     }
 
-    void add_edge(int u, int v) { g[u].pb(v); g[v].pb(u); }
+    void add_edge(int u, int v) { g[u].push_back(v); g[v].push_back(u); }
 
     void dfs(int u, int fa, ll dep) {
         Anc[u][0] = fa;
@@ -172,19 +172,20 @@ struct Tree {
         if (isInit) return;
         isInit = true;
         dfs(1, 0, 0);
-        FOR(c, 1, LOG) FOR(i, 1, n) Anc[i][c] = Anc[Anc[i][c - 1]][c - 1];
+        for (int c = 1; c <= LOG; ++c)
+            for (int i = 1; i <= n; ++i) Anc[i][c] = Anc[Anc[i][c - 1]][c - 1];
     }
 
     int lca_ab(int a, int b) {
         init();
         if (a == b) return a;
         if (Dep[a] <= Dep[b]) swap(a, b);
-        ROF(i, LOG, 0) if (Dep[Anc[a][i]] > Dep[b]) a = Anc[a][i];
+        for (int i = LOG; i >= 0; --i)
+            if (Dep[Anc[a][i]] > Dep[b]) a = Anc[a][i];
         if (Dep[a] != Dep[b]) a = Anc[a][0];
         if (a == b) return a;
-        ROF(i, LOG, 0) if (Anc[a][i] != Anc[b][i]) {
-            a = Anc[a][i]; b = Anc[b][i];
-        }
+        for (int i = LOG; i >= 0; --i)
+            if (Anc[a][i] != Anc[b][i]) { a = Anc[a][i]; b = Anc[b][i]; }
         return Anc[a][0];
     }
 
@@ -195,14 +196,14 @@ struct Tree {
         sort(all(keys), byDfn);
         ll sz_key = SZ(keys);
         for (int i = 0; i < sz_key - 1; ++i) {   // 只需相邻两点的 LCA
-            keys.pb(lca_ab(keys[i], keys[i + 1]));
-            keys.pb(keys[i + 1]);
+            keys.push_back(lca_ab(keys[i], keys[i + 1]));
+            keys.push_back(keys[i + 1]);
         }
         sort(all(keys), byDfn);
         keys.resize(unique(all(keys)) - keys.begin());
         for (auto u : keys) _g[u].clear();       // 只清本次用到的点
         for (int i = 0; i < SZ(keys) - 1; ++i) {
-            _g[lca_ab(keys[i], keys[i + 1])].pb(keys[i + 1]);
+            _g[lca_ab(keys[i], keys[i + 1])].push_back(keys[i + 1]);
         }
     }
 };
@@ -224,11 +225,11 @@ int dfs(const vector<vector<int>> &g, int u, int fa, ll &ans,
 void Solve() {
     cin >> N;
     Tree g(N);
-    FOR(i, 1, N - 1) { ll u, v; cin >> u >> v; g.add_edge(u, v); }
-    FOR(i, 1, N) sort(all(g.g[i]));          // 为了 binary_search 判原树相邻
+    for (int i = 1; i <= N - 1; ++i) { ll u, v; cin >> u >> v; g.add_edge(u, v); }
+    for (int i = 1; i <= N; ++i) sort(all(g.g[i]));  // 为了 binary_search 判相邻
     ll Q; cin >> Q;
     vector<vector<int>> _g(N + 2);           // 虚树邻接表复用, 不重开
-    FOR(_, 1, Q) {
+    while (Q--) {
         ll num; cin >> num;
         vector<int> origin_keys(num);
         for (auto &x : origin_keys) cin >> x;
