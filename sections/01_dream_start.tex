@@ -145,32 +145,34 @@ EOF
 
 	\subsection{CLion 常用功能与快捷键（默认 keymap）}
 
-	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
+	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下（赛场机一律 Windows / Linux，故只列这一套绑定）。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区；\textbf{Rename} 是语义级重命名，改变量 / 函数名时所有引用一起改，比全文替换安全（不会误伤字符串和同名的别的符号）。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
 
 	\begin{center}
-		\begin{tabular}{l|l|l}
+		\begin{tabular}{l|l}
 			\hline
-			功能 & Windows / Linux & macOS \\
+			功能 & Windows / Linux \\
 			\hline
-			Run context configuration（跑光标所在目标）  & \texttt{Ctrl+Shift+F10}    & \texttt{Ctrl+Shift+R}      \\
+			Run context configuration（跑光标所在目标） & \texttt{Ctrl+Shift+F10}    \\
 			\hline
-			Run（当前选中的配置）                        & \texttt{Shift+F10}         & \texttt{Ctrl+R}            \\
+			Run（当前选中的配置）                       & \texttt{Shift+F10}         \\
 			\hline
-			Debug（当前选中的配置）                      & \texttt{Shift+F9}          & \texttt{Ctrl+D}            \\
+			Debug（当前选中的配置）                     & \texttt{Shift+F9}          \\
 			\hline
-			Build Project（只编译不跑）                  & \texttt{Ctrl+F9}           & \texttt{Cmd+F9}            \\
+			Build Project（只编译不跑）                 & \texttt{Ctrl+F9}           \\
 			\hline
-			Reformat Code（格式化当前文件 / 选区）        & \texttt{Ctrl+Alt+L}        & \texttt{Cmd+Opt+L}         \\
+			Reformat Code（格式化当前文件 / 选区）       & \texttt{Ctrl+Alt+L}        \\
 			\hline
-			注释 / 取消注释行                            & \texttt{Ctrl+/}            & \texttt{Cmd+/}             \\
+			Rename（重命名符号 + 所有引用）              & \texttt{Shift+F6}          \\
 			\hline
-			复制当前行 / 选区                            & \texttt{Ctrl+D}            & \texttt{Cmd+D}             \\
+			注释 / 取消注释行                           & \texttt{Ctrl+/}            \\
 			\hline
-			删除整行                                    & \texttt{Ctrl+Y}            & \texttt{Cmd+Backspace}     \\
+			复制当前行 / 选区                           & \texttt{Ctrl+D}            \\
 			\hline
-			上 / 下移当前行                             & \texttt{Alt+Shift+Up/Down} & \texttt{Opt+Shift+Up/Down} \\
+			删除整行                                   & \texttt{Ctrl+Y}            \\
 			\hline
-			Find Action（搜任意功能 / 快捷键）            & \texttt{Ctrl+Shift+A}      & \texttt{Cmd+Shift+A}       \\
+			上 / 下移当前行                            & \texttt{Alt+Shift+Up/Down} \\
+			\hline
+			Find Action（搜任意功能 / 快捷键）           & \texttt{Ctrl+Shift+A}      \\
 			\hline
 		\end{tabular}
 	\end{center}
