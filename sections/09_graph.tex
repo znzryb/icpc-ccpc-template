@@ -1541,7 +1541,7 @@ public:
 
 		记两条路径的端点为 $(a, b)$ 与 $(c, d)$，$p = \operatorname{LCA}(a, b)$、$q = \operatorname{LCA}(c, d)$，则
 		$$
-		\text{两路径有公共点} \iff p \text{ 在路径 } c\text{-}d \text{ 上，或 } q \text{ 在路径 } a\text{-}b \text{ 上}.
+		\text{两路径相交} \iff p \in \text{路径}(c, d) \ \text{ 或 } \ q \in \text{路径}(a, b).
 		$$
 
 		\textbf{证明}：路径 $a\text{-}b$ 是"$a$ 上升到 $p$ 再下降到 $b$"的 $\Lambda$ 形，$p$ 是其上深度最小的点，且路径上每个点都是 $p$ 的后代。设 $x$ 是两条路径的公共点，那么 $p$ 与 $q$ 都是 $x$ 的祖先（含自身），故 $p, q$ 必有祖先后代关系。不妨设 $\text{dep}(p) \geq \text{dep}(q)$，则 $q$ 是 $p$ 的祖先，而 $p$ 又是 $x$ 的祖先，所以 $p$ 落在 $x$ 上升到 $q$ 的那一段上——这一整段都属于路径 $c\text{-}d$，故 $p$ 在 $c\text{-}d$ 上。反向显然。$\square$
