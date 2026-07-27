@@ -70,6 +70,188 @@ inline void solve(){
 		\end{minted}
 
 
+		\subsection{虚树（Virtual Tree）}
+
+		\textbf{适用场景}：多组询问，每次给出一批\textbf{关键点}，要在树上做只跟这些关键点有关的 DP／贪心。保证 $\sum k \leq n$，但单次询问若还遍历整棵原树就是 $O(nq)$。虚树把每次的规模压到 $O(k)$：只保留\textbf{关键点}以及\textbf{任意两关键点的 LCA}，其余点全部缩掉，两点间的原树路径压成一条虚边。总复杂度 $O(\sum k \log n)$。
+
+		\textbf{关键事实}：所有关键点两两的 LCA 集合，等于「按 dfn 排序后\textbf{相邻}两点的 LCA」集合——所以只需算 $k - 1$ 次 LCA，不必两两枚举。
+
+		\textbf{构造步骤}（本模板用的是"排序 + 相邻连边"版，不写单调栈，短且不易错）：
+
+		\begin{enumerate}
+			\item 关键点按 dfn 升序排序；
+			\item 对每对相邻关键点求 LCA，一并塞进点集；
+			\item 再按 dfn 排序并去重，得到虚树点集；
+			\item 对排好序的点集，把 $\operatorname{LCA}(\text{keys}_i, \text{keys}_{i+1})$ 连向 $\text{keys}_{i+1}$，即得虚树的所有边。
+		\end{enumerate}
+
+		\begin{center}
+		\begin{tikzpicture}[scale=0.7, every node/.style={font=\small},
+			vtx/.style={circle, draw, inner sep=0pt, minimum size=4.6mm, fill=white},
+			key/.style={vtx, fill=black!78, text=white},
+			vt/.style={vtx, draw=red!70!black, line width=0.9pt}]
+			% ---- 左：原树，关键点 = 6,7,8 ----
+			\coordinate (n1) at (0,0);
+			\coordinate (n2) at (-1.3,-1.25);
+			\coordinate (n3) at (1.3,-1.25);
+			\coordinate (n4) at (-2.1,-2.5);
+			\coordinate (n5) at (-0.6,-2.5);
+			\coordinate (n6) at (1.3,-2.5);
+			\coordinate (n7) at (-2.8,-3.75);
+			\coordinate (n8) at (-1.5,-3.75);
+			\draw (n1)--(n2) (n1)--(n3) (n2)--(n4) (n2)--(n5) (n3)--(n6) (n4)--(n7) (n4)--(n8);
+			\node[vt] at (n1) {\scriptsize 1};
+			\node[vtx] at (n2) {\scriptsize 2};
+			\node[vtx] at (n3) {\scriptsize 3};
+			\node[vt] at (n4) {\scriptsize 4};
+			\node[vtx] at (n5) {\scriptsize 5};
+			\node[key] at (n6) {\scriptsize 6};
+			\node[key] at (n7) {\scriptsize 7};
+			\node[key] at (n8) {\scriptsize 8};
+			% ---- 中：箭头 ----
+			\node at (2.6,-1.9) {$\Longrightarrow$};
+			% ---- 右：虚树 ----
+			\coordinate (v1) at (5.2,0);
+			\coordinate (v4) at (4.3,-1.7);
+			\coordinate (v6) at (6.3,-1.7);
+			\coordinate (v7) at (3.5,-3.4);
+			\coordinate (v8) at (5.0,-3.4);
+			\draw[red!70!black, line width=1pt, dashed] (v1)--(v4) (v1)--(v6);
+			\draw[red!70!black, line width=1pt] (v4)--(v7) (v4)--(v8);
+			\node[vt] at (v1) {\scriptsize 1};
+			\node[vt] at (v4) {\scriptsize 4};
+			\node[key] at (v6) {\scriptsize 6};
+			\node[key] at (v7) {\scriptsize 7};
+			\node[key] at (v8) {\scriptsize 8};
+		\end{tikzpicture}
+		\end{center}
+
+		关键点（黑）$\{6,7,8\}$：相邻 LCA 补进 $4 = \operatorname{LCA}(7,8)$ 与 $1 = \operatorname{LCA}(8,6)$（红圈），点 $2,3,5$ 被缩掉。虚线虚边表示它在原树里对应一条多边路径（如 $1 \to 4$ 实为 $1\text{-}2\text{-}4$），做 DP 时边权取 $\text{dep}$ 之差。
+
+		\textbf{易错点}：
+
+		\begin{itemize}
+			\item 清空虚树邻接表\textbf{只能清本次用到的点}（\texttt{for u in keys: \_g[u].clear()}），整表清是 $O(n)$，多测直接退化。
+			\item 虚树的根是 \texttt{keys.front()}（dfn 最小者），\textbf{不一定}是原树根 $1$；DFS 起点要用它。
+			\item 关键点集合会被构造过程\textbf{就地扩充}，需要原始关键点判定时先拷一份（下面的 \texttt{origin\_keys}）。
+			\item 判「两个关键点在原树里是否直接相邻」要查原邻接表，不能看虚树边——虚边可能跨了很多原边。
+		\end{itemize}
+
+		例题 \href{https://codeforces.com/contest/613/problem/D}{CF 613D Kingdom and its Cities}：每次给 $k$ 个关键城市，问最少删几个\textbf{非关键}点使关键点两两不连通，两个关键点直接相邻则无解。虚树上贪心：\texttt{dfs} 返回子树里「还没被切断的关键点数」\texttt{cnt}——当前点是关键点就把子树里所有 \texttt{cnt} 都就地切掉（\texttt{ans += cnt}）并返回 $1$；否则 \texttt{cnt} $\geq 2$ 时删自己最划算（\texttt{ans++}，返回 $0$），\texttt{cnt} $\leq 1$ 时原样上传。
+
+		\begin{minted}{cpp}
+struct Tree {
+    vector<vector<int>> g;      // 原树邻接表
+    vector<vector<int>> Anc;    // 倍增祖先
+    vector<int> dfn;            // dfs 序，虚树排序的依据
+    vector<ll> Dep;
+    int n, dfIdx = 0;
+    const int LOG;
+    bool isInit = false;
+
+    Tree(int _n) : n(_n), LOG(__lg(n) + 1) {
+        g.resize(n + 2);
+        Anc.resize(n + 2, vector<int>(LOG + 1));
+        Dep.resize(n + 2);
+        dfn.resize(n + 2);
+    }
+
+    void add_edge(int u, int v) { g[u].pb(v); g[v].pb(u); }
+
+    void dfs(int u, int fa, ll dep) {
+        Anc[u][0] = fa;
+        dfn[u] = ++dfIdx;
+        Dep[u] = dep;
+        for (auto to : g[u]) {
+            if (to == fa || to == u) continue;
+            dfs(to, u, dep + 1);
+        }
+    }
+
+    void init() {              // 幂等：多次调用只跑一遍
+        if (isInit) return;
+        isInit = true;
+        dfs(1, 0, 0);
+        FOR(c, 1, LOG) FOR(i, 1, n) Anc[i][c] = Anc[Anc[i][c - 1]][c - 1];
+    }
+
+    int lca_ab(int a, int b) {
+        init();
+        if (a == b) return a;
+        if (Dep[a] <= Dep[b]) swap(a, b);
+        ROF(i, LOG, 0) if (Dep[Anc[a][i]] > Dep[b]) a = Anc[a][i];
+        if (Dep[a] != Dep[b]) a = Anc[a][0];
+        if (a == b) return a;
+        ROF(i, LOG, 0) if (Anc[a][i] != Anc[b][i]) {
+            a = Anc[a][i]; b = Anc[b][i];
+        }
+        return Anc[a][0];
+    }
+
+    // keys 会被就地扩充成「虚树点集」；_g 是虚树邻接表(有向: 父 -> 子)
+    void build_virtual_tree(vector<vector<int>> &_g, vector<int> &keys) {
+        init();
+        auto byDfn = [&](const int &a, const int &b) { return dfn[a] < dfn[b]; };
+        sort(all(keys), byDfn);
+        ll sz_key = SZ(keys);
+        for (int i = 0; i < sz_key - 1; ++i) {   // 只需相邻两点的 LCA
+            keys.pb(lca_ab(keys[i], keys[i + 1]));
+            keys.pb(keys[i + 1]);
+        }
+        sort(all(keys), byDfn);
+        keys.resize(unique(all(keys)) - keys.begin());
+        for (auto u : keys) _g[u].clear();       // 只清本次用到的点
+        for (int i = 0; i < SZ(keys) - 1; ++i) {
+            _g[lca_ab(keys[i], keys[i + 1])].pb(keys[i + 1]);
+        }
+    }
+};
+
+// ---- 例题 CF613D 的虚树 DP ----
+int dfs(const vector<vector<int>> &g, int u, int fa, ll &ans,
+        const vector<int> &origin_keys) {
+    int cnt = 0;
+    bool isOri = binary_search(all(origin_keys), u);
+    for (auto to : g[u]) {
+        if (to == fa) continue;
+        cnt += dfs(g, to, u, ans, origin_keys);
+    }
+    if (isOri) { ans += cnt; return 1; }     // 关键点: 切断子树里所有未切断的
+    if (cnt >= 2) { ++ans; return 0; }       // 非关键点且是汇合处: 删自己
+    return cnt;
+}
+
+void Solve() {
+    cin >> N;
+    Tree g(N);
+    FOR(i, 1, N - 1) { ll u, v; cin >> u >> v; g.add_edge(u, v); }
+    FOR(i, 1, N) sort(all(g.g[i]));          // 为了 binary_search 判原树相邻
+    ll Q; cin >> Q;
+    vector<vector<int>> _g(N + 2);           // 虚树邻接表复用, 不重开
+    FOR(_, 1, Q) {
+        ll num; cin >> num;
+        vector<int> origin_keys(num);
+        for (auto &x : origin_keys) cin >> x;
+        vector<int> keys = origin_keys;      // 拷一份, keys 会被就地扩充
+        sort(all(origin_keys));
+        g.build_virtual_tree(_g, keys);
+        ll ans = 0; bool havAns = true;
+        for (auto u : origin_keys) {         // 两关键点在原树直接相邻 -> 无解
+            for (auto v : _g[u]) {
+                if (binary_search(all(origin_keys), v) &&
+                    binary_search(all(g.g[u]), v)) {
+                    havAns = false; cout << -1 << "\n"; break;
+                }
+            }
+            if (!havAns) break;
+        }
+        // 根是 dfn 最小的点 keys.front(), 不一定是 1
+        if (havAns) { dfs(_g, keys.front(), -1, ans, origin_keys); cout << ans << "\n"; }
+    }
+}
+// AC https://codeforces.com/contest/613/submission/384497446
+		\end{minted}
+
 		\subsection{并查集（DSU）与 DSU on next 技巧}
 
 		朴素并查集 + 路径压缩，外加 \texttt{taglr(l, r)} 把 $[l, r]$ 这段区间整段标记为「已处理」——具体做法是让区间里的每个点都不指向自己（指向 $r+1$）。\texttt{find(x)} 因此天然返回 \texttt{x} 之后第一个未被标记的位置，扫描时常用来\textbf{跳过整段已处理区间}。
