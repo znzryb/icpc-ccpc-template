@@ -135,7 +135,7 @@ inline void solve(){
 			\item 虚树的根是 \texttt{keys.front()}（dfn 最小者），\textbf{不一定}是原树根 $1$；DFS 起点要用它。
 			\item 关键点集合会被构造过程\textbf{就地扩充}，需要原始关键点判定时先拷一份（下面的 \texttt{origin\_keys}）。
 			\item 判「两个关键点在原树里是否直接相邻」要查原邻接表，不能看虚树边——虚边可能跨了很多原边。
-			\item \colorbox{yellow!45}{黄色高亮的两处 \texttt{init()}} 是惰性初始化（\texttt{isInit} 保证只跑一遍 dfs + ST 表预处理）：\texttt{lca\_ab} 与 \texttt{build\_virtual\_tree} 各自开头都要调，才能\textbf{不管调用顺序}都拿到正确的 \texttt{dfn / Dep / Anc}。漏掉就是全 $0$ 的静默 WA。
+			\item \colorbox{yellow!45}{黄色高亮的两处 \texttt{init()}} 是惰性初始化（\texttt{isInit} 保证只跑一遍 dfs + ST 表预处理）：\texttt{lca\_ab} 与 \texttt{build\_virtual\_tree} 各自开头都要调，才能\textbf{不管调用顺序}都拿到正确的 \texttt{dfn / Dep / st}。漏掉就是全 $0$ 的静默 WA。
 		\end{itemize}
 
 		例题 \href{https://codeforces.com/contest/613/problem/D}{CF 613D Kingdom and its Cities}：每次给 $k$ 个关键城市，问最少删几个\textbf{非关键}点使关键点两两不连通，两个关键点直接相邻则无解。虚树上贪心：\texttt{dfs} 返回子树里「还没被切断的关键点数」\texttt{cnt}——当前点是关键点就把子树里所有 \texttt{cnt} 都就地切掉（\texttt{ans += cnt}）并返回 $1$；否则 \texttt{cnt} $\geq 2$ 时删自己最划算（\texttt{ans++}，返回 $0$），\texttt{cnt} $\leq 1$ 时原样上传。
