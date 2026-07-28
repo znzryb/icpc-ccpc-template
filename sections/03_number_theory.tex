@@ -138,6 +138,21 @@ void factor(ull n, vector<ull>& res) {  // n < 2 时什么都不写入；res 计
 }
 		\end{minted}
 
+		用法（P4718 原题：$n$ 是素数输出 \verb|Prime|，否则输出最大质因子）：
+
+		\begin{minted}{cpp}
+if (is_prime(N)) puts("Prime");
+else {
+	vector<ull> res;					// 出参: 计重、无序，多测每组自己 clear
+	factor(N, res);
+	printf("%llu\n", *max_element(all(res)));
+}
+		\end{minted}
+
+		拿到 \verb|res| 后：长度即 $\Omega(n)$（计重），排序去重后的长度即 $\omega(n)$；用 \verb|map<ull,int>| 数出各质因子指数 $c_p$ 后，约数个数 $d(n)=\prod (c_p+1)$，欧拉函数 $\varphi(n)=\prod p^{c_p-1}(p-1)$。
+
+		注意：\verb|n < 2^63| 是硬约束（浮点估商会崩），要覆盖 $[2^{63}, 2^{64})$ 就把 \verb|mulmod| 换成 \verb|return (__int128)a * b % m;|，慢约 2 倍但无范围限制；$n \le 10^6$ 或要对整段区间分解时，直接用上面线性筛的 \verb|minp| 更快。
+
 		\subsection{欧拉定理，扩展欧拉定理，欧拉函数的求解（线性筛，试除法）}
 
 		\href{https://www.notion.so/3224539447bd808f8f75de0c99a12864?pvs=21}{完全理解欧拉函数的计算和欧拉定理（使用线性筛求解）（使用试除法求解）} \\
