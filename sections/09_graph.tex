@@ -72,7 +72,7 @@ inline void solve(){
 
 		\subsection{虚树（Virtual Tree）}
 
-		\textbf{适用场景}：多组询问，每次给出一批\textbf{关键点}，要在树上做只跟这些关键点有关的 DP／贪心。保证 $\sum k \leq n$，但单次询问若还遍历整棵原树就是 $O(nq)$。虚树把每次的规模压到 $O(k)$：只保留\textbf{关键点}以及\textbf{任意两关键点的 LCA}，其余点全部缩掉，两点间的原树路径压成一条虚边。总复杂度 $O(\sum k \log n)$。
+		\textbf{适用场景}：多组询问，每次给出一批\textbf{关键点}，要在树上做只跟这些关键点有关的 DP／贪心。保证 $\sum k \leq n$，但单次询问若还遍历整棵原树就是 $O(nq)$。虚树把每次的规模压到 $O(k)$：只保留\textbf{关键点}以及\textbf{任意两关键点的 LCA}，其余点全部缩掉，两点间的原树路径压成一条虚边。总复杂度 $O(\sum k \log k)$（LCA 用 dfn 序 ST 表做到 $O(1)$，瓶颈在按 dfn 排序）。
 
 		\textbf{关键事实}：所有关键点两两的 LCA 集合，等于「按 dfn 排序后\textbf{相邻}两点的 LCA」集合——所以只需算 $k - 1$ 次 LCA，不必两两枚举。
 
@@ -135,74 +135,108 @@ inline void solve(){
 			\item 虚树的根是 \texttt{keys.front()}（dfn 最小者），\textbf{不一定}是原树根 $1$；DFS 起点要用它。
 			\item 关键点集合会被构造过程\textbf{就地扩充}，需要原始关键点判定时先拷一份（下面的 \texttt{origin\_keys}）。
 			\item 判「两个关键点在原树里是否直接相邻」要查原邻接表，不能看虚树边——虚边可能跨了很多原边。
-			\item \colorbox{yellow!45}{黄色高亮的两处 \texttt{init()}} 是惰性初始化（\texttt{isInit} 保证只跑一遍 dfs + 倍增预处理）：\texttt{lca\_ab} 与 \texttt{build\_virtual\_tree} 各自开头都要调，才能\textbf{不管调用顺序}都拿到正确的 \texttt{dfn / Dep / Anc}。漏掉就是全 $0$ 的静默 WA。
+			\item \colorbox{yellow!45}{黄色高亮的两处 \texttt{init()}} 是惰性初始化（\texttt{isInit} 保证只跑一遍 dfs + ST 表预处理）：\texttt{lca\_ab} 与 \texttt{build\_virtual\_tree} 各自开头都要调，才能\textbf{不管调用顺序}都拿到正确的 \texttt{dfn / Dep / Anc}。漏掉就是全 $0$ 的静默 WA。
 		\end{itemize}
 
 		例题 \href{https://codeforces.com/contest/613/problem/D}{CF 613D Kingdom and its Cities}：每次给 $k$ 个关键城市，问最少删几个\textbf{非关键}点使关键点两两不连通，两个关键点直接相邻则无解。虚树上贪心：\texttt{dfs} 返回子树里「还没被切断的关键点数」\texttt{cnt}——当前点是关键点就把子树里所有 \texttt{cnt} 都就地切掉（\texttt{ans += cnt}）并返回 $1$；否则 \texttt{cnt} $\geq 2$ 时删自己最划算（\texttt{ans++}，返回 $0$），\texttt{cnt} $\leq 1$ 时原样上传。
 
-		\begin{minted}[highlightlines={38,52}, highlightcolor=yellow!45]{cpp}
+		\begin{minted}[highlightlines={66,81}, highlightcolor=yellow!45]{cpp}
 struct Tree {
-    vector<vector<int>> g;      // 原树邻接表
-    vector<vector<int>> Anc;    // 倍增祖先
-    vector<int> dfn;            // dfs 序，虚树排序的依据
-    vector<ll> Dep;
+    vector<vector<int> > g; // 原树邻接表
+    vector<int> dfn; // dfs 序，虚树排序的依据
+    vector<int> rev; // rev[dfn[u]] = u，dfn 反查节点
+    vector<int> Fa; // 父亲（替代原来的 Anc 倍增表）
+    vector<ll> Dep; // 深度，LCA 不再需要，但树形 DP 常用，保留
+    vector<vector<int> > st; // st[j][i]：dfn 区间 [i, i+2^j) 内 dfn 最小的父亲
     int n, dfIdx = 0;
     const int LOG;
     bool isInit = false;
 
     Tree(int _n) : n(_n), LOG(__lg(n) + 1) {
         g.resize(n + 2);
-        Anc.resize(n + 2, vector<int>(LOG + 1));
-        Dep.resize(n + 2);
-        dfn.resize(n + 2);
+        dfn.assign(n + 2, 0);
+        rev.assign(n + 2, 0);
+        Fa.assign(n + 2, 0);
+        Dep.assign(n + 2, 0);
+        // 只有 LOG+1 次堆分配；原来的 Anc.resize(n+2, vector<int>(LOG+1)) 是 n+2 次
+        st.assign(LOG + 1, vector<int>(n + 2, 0));
     }
 
-    void add_edge(int u, int v) { g[u].push_back(v); g[v].push_back(u); }
+    void add_edge(int u, int v) {
+        g[u].push_back(v);
+        g[v].push_back(u);
+    }
 
     void dfs(int u, int fa, ll dep) {
-        Anc[u][0] = fa;
+        Fa[u] = fa;
         dfn[u] = ++dfIdx;
+        rev[dfIdx] = u;
         Dep[u] = dep;
-        for (auto to : g[u]) {
-            if (to == fa || to == u) continue;
+        for (auto to: g[u]) {
+            if (to == fa || to == u) {
+                continue;
+            }
             dfs(to, u, dep + 1);
         }
     }
 
-    void init() {              // 幂等：多次调用只跑一遍
-        if (isInit) return;
+    // 按 dfn 取较小者（ST 表的合并函数）
+    inline int mn(int x, int y) const {
+        return dfn[x] < dfn[y] ? x : y;
+    }
+
+    void init() {
+        // 幂等：多次调用只跑一遍
+        if (isInit) {
+            return;
+        }
         isInit = true;
         dfs(1, 0, 0);
-        for (int c = 1; c <= LOG; ++c)
-            for (int i = 1; i <= n; ++i) Anc[i][c] = Anc[Anc[i][c - 1]][c - 1];
+        // st[0][i] = dfn 为 i 的点的父亲。i=1 是根，父亲是 0 号虚点（dfn=0 会污染 min），
+        // 但查询区间左端 >= 2 永远取不到它，这里仍填根自己保证安全
+        for (int i = 2; i <= dfIdx; ++i) {
+            st[0][i] = Fa[rev[i]];
+        }
+        st[0][1] = rev[1];
+        for (int j = 1; j <= LOG; ++j) {
+            for (int i = 1; i + (1 << j) - 1 <= dfIdx; ++i) {
+                st[j][i] = mn(st[j - 1][i], st[j - 1][i + (1 << (j - 1))]);
+            }
+        }
     }
 
     int lca_ab(int a, int b) {
         init();
-        if (a == b) return a;
-        if (Dep[a] <= Dep[b]) swap(a, b);
-        for (int i = LOG; i >= 0; --i)
-            if (Dep[Anc[a][i]] > Dep[b]) a = Anc[a][i];
-        if (Dep[a] != Dep[b]) a = Anc[a][0];
-        if (a == b) return a;
-        for (int i = LOG; i >= 0; --i)
-            if (Anc[a][i] != Anc[b][i]) { a = Anc[a][i]; b = Anc[b][i]; }
-        return Anc[a][0];
+        if (a == b) {
+            return a;
+        }
+        int x = dfn[a], y = dfn[b];
+        if (x > y) {
+            swap(x, y);
+        }
+        ++x; // 区间 (dfn[a], dfn[b]] —— 左开右闭，长度 >= 1
+        int j = __lg(y - x + 1);
+        return mn(st[j][x], st[j][y - (1 << j) + 1]);
     }
 
-    // keys 会被就地扩充成「虚树点集」；_g 是虚树邻接表(有向: 父 -> 子)
-    void build_virtual_tree(vector<vector<int>> &_g, vector<int> &keys) {
+    // keys 就地扩充成「虚树点集」；_g 是虚树邻接表（有向：父 -> 子）
+    void build_virtual_tree(vector<vector<int> > &_g, vector<int> &keys) {
         init();
-        auto byDfn = [&](const int &a, const int &b) { return dfn[a] < dfn[b]; };
+        auto byDfn = [&](const int &a, const int &b) {
+            return dfn[a] < dfn[b];
+        };
         sort(all(keys), byDfn);
         ll sz_key = SZ(keys);
-        for (int i = 0; i < sz_key - 1; ++i) {   // 只需相邻两点的 LCA
+        keys.reserve(sz_key * 2); // 避免扩充过程中反复 realloc
+        for (int i = 0; i < sz_key - 1; ++i) {
+            // 只需相邻两点的 LCA
             keys.push_back(lca_ab(keys[i], keys[i + 1]));
-            keys.push_back(keys[i + 1]);
         }
         sort(all(keys), byDfn);
         keys.resize(unique(all(keys)) - keys.begin());
-        for (auto u : keys) _g[u].clear();       // 只清本次用到的点
+        for (auto u: keys) {
+            _g[u].clear(); // 只清本次用到的点
+        }
         for (int i = 0; i < SZ(keys) - 1; ++i) {
             _g[lca_ab(keys[i], keys[i + 1])].push_back(keys[i + 1]);
         }
