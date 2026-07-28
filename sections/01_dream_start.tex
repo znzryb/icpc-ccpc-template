@@ -185,6 +185,12 @@ EOF
 
 	切换：右侧工具栏齿轮 $\rightarrow$ \textbf{Switch to Nova Engine} $\rightarrow$ \textbf{Enable and Restart}；或 \textbf{Settings} $\rightarrow$ \textbf{Advanced Settings} $\rightarrow$ 勾 \textbf{Use the ReSharper C++ language engine (CLion Nova)}。要重启 + 重新解析项目，所以\textbf{热身赛就切好}；设置每台机独立，换机器要重切。CLion 2025.3 起 Nova 已是默认，新版本不用管这节。
 
+	切到 Nova 后还多一个改名捷径：直接把变量名敲成新的，行内浮出 \textbf{Apply Rename refactoring}（下图），点它或按 \texttt{Alt+Enter} 回车，所有引用一起改掉，省掉先按 \texttt{Shift+F6} 开对话框这一步。Classic 引擎没有这个提示，行内提示样式则要 CLion 2025.2 以上。
+
+	\begin{center}
+		\includegraphics[width=0.72\linewidth]{image/clion_nova_inplace_rename.png}
+	\end{center}
+
 	\subsection{Windows：禁用 \texttt{Shift} 切换中英文输入}
 
 	Windows 赛场机上敲代码，误碰 \texttt{Shift}（打大写、打符号松手稍慢）就会被输入法切到中文模式，接着敲出一串全角字符——开赛前先把这个切换键关掉。
