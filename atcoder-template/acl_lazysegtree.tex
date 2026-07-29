@@ -17,7 +17,10 @@
 			\item \texttt{F id()}：\texttt{F} 的恒等作用，\texttt{mapping(id(), x) == x}。
 			\item \textbf{分配律}：作用要对 \texttt{op} 分配，即
 				\[
-					mapping(f, op(x, y)) = op(mapping(f, x), mapping(f, y)).
+					\begin{aligned}
+						 & mapping(f, op(x, y))                        \\
+						 & \qquad = op(mapping(f, x), mapping(f, y)).
+					\end{aligned}
 				\]
 				这条不成立就不能用懒标记。
 		\end{itemize}
