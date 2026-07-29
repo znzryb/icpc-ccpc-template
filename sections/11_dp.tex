@@ -163,6 +163,23 @@ void solve() {
 
 		\textbf{复杂度}：喂数据 $O(nm)$，超集和 $O(2^m m^2)$，最短路 $O(2^m m)$；空间 $O(2^m m)$ 个 \verb|ll|（$m = 20$ 时约 $160\,\mathrm{MB}$，注意题目内存限制）。
 
+		\textbf{实现细节：一维数组模拟二维表}。逻辑上要的是 $2^m \times m$ 的表 $\mathrm{cost}[S][j]$（行号 = 子集掩码，列号 = 元素编号），代码里用一维 \verb|vector<ll> cost_| 按\textbf{行主序}拍平——第 $S$ 行独占下标区间 $[\,S m,\ (S{+}1) m\,)$，于是
+		$$\mathrm{cost}[S][j] \;\equiv\; \texttt{cost\_}[\,S \cdot m + j\,].$$
+		反过来由一维下标 $idx$ 还原：$S = \lfloor idx / m \rfloor$，$j = idx \bmod m$。
+
+		\begin{center}
+		\begin{tabular}{c|c|c}
+			逻辑行 $S$ & 占用的一维下标 & 行首 \\ \hline
+			$0$ & $0,\,1,\,\dots,\,m-1$ & $0$ \\
+			$1$ & $m,\,\dots,\,2m-1$ & $m$ \\
+			$S$ & $Sm,\,\dots,\,Sm+m-1$ & $Sm$ \\
+		\end{tabular}
+		\end{center}
+
+		所以 \verb|ll *row = &cost_[(size_t)mask * m_]| 就是「取第 $mask$ 行的\textbf{行首指针}」，之后 \verb|row[j]| 即 $\mathrm{cost}[mask][j]$：一次乘法定位行首，内层循环退化成纯指针偏移，不必每轮重算 $S m + j$。\verb|buildSupersetSums| 里的 \verb|a| / \verb|c| 同理，是 $S$ 与 $S \cup \{b\}$ 两行的行首，\verb|a[j] += c[j]| 就是\textbf{整行相加}。\verb|(size_t)| 强转是防溢出：两个 \verb|int| 相乘时 $2^m m$ 会超 \verb|int|（$m = 27$ 已达 $3.6 \times 10^9$）。
+
+		为什么不用 \verb|vector<vector<ll>>|：(1) 内层是整行相加，行内连续存放才能被预取、才可向量化；(2) 少一层间接寻址（二维要先读外层指针再跳内层，两次潜在 cache miss）；(3) 省掉 $2^m$ 个 vector 头（$m=20$ 是 $10^6$ 个头，约 $24\,\mathrm{MB}$）。另外\textbf{维度顺序不能反}——写成 $j \cdot 2^m + S$ 的话，整行相加会变成步长 $2^m$ 的跳跃访问，缓存全丢。
+
 		\begin{minted}{cpp}
 // Retest Queue 的完整 Solve：读入每个程序的 d[] 与 A/R 串，装桶 → 超集和 → 最短路
 void Solve() {
