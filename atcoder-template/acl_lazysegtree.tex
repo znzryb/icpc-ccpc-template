@@ -9,7 +9,10 @@
 			\item \texttt{S mapping(F f, S x)}：把作用 \texttt{f} 施加到 \texttt{x} 上。注意参数顺序是「先 \texttt{f} 后 \texttt{x}」。
 			\item \texttt{F composition(F f, F g)}：复合成「\textbf{先 \texttt{g} 再 \texttt{f}}」，即数学上的 $f \circ g$，必须满足
 				\[
-					mapping(composition(f, g), x) = mapping(f, mapping(g, x)).
+					\begin{aligned}
+						 & mapping(composition(f, g), x)         \\
+						 & \qquad = mapping(f, mapping(g, x)).
+					\end{aligned}
 				\]
 			\item \texttt{F id()}：\texttt{F} 的恒等作用，\texttt{mapping(id(), x) == x}。
 			\item \textbf{分配律}：作用要对 \texttt{op} 分配，即
