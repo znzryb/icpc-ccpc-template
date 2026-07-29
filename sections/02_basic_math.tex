@@ -919,6 +919,216 @@ vector<ll> c = multiply(a, b);
 
 		分治 FFT 可以加速多项式多点求值、多点插值等操作，核心都是递归地调用 \texttt{multiply} 合并子问题的结果多项式。
 
+		\subsection{线性规划（两阶段单纯形 Simplex）}
+
+		求解标准型
+		$$
+		\max\ c^{\mathsf T} z \quad \text{s.t.} \quad A z \le b,\ z \ge 0 .
+		$$
+		可行域是若干半空间交出的凸多面体，最优值必在某个\textbf{顶点}处取到。单纯形法就是从一个顶点出发，每次沿一条棱走到相邻的更优顶点（一次 \texttt{pivot} = 一个非基变量入基、一个基变量出基），直到目标行里没有改进方向为止。
+
+		\begin{center}
+		\begin{tikzpicture}[scale=1.0, every node/.style={font=\small}]
+			\coordinate (O) at (0,0);
+			\coordinate (A) at (3,0);
+			\coordinate (B) at (3,1);
+			\coordinate (C) at (1.5,2.5);
+			\coordinate (D) at (0,3);
+			% 约束直线（延伸到可行域外用浅色虚线）
+			\draw[gray!55, dashed] (0,4) -- (4,0);
+			\draw[gray!55, dashed] (0,3) -- (4,1.667);
+			\draw[gray!55, dashed] (3,-0.25) -- (3,3.3);
+			\fill[blue!9] (O) -- (A) -- (B) -- (C) -- (D) -- cycle;
+			\draw[blue!60, thick] (O) -- (A) -- (B) -- (C) -- (D) -- cycle;
+			\draw[->] (-0.25,0) -- (4.5,0) node[below] {$x$};
+			\draw[->] (0,-0.25) -- (0,3.8) node[left] {$y$};
+			% 约束名
+			\node[font=\scriptsize, gray!70!black] at (4.05,0.35) {$x+y\le 4$};
+			\node[font=\scriptsize, gray!70!black] at (4.05,1.95) {$x+3y\le 9$};
+			\node[font=\scriptsize, gray!70!black] at (3.0,3.6) {$x\le 3$};
+			% 单纯形游走路径
+			\draw[->, red!80!black, very thick] (O) -- (A);
+			\draw[->, red!80!black, very thick] (A) -- (B);
+			\foreach \p in {O,A,B,C,D} \fill (\p) circle (1.7pt);
+			\node[font=\scriptsize, below left] at (O) {$z=0$};
+			\node[font=\scriptsize, below] at (A) {$z=9$};
+			\node[font=\scriptsize, right, red!70!black] at (B) {$z=11$};
+			\node[font=\scriptsize, above right] at (C) {$z=9.5$};
+			\node[font=\scriptsize, above left] at (D) {$z=6$};
+		\end{tikzpicture}
+		\end{center}
+
+		图中目标为 $\max z = 3x + 2y$，路径 $(0,0) \to (3,0) \to (3,1)$ 即两次 pivot 后到达最优顶点。
+
+		\textbf{实现要点}：
+
+		\begin{itemize}
+			\item \textbf{字典表连续存储}：$(rows+2) \times (cols+2)$ 一维数组行主序，比 \texttt{vector<vector<double>>} 少一层间接寻址，内层循环无分支可向量化。
+			\item \textbf{两阶段}：$b$ 有负分量时原点不可行，先引入人工变量 $x_0$ 跑第一阶段 $\min x_0$；若最优 $x_0 > 0$ 则原问题\textbf{不可行}。$b \ge 0$ 时直接跳过第一阶段。
+			\item \textbf{Devex 定价}：入基列挑 $d_j^2 / w_j$ 最大者（$d_j$ 为目标行系数、$w_j$ 为参考权重），比朴素 Dantzig 规则（挑最负的 $d_j$）迭代次数少很多。
+			\item \textbf{防循环}：退化时目标值长期不推进，连续 \texttt{stallLimit} 次后切 Bland 最小下标规则（保证有限步终止），推进后自动切回 Devex。
+			\item \textbf{出基行}：最小比值 $b_i / a_{is}$；比值持平时选主元绝对值更大的一行，数值更稳。
+		\end{itemize}
+
+		\textbf{返回值}：最优值；无界返回 $+\infty$，不可行返回 $-\infty$；\texttt{solution} 非空时回填一组最优解。
+
+		\textbf{建模转换}：等式约束拆成 $\le$ 与 $\ge$ 两条；$\ge$ 约束两边取负变 $\le$；$\min$ 问题把 $c$ 取负、答案再取负；变量可正可负时拆成 $z = z^{+} - z^{-}$ 两个非负变量。
+
+		\begin{minted}{cpp}
+// max 3x + 2y, s.t. x + y <= 4, x + 3y <= 9, x <= 3, x, y >= 0
+vector<vector<double>> A = {{1, 1}, {1, 3}, {1, 0}};
+vector<double> b = {4, 9, 3}, c = {3, 2};
+SimplexLP lp;
+lp.init(A, b, c);
+vector<double> z;
+double best = lp.solve(&z);				// best = 11, z = {3, 1}
+		\end{minted}
+
+		\begin{minted}{cpp}
+struct SimplexLP {
+    // 字典表：(rows + 2) x (cols + 2)，行主序连续存储
+    //   前 rows 行 = 约束；第 rows 行 = 第二阶段目标；第 rows+1 行 = 第一阶段目标
+    //   前 cols 列 = 变量；第 cols 列 = 人工变量 x0；第 cols+1 列 = 右端
+    int rows = 0, cols = 0, stride = 0;
+    vector<double> tab;
+    vector<int> basis, nonbasis;
+    double eps = 1e-9;
+    long long pivots = 0;
+    vector<double> weight;      // Devex 参考权重
+
+    double* row(int i) { return tab.data() + static_cast<size_t>(i) * stride; }
+    const double* row(int i) const { return tab.data() + static_cast<size_t>(i) * stride; }
+
+    // max c^T z, s.t. A z <= b, z >= 0
+    void init(const vector<vector<double>>& a,
+              const vector<double>& b,
+              const vector<double>& c) {
+        rows = static_cast<int>(b.size());
+        cols = static_cast<int>(c.size());
+        stride = cols + 2;
+        tab.assign(static_cast<size_t>(rows + 2) * stride, 0.0);
+        basis.resize(rows);
+        nonbasis.resize(cols + 1);
+        for (int i = 0; i < rows; ++i) {
+            double* p = row(i);
+            for (int j = 0; j < cols; ++j) p[j] = a[i][j];
+            p[cols] = -1.0;          // 人工变量 x0 这一列
+            p[cols + 1] = b[i];
+            basis[i] = cols + i;     // 初始基 = 松弛变量
+        }
+        double* obj = row(rows);
+        for (int j = 0; j < cols; ++j) { obj[j] = -c[j]; nonbasis[j] = j; }
+        nonbasis[cols] = -1;
+        row(rows + 1)[cols] = 1.0;   // 第一阶段目标：min x0
+        weight.assign(cols + 1, 1.0);
+        pivots = 0;
+    }
+
+    void pivot(int r, int s) {
+        ++pivots;
+        double* pr = row(r);
+        const double inv = 1.0 / pr[s];
+        {   // Devex：用主元行系数更新参考权重（O(cols)）
+            const double as = pr[s], ws = weight[s];
+            for (int j = 0; j <= cols; ++j) {
+                if (j == s) continue;
+                const double ratio = pr[j] / as;
+                const double cand = ratio * ratio * ws;
+                if (cand > weight[j]) weight[j] = cand;
+            }
+            const double nw = ws / (as * as);
+            weight[s] = nw > 1.0 ? nw : 1.0;
+        }
+        const int total = rows + 2, width = cols + 2;
+        for (int i = 0; i < total; ++i) {
+            if (i == r) continue;
+            double* pi = row(i);
+            const double f = pi[s] * inv;
+            if (f == 0.0) continue;
+            for (int j = 0; j < width; ++j) pi[j] -= pr[j] * f;   // 内层无分支，可向量化
+            pi[s] = -f;                                           // s 列单独修正
+        }
+        for (int j = 0; j < width; ++j) pr[j] *= inv;
+        pr[s] = inv;
+        swap(basis[r], nonbasis[s]);
+    }
+
+    // phase = 1 用第一阶段目标行，phase = 2 用第二阶段目标行
+    bool run(int phase) {
+        const int objRow = (phase == 1) ? rows + 1 : rows;
+        // 退化时（长时间不推进）切 Bland 最小下标规则，避免循环
+        long long stall = 0;
+        const long long stallLimit = 4LL * (rows + cols) + 64;
+        while (true) {
+            const double* obj = row(objRow);
+            int s = -1;
+            if (stall < stallLimit) {                    // Devex：挑 d_j^2 / w_j 最大的列
+                double best = 0.0;
+                for (int j = 0; j <= cols; ++j) {
+                    if (phase == 2 && nonbasis[j] == -1) continue;
+                    const double d = obj[j];
+                    if (d > -eps) continue;
+                    const double score = d * d / weight[j];
+                    if (score > best) { best = score; s = j; }
+                }
+            } else {                                     // Bland：挑下标最小的可行列
+                for (int j = 0; j <= cols; ++j) {
+                    if (phase == 2 && nonbasis[j] == -1) continue;
+                    if (obj[j] < -eps && (s == -1 || nonbasis[j] < nonbasis[s])) s = j;
+                }
+            }
+            if (s == -1) return true;                    // 没有改进方向：该阶段最优
+
+            int r = -1;
+            double bestRatio = 0.0, bestPiv = 0.0;
+            for (int i = 0; i < rows; ++i) {
+                const double* pi = row(i);
+                if (pi[s] < eps) continue;
+                const double ratio = pi[cols + 1] / pi[s];
+                if (r == -1 || ratio < bestRatio - 1e-12 ||
+                    // 比值持平时选主元绝对值更大的一行：数值更稳、也少一点退化
+                    (ratio < bestRatio + 1e-12 && pi[s] > bestPiv)) {
+                    r = i; bestRatio = ratio; bestPiv = pi[s];
+                }
+            }
+            if (r == -1) return false;                   // 该方向无界
+
+            const double before = row(objRow)[cols + 1];
+            pivot(r, s);
+            const double after = row(objRow)[cols + 1];
+            stall = (after > before + 1e-12) ? 0 : stall + 1;
+        }
+    }
+
+    // 返回最优值；无界返回 +inf，不可行返回 -inf。solution 非空时回填一组最优解
+    double solve(vector<double>* solution = nullptr) {
+        int r = 0;
+        for (int i = 1; i < rows; ++i)
+            if (row(i)[cols + 1] < row(r)[cols + 1]) r = i;
+        if (row(r)[cols + 1] < -eps) {                   // 原点不可行才跑第一阶段
+            pivot(r, cols);
+            if (!run(1) || row(rows + 1)[cols + 1] < -eps)
+                return -numeric_limits<double>::infinity();
+            for (int i = 0; i < rows; ++i) {
+                if (basis[i] != -1) continue;
+                int s = -1;
+                for (int j = 0; j <= cols; ++j)
+                    if (s == -1 || row(i)[j] < row(i)[s] ||
+                        (row(i)[j] == row(i)[s] && nonbasis[j] < nonbasis[s])) s = j;
+                pivot(i, s);
+            }
+        }
+        if (!run(2)) return numeric_limits<double>::infinity();
+        if (solution) {
+            solution->assign(cols, 0.0);
+            for (int i = 0; i < rows; ++i)
+                if (basis[i] < cols) (*solution)[basis[i]] = row(i)[cols + 1];
+        }
+        return row(rows)[cols + 1];
+    }
+};
+		\end{minted}
+
 		\subsection{MEX (Minimum Excluded Value)}
 
 		$\operatorname{MEX}$（Minimum Excluded Value）通常指一个非负整数集合中未出现的最小非负整数。
