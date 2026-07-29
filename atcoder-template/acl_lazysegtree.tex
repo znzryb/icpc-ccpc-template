@@ -1,0 +1,280 @@
+		\subsection{\texttt{lazy\_segtree}：区间改 + 区间查（懒标记）}
+
+		在 \texttt{segtree} 的幺半群 $(S, op, e)$ 之上再挂一个\textbf{作用（映射）幺半群} $(F, composition, id)$，支持区间作用 $O(\log n)$、区间求积 $O(\log n)$、树上二分 $O(\log n)$。
+
+		\textbf{五件套的代数约束}（写错这里就是 WA 的主要来源）：
+
+		\begin{itemize}
+			\item \texttt{S op(S a, S b)}：结合律，\texttt{S e()} 是它的单位元。
+			\item \texttt{S mapping(F f, S x)}：把作用 \texttt{f} 施加到 \texttt{x} 上。注意参数顺序是「先 \texttt{f} 后 \texttt{x}」。
+			\item \texttt{F composition(F f, F g)}：复合成「\textbf{先 \texttt{g} 再 \texttt{f}}」，即数学上的 $f \circ g$，必须满足
+				\[
+					mapping(composition(f, g), x) = mapping(f, mapping(g, x)).
+				\]
+			\item \texttt{F id()}：\texttt{F} 的恒等作用，\texttt{mapping(id(), x) == x}。
+			\item \textbf{分配律}：作用要对 \texttt{op} 分配，即
+				\[
+					mapping(f, op(x, y)) = op(mapping(f, x), mapping(f, y)).
+				\]
+				这条不成立就不能用懒标记。
+		\end{itemize}
+
+		\textbf{最大的坑：\texttt{mapping} 拿不到区间长度}。做「区间加 + 区间和」时，$mapping(+v, x) = x + v \cdot len$ 需要 $len$，而 \texttt{mapping} 的入参只有 \texttt{f} 和 \texttt{x}——所以\textbf{长度必须存进 \texttt{S} 里}，让它随 \texttt{op} 一起合并。这与第 8 章那种「递归下传时天然知道 \texttt{[l, r]}」的写法不同，是 ACL 版最容易踩空的地方。
+
+		\textbf{接口一览}（比 \texttt{segtree} 多出 \texttt{apply}，且因为要 \texttt{push} 懒标记，\texttt{get} / \texttt{prod} 不再是 \texttt{const}）：
+
+		\begin{itemize}
+			\item \texttt{seg.apply(p, f)}：单点作用 $a_p \leftarrow mapping(f, a_p)$。
+			\item \texttt{seg.apply(l, r, f)}：区间 $[l, r)$ 上每个元素都作用 \texttt{f}。
+			\item \texttt{seg.set} / \texttt{get} / \texttt{prod} / \texttt{all\_prod} / \texttt{max\_right} / \texttt{min\_left}：语义同 \texttt{segtree}。
+		\end{itemize}
+
+		\begin{minted}{cpp}
+/* AtCoder Library v1.6 atcoder/lazysegtree
+ * 自包含移植, 改动同 segtree 小节
+ * 约定: 下标 0-based, 区间 [l, r) 左闭右开
+ */
+template<class S, S (*op)(S, S), S (*e)(),
+         class F, S (*mapping)(F, S),
+         F (*composition)(F, F), F (*id)()>
+struct lazy_segtree {
+public:
+    lazy_segtree() : lazy_segtree(0) {}
+
+    explicit lazy_segtree(int n)
+        : lazy_segtree(vector<S>(n, e())) {}
+
+    explicit lazy_segtree(const vector<S> &v)
+        : _n(int(v.size())) {
+        size = (int) bit_ceil((unsigned) _n);
+        log = countr_zero((unsigned) size);
+        d = vector<S>(2 * size, e());
+        lz = vector<F>(size, id());
+        for (int i = 0; i < _n; i++)
+            d[size + i] = v[i];
+        for (int i = size - 1; i >= 1; i--)
+            update(i);
+    }
+
+    // a[p] = x
+    void set(int p, S x) {
+        assert(0 <= p && p < _n);
+        p += size;
+        for (int i = log; i >= 1; i--) push(p >> i);
+        d[p] = x;
+        for (int i = 1; i <= log; i++) update(p >> i);
+    }
+
+    // 返回 a[p]
+    S get(int p) {
+        assert(0 <= p && p < _n);
+        p += size;
+        for (int i = log; i >= 1; i--) push(p >> i);
+        return d[p];
+    }
+
+    // 返回 op(a[l], ..., a[r - 1])
+    S prod(int l, int r) {
+        assert(0 <= l && l <= r && r <= _n);
+        if (l == r) return e();
+        l += size, r += size;
+        for (int i = log; i >= 1; i--) {
+            if (((l >> i) << i) != l) push(l >> i);
+            if (((r >> i) << i) != r)
+                push((r - 1) >> i);
+        }
+        S sml = e(), smr = e();
+        while (l < r) {
+            if (l & 1) sml = op(sml, d[l++]);
+            if (r & 1) smr = op(d[--r], smr);
+            l >>= 1, r >>= 1;
+        }
+        return op(sml, smr);
+    }
+
+    S all_prod() { return d[1]; }
+
+    // 单点作用 a[p] = mapping(f, a[p])
+    void apply(int p, F f) {
+        assert(0 <= p && p < _n);
+        p += size;
+        for (int i = log; i >= 1; i--) push(p >> i);
+        d[p] = mapping(f, d[p]);
+        for (int i = 1; i <= log; i++) update(p >> i);
+    }
+
+    // 区间作用, [l, r) 内每个元素都施加 f
+    void apply(int l, int r, F f) {
+        assert(0 <= l && l <= r && r <= _n);
+        if (l == r) return;
+        l += size, r += size;
+        for (int i = log; i >= 1; i--) {
+            if (((l >> i) << i) != l) push(l >> i);
+            if (((r >> i) << i) != r)
+                push((r - 1) >> i);
+        }
+        {
+            int l2 = l, r2 = r;
+            while (l < r) {
+                if (l & 1) all_apply(l++, f);
+                if (r & 1) all_apply(--r, f);
+                l >>= 1, r >>= 1;
+            }
+            l = l2, r = r2;
+        }
+        for (int i = 1; i <= log; i++) {
+            if (((l >> i) << i) != l) update(l >> i);
+            if (((r >> i) << i) != r)
+                update((r - 1) >> i);
+        }
+    }
+
+    // 最大的 r 使 g(op(a[l..r-1])) 为真
+    template<class G>
+    int max_right(int l, G g) {
+        assert(0 <= l && l <= _n);
+        assert(g(e()));
+        if (l == _n) return _n;
+        l += size;
+        for (int i = log; i >= 1; i--) push(l >> i);
+        S sm = e();
+        do {
+            while (l % 2 == 0) l >>= 1;
+            if (!g(op(sm, d[l]))) {
+                while (l < size) {
+                    push(l);
+                    l = 2 * l;
+                    if (g(op(sm, d[l]))) {
+                        sm = op(sm, d[l]);
+                        l++;
+                    }
+                }
+                return l - size;
+            }
+            sm = op(sm, d[l]);
+            l++;
+        } while ((l & -l) != l);
+        return _n;
+    }
+
+    // 最小的 l 使 g(op(a[l..r-1])) 为真
+    template<class G>
+    int min_left(int r, G g) {
+        assert(0 <= r && r <= _n);
+        assert(g(e()));
+        if (r == 0) return 0;
+        r += size;
+        for (int i = log; i >= 1; i--)
+            push((r - 1) >> i);
+        S sm = e();
+        do {
+            r--;
+            while (r > 1 && (r % 2)) r >>= 1;
+            if (!g(op(d[r], sm))) {
+                while (r < size) {
+                    push(r);
+                    r = 2 * r + 1;
+                    if (g(op(d[r], sm))) {
+                        sm = op(d[r], sm);
+                        r--;
+                    }
+                }
+                return r + 1 - size;
+            }
+            sm = op(d[r], sm);
+        } while ((r & -r) != r);
+        return 0;
+    }
+
+private:
+    int _n, size, log;
+    vector<S> d;
+    vector<F> lz;
+
+    // 原 atcoder::internal::bit_ceil
+    static unsigned bit_ceil(unsigned n) {
+        unsigned x = 1;
+        while (x < n) x *= 2;
+        return x;
+    }
+
+    // 原 atcoder::internal::countr_zero
+    static int countr_zero(unsigned n) {
+        return __builtin_ctz(n);
+    }
+
+    void update(int k) {
+        d[k] = op(d[2 * k], d[2 * k + 1]);
+    }
+
+    void all_apply(int k, F f) {
+        d[k] = mapping(f, d[k]);
+        if (k < size)
+            lz[k] = composition(f, lz[k]);
+    }
+
+    void push(int k) {
+        all_apply(2 * k, lz[k]);
+        all_apply(2 * k + 1, lz[k]);
+        lz[k] = id();
+    }
+};
+		\end{minted}
+
+		\textbf{用法一：区间加 + 区间和}。\texttt{S} 里带上 \texttt{len} 解决「\texttt{mapping} 不知道区间长度」：
+
+		\begin{minted}{cpp}
+struct S {
+    ll sum;
+    int len;
+};
+using F = ll;  // 懒标记 = 这段区间要加的数
+
+S op(S a, S b) {
+    return {a.sum + b.sum, a.len + b.len};
+}
+S e() { return {0, 0}; }
+S mapping(F f, S x) {
+    return {x.sum + f * x.len, x.len};
+}
+F composition(F f, F g) { return f + g; }
+F id() { return 0; }
+
+using Seg = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// ...
+int n;
+cin >> n;
+vector<S> a(n);
+for (int i = 0; i < n; i++) {
+    ll x;
+    cin >> x;
+    a[i] = {x, 1};  // 单点长度是 1
+}
+Seg seg(a);
+
+seg.apply(l, r, 5);   // [l, r) 每个元素 += 5
+cout << seg.prod(l, r).sum << "\n";
+		\end{minted}
+
+		\textbf{用法二：区间赋值 + 区间最大}。赋值标记要能表达「没有赋值」，用一个不可能出现的哨兵值当 \texttt{id()}：
+
+		\begin{minted}{cpp}
+using S = ll;
+using F = ll;
+const F NONE = LLONG_MIN;  // 「未赋值」哨兵
+
+S op(S a, S b) { return max(a, b); }
+S e() { return -4e18; }
+S mapping(F f, S x) {
+    return f == NONE ? x : f;
+}
+// 先 g 再 f: f 是 NONE 才轮到 g 生效
+F composition(F f, F g) {
+    return f == NONE ? g : f;
+}
+F id() { return NONE; }
+		\end{minted}
+
+		\textbf{区间赋值 + 区间和}要把两者拼起来：\texttt{S} 存 \texttt{\{sum, len\}}，\texttt{mapping} 里 \texttt{f != NONE} 时返回 \texttt{\{f * x.len, x.len\}}。同理「区间赋值 + 区间加」的复合标记要写成 \texttt{struct F \{ ll assign, add; \}}，\texttt{composition} 按「先 \texttt{g} 再 \texttt{f}」的顺序把两层压平——这类复合标记的分配律要在纸上验一遍再敲。

@@ -1,0 +1,192 @@
+		\subsection{\texttt{segtree}：单点改 + 区间查（非递归）}
+
+		维护满足\textbf{结合律}的二元运算 \texttt{op} 与其\textbf{单位元} \texttt{e}（即幺半群 monoid）上的序列，支持单点赋值 $O(\log n)$、区间求积 $O(\log n)$、以及在线段树上二分 $O(\log n)$。
+
+		\textbf{接口一览}（$n$ 为序列长度，下标 0-based）：
+
+		\begin{itemize}
+			\item \texttt{segtree<S, op, e> seg(n)}：长度 $n$，全部初始化为 \texttt{e()}。
+			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$。
+			\item \texttt{seg.set(p, x)}：令 $a_p \leftarrow x$。
+			\item \texttt{seg.get(p)}：返回 $a_p$。
+			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_{r-1})$；$l = r$ 时返回 \texttt{e()}。
+			\item \texttt{seg.all\_prod()}：返回全区间积，$O(1)$。
+			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_{r-1}))$ 为真。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
+			\item \texttt{seg.min\_left(r, f)}：返回最小的 $l$，使 $f(op(a_l, \dots, a_{r-1}))$ 为真。同样要求 \texttt{f} 单调且 \texttt{f(e())} 为真。
+		\end{itemize}
+
+		\textbf{三个易错点}：
+
+		\begin{enumerate}
+			\item \texttt{op} 与 \texttt{e} 必须是\textbf{自由函数}（或函数指针 / 无捕获 lambda 转成的函数指针），\textbf{不能}是带捕获的 lambda——它们是模板参数，编译期就要定死。
+			\item \texttt{e()} 必须是真单位元：求最大值时用足够小的哨兵（如 \texttt{-4e18}）而非 $0$，否则负数序列查询结果错。
+			\item \texttt{prod} 是 $[l, r)$ 左闭右开；从 1-based 闭区间 $[L, R]$ 换算过来是 \texttt{prod(L - 1, R)}。
+		\end{enumerate}
+
+		\begin{minted}{cpp}
+/* AtCoder Library v1.6 atcoder/segtree 自包含移植
+ * 改动: 去 #ifndef 守卫与 namespace atcoder,
+ *      去 std:: 前缀, internal_bit 的
+ *      bit_ceil / countr_zero 内联成私有 static
+ * 约定: 下标 0-based, 区间 [l, r) 左闭右开
+ */
+template<class S, S (*op)(S, S), S (*e)()>
+struct segtree {
+public:
+    segtree() : segtree(0) {}
+
+    explicit segtree(int n)
+        : segtree(vector<S>(n, e())) {}
+
+    explicit segtree(const vector<S> &v)
+        : _n(int(v.size())) {
+        size = (int) bit_ceil((unsigned) _n);
+        log = countr_zero((unsigned) size);
+        d = vector<S>(2 * size, e());
+        for (int i = 0; i < _n; i++)
+            d[size + i] = v[i];
+        for (int i = size - 1; i >= 1; i--)
+            update(i);
+    }
+
+    // a[p] = x
+    void set(int p, S x) {
+        assert(0 <= p && p < _n);
+        p += size;
+        d[p] = x;
+        for (int i = 1; i <= log; i++)
+            update(p >> i);
+    }
+
+    // 返回 a[p]
+    S get(int p) const {
+        assert(0 <= p && p < _n);
+        return d[p + size];
+    }
+
+    // 返回 op(a[l], ..., a[r - 1])
+    S prod(int l, int r) const {
+        assert(0 <= l && l <= r && r <= _n);
+        S sml = e(), smr = e();
+        l += size, r += size;
+        while (l < r) {
+            if (l & 1) sml = op(sml, d[l++]);
+            if (r & 1) smr = op(d[--r], smr);
+            l >>= 1, r >>= 1;
+        }
+        return op(sml, smr);
+    }
+
+    S all_prod() const { return d[1]; }
+
+    // 最大的 r 使 f(op(a[l..r-1])) 为真
+    template<class F>
+    int max_right(int l, F f) const {
+        assert(0 <= l && l <= _n);
+        assert(f(e()));
+        if (l == _n) return _n;
+        l += size;
+        S sm = e();
+        do {
+            while (l % 2 == 0) l >>= 1;
+            if (!f(op(sm, d[l]))) {
+                while (l < size) {
+                    l = 2 * l;
+                    if (f(op(sm, d[l]))) {
+                        sm = op(sm, d[l]);
+                        l++;
+                    }
+                }
+                return l - size;
+            }
+            sm = op(sm, d[l]);
+            l++;
+        } while ((l & -l) != l);
+        return _n;
+    }
+
+    // 最小的 l 使 f(op(a[l..r-1])) 为真
+    template<class F>
+    int min_left(int r, F f) const {
+        assert(0 <= r && r <= _n);
+        assert(f(e()));
+        if (r == 0) return 0;
+        r += size;
+        S sm = e();
+        do {
+            r--;
+            while (r > 1 && (r % 2)) r >>= 1;
+            if (!f(op(d[r], sm))) {
+                while (r < size) {
+                    r = 2 * r + 1;
+                    if (f(op(d[r], sm))) {
+                        sm = op(d[r], sm);
+                        r--;
+                    }
+                }
+                return r + 1 - size;
+            }
+            sm = op(d[r], sm);
+        } while ((r & -r) != r);
+        return 0;
+    }
+
+private:
+    int _n, size, log;
+    vector<S> d;
+
+    // 原 atcoder::internal::bit_ceil
+    static unsigned bit_ceil(unsigned n) {
+        unsigned x = 1;
+        while (x < n) x *= 2;
+        return x;
+    }
+
+    // 原 atcoder::internal::countr_zero
+    static int countr_zero(unsigned n) {
+        return __builtin_ctz(n);
+    }
+
+    void update(int k) {
+        d[k] = op(d[2 * k], d[2 * k + 1]);
+    }
+};
+		\end{minted}
+
+		\textbf{用法一：区间最大值}。\texttt{op} / \texttt{e} 写在全局（或匿名 namespace），然后实例化：
+
+		\begin{minted}{cpp}
+using S = ll;
+S op_max(S a, S b) { return max(a, b); }
+S e_max() { return -4e18; }  // 单位元哨兵
+
+// ...
+int n;
+cin >> n;
+vector<S> a(n);
+for (auto &x: a) cin >> x;
+segtree<S, op_max, e_max> seg(a);
+
+seg.set(3, 100);              // a[3] = 100
+cout << seg.prod(0, n) << "\n";   // 全局最大
+cout << seg.prod(2, 5) << "\n";   // a[2..4] 最大
+		\end{minted}
+
+		\textbf{用法二：区间和 + 线段树上二分}。求「从 $l$ 出发最长的前缀，使区间和不超过 $x$」——这是 \texttt{max\_right} 的典型用途，把「外层二分 + 内层查询」的 $O(\log^2 n)$ 压到 $O(\log n)$：
+
+		\begin{minted}{cpp}
+using S = ll;
+S op_sum(S a, S b) { return a + b; }
+S e_sum() { return 0; }
+
+// ...
+segtree<S, op_sum, e_sum> seg(a);
+ll x = 10;
+// r 是最大的下标, 使 a[l..r-1] 之和 <= x
+int r = seg.max_right(l,
+        [&](S sum) { return sum <= x; });
+		\end{minted}
+
+		注意 \texttt{max\_right} 的谓词 \texttt{f} 可以是\textbf{带捕获的 lambda}（它是普通函数参数，不是模板参数），与 \texttt{op} / \texttt{e} 的限制不同。
+
+		\textbf{与本模板其它线段树的取舍}：ACL 版是非递归实现，常数小、代码短，但\textbf{只支持单点修改}；要区间修改（区间加 / 区间赋值）请用下一小节的 \texttt{lazy\_segtree}，或第 8 章的递归式懒标记线段树。ACL 版另一个优势是 \texttt{max\_right} / \texttt{min\_left} 这对树上二分接口，第 8 章模板没有等价物。

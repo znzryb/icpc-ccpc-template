@@ -1,0 +1,23 @@
+	\begin{center}
+		\section{AtCoder Library（ACL）移植}
+	\end{center}
+
+	\begin{multicols*}{2}
+
+		本章收录 \href{https://github.com/atcoder/ac-library}{AtCoder Library v1.6} 里值得直接搬进赛场的组件，逐个改成\textbf{自包含可粘贴版}：
+
+		\begin{itemize}
+			\item 去掉 \texttt{\#ifndef} 头尾守卫与 \texttt{namespace atcoder}，去掉 \texttt{std::} 前缀（模板里默认 \texttt{using namespace std;}）。
+			\item 原本 \texttt{\#include "atcoder/internal\_bit"} 提供的 \texttt{bit\_ceil} / \texttt{countr\_zero} 内联成结构体私有 \texttt{static}，不再依赖任何 ACL 头文件。
+			\item 模板参数统一用\textbf{函数指针}形式（\texttt{S (*op)(S, S)}）而非 C++17 的 \texttt{auto op}——写法与 C++14 兼容，且报错信息比 \texttt{auto} + \texttt{static\_assert} 版本短得多。用 C++17 以上编译器时把 \texttt{S (*op)(S, S), S (*e)()} 换成 \texttt{auto op, auto e} 也能编译，行为一致。
+		\end{itemize}
+
+		\textbf{为什么要移植}：ACL 只在 AtCoder 评测机上预装，ICPC / CCPC 赛场机没有 \texttt{atcoder/} 头文件目录，\texttt{\#include <atcoder/segtree>} 直接 CE。本地开发（如 CMake 里 \texttt{include\_directories(SYSTEM .../ac-library)}）可以照常用官方头，但打印稿上必须是能手抄进单文件的版本。
+
+		\textbf{全章共同约定}：下标 \textbf{0-based}，区间一律 $[l, r)$ \textbf{左闭右开}——与本模板其它章节偏好的 1-based 闭区间相反，混用时注意换算。
+
+		\input{atcoder-template/acl_segtree.tex}
+
+		\input{atcoder-template/acl_lazysegtree.tex}
+
+	\end{multicols*}
