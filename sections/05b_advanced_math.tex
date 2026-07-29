@@ -150,6 +150,8 @@ vector<ll> c = multiply(a, b);
 		$$
 		\max\ c^{\mathsf T} z \quad \text{s.t.} \quad A z \le b,\ z \ge 0 .
 		$$
+		三样输入分别是：$A$ 是\textbf{约束系数}（$A_{ij}$ = 第 $i$ 条约束里变量 $j$ 的系数），$b$ 是每条约束的\textbf{上限}，$c$ 是\textbf{要最大化的那个式子的系数}。代码里就直接叫 \texttt{coef} / \texttt{limit} / \texttt{profit}，解向量叫 \texttt{x}。
+
 		可行域是若干半空间交出的凸多面体，最优值必在某个\textbf{顶点}处取到。单纯形法就是从一个顶点出发，每次沿一条棱走到相邻的更优顶点（一次 \texttt{pivot} = 一个非基变量入基、一个基变量出基），直到目标行里没有改进方向为止。
 
 		\begin{center}
@@ -197,7 +199,7 @@ vector<ll> c = multiply(a, b);
 
 		\textbf{返回值}：最优值；无界返回 $+\infty$，不可行返回 $-\infty$；\texttt{solution} 非空时回填一组最优解。
 
-		\textbf{建模转换}：等式约束拆成 $\le$ 与 $\ge$ 两条；$\ge$ 约束两边取负变 $\le$；$\min$ 问题把 $c$ 取负、答案再取负；变量可正可负时拆成 $z = z^{+} - z^{-}$ 两个非负变量。
+		\textbf{建模转换}：等式约束拆成 $\le$ 与 $\ge$ 两条；$\ge$ 约束两边取负变 $\le$；$\min$ 问题把 \texttt{profit} 整体取负、答案再取负；变量可正可负时拆成 $z = z^{+} - z^{-}$ 两个非负变量。
 
 		\begin{minted}{cpp}
 // 两个变量 x、y，都 >= 0；要最大化 3x + 2y
@@ -214,50 +216,59 @@ double best = lp.solve(&x);					// best = 11, x = {3, 1}
 		\end{minted}
 
 		\begin{minted}{cpp}
+// 变量 x[0..cols) 全都 >= 0；每条约束形如 coef[i][0]*x[0] + ... <= limit[i]；
+// 目标是让 profit[0]*x[0] + profit[1]*x[1] + ... 尽量大。
 struct SimplexLP {
-    // 字典表：(rows + 2) x (cols + 2)，行主序连续存储
-    //   前 rows 行 = 约束；第 rows 行 = 第二阶段目标；第 rows+1 行 = 第一阶段目标
-    //   前 cols 列 = 变量；第 cols 列 = 人工变量 x0；第 cols+1 列 = 右端
-    int rows = 0, cols = 0, stride = 0;
+    // 核心就是一张表 tab，(rows + 2) 行 x (cols + 2) 列，拍平成一维存（比二维 vector 少一层寻址）：
+    //   每行一条约束，每列一个变量，最后一列放这条约束还剩多少余量
+    //   多出的倒数第 2 行 = 目标（每个变量再加一单位能赚多少），最后一行只在"先找可行点"时用
+    //   多出的倒数第 2 列 = 辅助变量 x0，同样只在"先找可行点"时用
+    int rows = 0;               // 约束条数
+    int cols = 0;               // 变量个数
+    int stride = 0;             // 一行占多少个 double（= cols + 2）
     vector<double> tab;
-    vector<int> basis, nonbasis;
+    vector<int> basis;          // basis[i] = 第 i 行当前解出来的那个变量的编号
+    vector<int> nonbasis;       // nonbasis[j] = 第 j 列对应的变量编号，这些变量当前取 0
     double eps = 1e-9;
-    long long pivots = 0;
-    vector<double> weight;      // Devex 参考权重
+    long long pivots = 0;       // 换基次数，调试看规模用
+    vector<double> weight;      // Devex 参考权重，挑变量时用
 
     double* row(int i) { return tab.data() + static_cast<size_t>(i) * stride; }
     const double* row(int i) const { return tab.data() + static_cast<size_t>(i) * stride; }
 
-    // max c^T z, s.t. A z <= b, z >= 0
-    void init(const vector<vector<double>>& a,
-              const vector<double>& b,
-              const vector<double>& c) {
-        rows = static_cast<int>(b.size());
-        cols = static_cast<int>(c.size());
+    // coef[i][j]：第 i 条约束里变量 j 的系数     limit[i]：第 i 条约束的上限
+    // profit[j] ：变量 j 每多一单位，目标增加多少
+    void init(const vector<vector<double>>& coef,
+              const vector<double>& limit,
+              const vector<double>& profit) {
+        rows = static_cast<int>(limit.size());
+        cols = static_cast<int>(profit.size());
         stride = cols + 2;
         tab.assign(static_cast<size_t>(rows + 2) * stride, 0.0);
         basis.resize(rows);
         nonbasis.resize(cols + 1);
         for (int i = 0; i < rows; ++i) {
             double* p = row(i);
-            for (int j = 0; j < cols; ++j) p[j] = a[i][j];
-            p[cols] = -1.0;          // 人工变量 x0 这一列
-            p[cols + 1] = b[i];
-            basis[i] = cols + i;     // 初始基 = 松弛变量
+            for (int j = 0; j < cols; ++j) p[j] = coef[i][j];
+            p[cols] = -1.0;          // 辅助变量 x0 那一列，只在找可行点时起作用
+            p[cols + 1] = limit[i];
+            basis[i] = cols + i;     // 一开始所有变量取 0，这一行剩的余量就是 limit[i]
         }
         double* obj = row(rows);
-        for (int j = 0; j < cols; ++j) { obj[j] = -c[j]; nonbasis[j] = j; }
+        // 目标行存的是 -profit：以后看到负数就说明"这个变量还能加，目标还能变大"
+        for (int j = 0; j < cols; ++j) { obj[j] = -profit[j]; nonbasis[j] = j; }
         nonbasis[cols] = -1;
-        row(rows + 1)[cols] = 1.0;   // 第一阶段目标：min x0
+        row(rows + 1)[cols] = 1.0;   // 找可行点那一阶段的目标：把 x0 压到 0
         weight.assign(cols + 1, 1.0);
         pivots = 0;
     }
 
+    // 让第 s 列的变量从 0 开始往大加，加到第 r 条约束把它卡住为止；这两个变量交换身份
     void pivot(int r, int s) {
         ++pivots;
         double* pr = row(r);
         const double inv = 1.0 / pr[s];
-        {   // Devex：用主元行系数更新参考权重（O(cols)）
+        {   // Devex：顺手更新参考权重，供下次挑变量用（O(cols)）
             const double as = pr[s], ws = weight[s];
             for (int j = 0; j <= cols; ++j) {
                 if (j == s) continue;
@@ -269,58 +280,60 @@ struct SimplexLP {
             weight[s] = nw > 1.0 ? nw : 1.0;
         }
         const int total = rows + 2, width = cols + 2;
-        for (int i = 0; i < total; ++i) {
+        for (int i = 0; i < total; ++i) {   // 用第 r 行把其余每行的第 s 列消成 0
             if (i == r) continue;
             double* pi = row(i);
             const double f = pi[s] * inv;
             if (f == 0.0) continue;
-            for (int j = 0; j < width; ++j) pi[j] -= pr[j] * f;   // 内层无分支，可向量化
-            pi[s] = -f;                                           // s 列单独修正
+            for (int j = 0; j < width; ++j) pi[j] -= pr[j] * f;   // 内层无分支，编译器可向量化
+            pi[s] = -f;                                           // 第 s 列要单独修正
         }
         for (int j = 0; j < width; ++j) pr[j] *= inv;
         pr[s] = inv;
         swap(basis[r], nonbasis[s]);
     }
 
-    // phase = 1 用第一阶段目标行，phase = 2 用第二阶段目标行
+    // phase = 1：先找一个满足所有约束的点（把 x0 压到 0）
+    // phase = 2：在可行的范围内把目标做到最大
     bool run(int phase) {
         const int objRow = (phase == 1) ? rows + 1 : rows;
-        // 退化时（长时间不推进）切 Bland 最小下标规则，避免循环
+        // 目标值长时间不动（退化）就换 Bland 规则：它慢，但保证不会绕圈死循环
         long long stall = 0;
         const long long stallLimit = 4LL * (rows + cols) + 64;
         while (true) {
             const double* obj = row(objRow);
-            int s = -1;
-            if (stall < stallLimit) {                    // Devex：挑 d_j^2 / w_j 最大的列
+            int s = -1;                                  // 先挑"加谁"：哪个变量还能让目标变大
+            if (stall < stallLimit) {                    // Devex：挑性价比最高的
                 double best = 0.0;
                 for (int j = 0; j <= cols; ++j) {
                     if (phase == 2 && nonbasis[j] == -1) continue;
                     const double d = obj[j];
-                    if (d > -eps) continue;
+                    if (d > -eps) continue;              // 不是负的 => 加它目标也不会变大
                     const double score = d * d / weight[j];
                     if (score > best) { best = score; s = j; }
                 }
-            } else {                                     // Bland：挑下标最小的可行列
+            } else {                                     // Bland：老实挑编号最小的
                 for (int j = 0; j <= cols; ++j) {
                     if (phase == 2 && nonbasis[j] == -1) continue;
                     if (obj[j] < -eps && (s == -1 || nonbasis[j] < nonbasis[s])) s = j;
                 }
             }
-            if (s == -1) return true;                    // 没有改进方向：该阶段最优
+            if (s == -1) return true;                    // 没变量能让目标变大 => 这一阶段做完
 
+            // 再看"加到哪停"：哪条约束最先被顶满，即余量 / 系数 最小的那一行
             int r = -1;
             double bestRatio = 0.0, bestPiv = 0.0;
             for (int i = 0; i < rows; ++i) {
                 const double* pi = row(i);
-                if (pi[s] < eps) continue;
+                if (pi[s] < eps) continue;               // 系数 <= 0，这条约束拦不住它
                 const double ratio = pi[cols + 1] / pi[s];
                 if (r == -1 || ratio < bestRatio - 1e-12 ||
-                    // 比值持平时选主元绝对值更大的一行：数值更稳、也少一点退化
+                    // 两行一样紧时选系数绝对值更大的那行，算起来数值更稳
                     (ratio < bestRatio + 1e-12 && pi[s] > bestPiv)) {
                     r = i; bestRatio = ratio; bestPiv = pi[s];
                 }
             }
-            if (r == -1) return false;                   // 该方向无界
+            if (r == -1) return false;                   // 没人拦得住它 => 目标能到无穷大
 
             const double before = row(objRow)[cols + 1];
             pivot(r, s);
@@ -329,17 +342,18 @@ struct SimplexLP {
         }
     }
 
-    // 返回最优值；无界返回 +inf，不可行返回 -inf。solution 非空时回填一组最优解
+    // 返回目标能达到的最大值；无界返回 +inf，一个可行点都没有返回 -inf
+    // 传了 solution 就顺便把最优时每个变量的取值填回去
     double solve(vector<double>* solution = nullptr) {
         int r = 0;
         for (int i = 1; i < rows; ++i)
             if (row(i)[cols + 1] < row(r)[cols + 1]) r = i;
-        if (row(r)[cols + 1] < -eps) {                   // 原点不可行才跑第一阶段
+        if (row(r)[cols + 1] < -eps) {                   // 有约束上限是负的 => 全取 0 都不合法，先找可行点
             pivot(r, cols);
             if (!run(1) || row(rows + 1)[cols + 1] < -eps)
-                return -numeric_limits<double>::infinity();
+                return -numeric_limits<double>::infinity();   // x0 压不到 0 => 无解
             for (int i = 0; i < rows; ++i) {
-                if (basis[i] != -1) continue;
+                if (basis[i] != -1) continue;            // 把还赖在解里的 x0 换出去
                 int s = -1;
                 for (int j = 0; j <= cols; ++j)
                     if (s == -1 || row(i)[j] < row(i)[s] ||
@@ -348,7 +362,7 @@ struct SimplexLP {
             }
         }
         if (!run(2)) return numeric_limits<double>::infinity();
-        if (solution) {
+        if (solution) {                                  // 没被解出来的变量取值就是 0
             solution->assign(cols, 0.0);
             for (int i = 0; i < rows; ++i)
                 if (basis[i] < cols) (*solution)[basis[i]] = row(i)[cols + 1];
