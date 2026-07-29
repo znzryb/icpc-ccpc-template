@@ -145,7 +145,7 @@ void solve() {
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (e)   -- (a1)
 				node[midway, left=1pt, red!70!black] {$\mathrm{cost}(\varnothing,1)$};
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (a1)  -- (b12)
-				node[midway, above=1pt, red!70!black] {$\mathrm{cost}(\{1\},2)$};
+				node[midway, below=2pt, red!70!black] {$\mathrm{cost}(\{1\},2)$};
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (b12) -- (f)
 				node[midway, right=1pt, red!70!black] {$\mathrm{cost}(\{1,2\},0)$};
 		\end{tikzpicture}
@@ -164,19 +164,31 @@ void solve() {
 		\textbf{复杂度}：喂数据 $O(nm)$，超集和 $O(2^m m^2)$，最短路 $O(2^m m)$；空间 $O(2^m m)$ 个 \verb|ll|（$m = 20$ 时约 $160\,\mathrm{MB}$，注意题目内存限制）。
 
 		\begin{minted}{cpp}
-// 每条数据：一个能力掩码 mask + 一组权 d[0..m)
-SubsetLatticeShortestPath sosdp(M);
-for (int i = 0; i < N; ++i) {
-	vector<ll> d(M);
-	for (int j = 0; j < M; ++j) cin >> d[j];
-	string s; cin >> s;              // s[j] == 'A' 表示第 j 位在掩码里
-	ll mask = 0;
-	for (int j = 0; j < SZ(s); ++j) if (s[j] == 'A') mask |= 1ll << j;
-	sosdp.addBucket(mask, d);
+// Retest Queue 的完整 Solve：读入每个程序的 d[] 与 A/R 串，装桶 → 超集和 → 最短路
+void Solve() {
+	ll M;
+	cin >> N >> M;
+	SubsetLatticeShortestPath sosdp(M);
+	for (int i = 1; i <= N; ++i) {
+		vector<ll> d(M);
+		for (int j = 0; j < M; ++j) {
+			cin >> d[j];
+		}
+		string s;
+		cin >> s;
+		ll mask = 0;
+		for (int j = 0; j < SZ(s); ++j) {
+			if (s[j] == 'A') {
+				mask |= 1ll << j;
+			}
+		}
+		sosdp.addBucket(mask, d);
+	}
+	sosdp.buildSupersetSums();
+	ll res = sosdp.solve();
+	cout << res << "\n";
 }
-sosdp.buildSupersetSums();           // 必须在 solve 之前调用一次
-cout << sosdp.solve() << "\n";       // 最小总代价
-vector<int> order = sosdp.bestOrder();   // 要输出方案时再取
+// 要输出方案时：vector<int> order = sosdp.bestOrder();   // 0-indexed 的测试顺序
 		\end{minted}
 
 		\begin{minted}{cpp}
