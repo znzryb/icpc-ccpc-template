@@ -153,7 +153,7 @@ vector<ll> c = multiply(a, b);
 		可行域是若干半空间交出的凸多面体，最优值必在某个\textbf{顶点}处取到。单纯形法就是从一个顶点出发，每次沿一条棱走到相邻的更优顶点（一次 \texttt{pivot} = 一个非基变量入基、一个基变量出基），直到目标行里没有改进方向为止。
 
 		\begin{center}
-		\begin{tikzpicture}[scale=1.0, every node/.style={font=\small}]
+		\begin{tikzpicture}[scale=1.5, every node/.style={font=\small}]
 			\coordinate (O) at (0,0);
 			\coordinate (A) at (3,0);
 			\coordinate (B) at (3,1);
@@ -175,11 +175,11 @@ vector<ll> c = multiply(a, b);
 			\draw[->, red!80!black, very thick] (O) -- (A);
 			\draw[->, red!80!black, very thick] (A) -- (B);
 			\foreach \p in {O,A,B,C,D} \fill (\p) circle (1.7pt);
-			\node[font=\scriptsize, below left] at (O) {$z=0$};
-			\node[font=\scriptsize, below] at (A) {$z=9$};
-			\node[font=\scriptsize, right, red!70!black] at (B) {$z=11$};
-			\node[font=\scriptsize, above right] at (C) {$z=9.5$};
-			\node[font=\scriptsize, above left] at (D) {$z=6$};
+			\node[font=\scriptsize, below left=1pt and 1pt] at (O) {$z=0$};
+			\node[font=\scriptsize, below=5pt] at (A) {$z=9$};
+			\node[font=\scriptsize, right=4pt, red!70!black] at (B) {$z=11$};
+			\node[font=\scriptsize, above right=1pt and 2pt] at (C) {$z=9.5$};
+			\node[font=\scriptsize, above left=1pt and 2pt] at (D) {$z=6$};
 		\end{tikzpicture}
 		\end{center}
 
@@ -354,5 +354,3 @@ struct SimplexLP {
 };
 		\end{minted}
 
-
-	\end{multicols*}
