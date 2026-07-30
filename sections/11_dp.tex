@@ -145,7 +145,7 @@ void solve() {
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (e)   -- (a1)
 				node[midway, left=1pt, red!70!black] {$\mathrm{cost}(\varnothing,1)$};
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (a1)  -- (b12)
-				node[midway, below=2pt, red!70!black] {$\mathrm{cost}(\{1\},2)$};
+				node[midway, below right=0pt and 1pt, red!70!black] {$\mathrm{cost}(\{1\},2)$};
 			\draw[-{Stealth[length=5pt]}, red!80!black, very thick] (b12) -- (f)
 				node[midway, right=1pt, red!70!black] {$\mathrm{cost}(\{1,2\},0)$};
 		\end{tikzpicture}
@@ -173,7 +173,7 @@ void solve() {
 
 		\textbf{复杂度}：装桶 $O(nm)$，超集和 $O(2^m m^2)$，最短路 $O(2^m m)$；空间 $2^m m$ 个 \verb|ll|（$m = 20$ 时约 $160\,\mathrm{MB}$，\verb|vector<vector<ll>>| 还要多 $2^m$ 个 vector 头约 $24\,\mathrm{MB}$——卡内存就换一维 \verb|vector<ll>| 按 $S \cdot m + j$ 行主序拍平，顺带少一层间接寻址）。
 
-		\begin{minted}[highlightlines={33-38}, highlightcolor=red!12]{cpp}
+		\begin{minted}[highlightlines={33-39}, highlightcolor=red!12]{cpp}
 // N 个程序, M 个测试点
 // D[i][j]  = 程序 i 跑测试 j 的耗时
 // masks[i] = 程序 i 能 accept 的测试集合
@@ -211,7 +211,8 @@ void Solve() {
 	for (int i = 0; i < M; ++i) {
 		// 内层 sta 正序倒序都行: 被加的 tosta
 		// 第 i 位是 1, 本层不会被改, 无层内依赖
-		for (int sta = (1 << M) - 1; sta >= 0; --sta) {
+		for (int sta = (1 << M) - 1;
+		     sta >= 0; --sta) {
 			if (!((sta >> i) & 1)) {
 				ll tosta = sta | (1 << i);
 				for (int j = 0; j < M; ++j) {
