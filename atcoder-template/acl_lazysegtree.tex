@@ -25,7 +25,7 @@
 				这条不成立就不能用懒标记。
 		\end{itemize}
 
-		\textbf{最大的坑：\texttt{mapping} 拿不到区间长度}。做「区间加 + 区间和」时，$mapping(+v, x) = x + v \cdot len$ 需要 $len$，而 \texttt{mapping} 的入参只有 \texttt{f} 和 \texttt{x}——所以\textbf{长度必须存进 \texttt{S} 里}，让它随 \texttt{op} 一起合并。这与第 8 章那种「递归下传时天然知道 \texttt{[l, r]}」的写法不同，是 ACL 版最容易踩空的地方。
+		\textbf{最大的坑：\texttt{mapping} 拿不到区间长度}。做「区间加 + 区间和」时，$mapping(+v, x) = x + v \cdot len$ 需要 $len$，而 \texttt{mapping} 的入参只有 \texttt{f} 和 \texttt{x}——所以\textbf{长度必须存进 \texttt{S} 里}，让它随 \texttt{op} 一起合并。这与主板子数据结构章那种「递归下传时天然知道 \texttt{[l, r]}」的写法不同，是 ACL 版最容易踩空的地方。
 
 		\textbf{接口一览}（比 \texttt{segtree} 多出 \texttt{apply}，且因为要 \texttt{push} 懒标记，\texttt{get} / \texttt{prod} 不再是 \texttt{const}）：
 

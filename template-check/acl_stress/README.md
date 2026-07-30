@@ -9,8 +9,10 @@ bash template-check/acl_stress/run.sh    # 抽取 + 编译 + 跑，全过打印 
 
 ## 怎么工作
 
-1. `extract.py` 从 `atcoder-template/acl_segtree.tex` / `acl_lazysegtree.tex` 里抽**第一个**
-   `\begin{minted}{cpp}` 块（= 结构体定义），写成 `seg.inc` / `lazyseg.inc`。
+1. `extract.py` 从 `atcoder-template/acl_segtree.tex` / `acl_lazysegtree.tex` 里抽出**模板本体**那个
+   `\begin{minted}{cpp}` 块，写成 `seg.inc` / `lazyseg.inc`。
+   定位靠 marker（`struct segtree {` / `struct lazy_segtree {`）而**不是**「第一个 cpp 块」——
+   示例用法排在本体之前，取第一个会抽到示例；命中数 ≠ 1 直接报错，不静默抽错。
    **测的是 .tex 里的真实内容**，改了模板不同步就会立刻暴露。
 2. `stress.cpp` 把移植版、官方 `atcoder::segtree` / `atcoder::lazy_segtree`、朴素暴力三方对拍：
    - `segtree`：区间最大值，随机 `set` / `get` / `prod` / `all_prod` / `max_right` / `min_left`

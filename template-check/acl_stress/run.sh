@@ -25,8 +25,9 @@ GCC_LIB=${GCC_LIB:-/opt/homebrew/opt/gcc/lib/gcc/current}
 }
 
 cd "$HERE"
-"$PY" extract.py "$TEX_DIR/acl_segtree.tex" seg.inc
-"$PY" extract.py "$TEX_DIR/acl_lazysegtree.tex" lazyseg.inc
+# 按 marker 抽「模板本体」那个块 —— 示例用法排在本体之前, 不能取第一个块
+"$PY" extract.py "$TEX_DIR/acl_segtree.tex"     seg.inc     'struct segtree {'
+"$PY" extract.py "$TEX_DIR/acl_lazysegtree.tex" lazyseg.inc 'struct lazy_segtree {'
 
 # macOS clang + libstdc++ 工具链，见
 # ~/Desktop/DoProblemAsMyTaste/.claude/rules/macos-clang-libstdcxx-toolchain.md
