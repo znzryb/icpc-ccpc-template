@@ -158,14 +158,12 @@ void solve() {
 		\textcolor{red!75!black}{\textbf{SOS DP 的精髓：外层先枚举维度，内层才枚举状态}}。高维前缀和 / 超集和的本质是「\textbf{对每一维各做一次}一维前缀和」，$m$ 维就是 $m$ 轮，每轮把这一维「压平」。两层循环\textbf{写反就是错的}：外层若是状态、内层是维度，同一个状态在一次内层里连着吃多个方向的超集，而那些超集已被部分更新，导致\textbf{重复计数}。$m = 2$ 的反例（记初值 $f_{00}, f_{01}, f_{10}, f_{11}$，$S$ 倒序）：
 
 		\begin{center}
-		\begin{tabular}{l|l}
-			写法 & $cost[00]$ 最终值 \\ \hline
-			\textcolor{red!75!black}{状态在外（错）} & $f_{00}+f_{01}+f_{10}+\textcolor{red!75!black}{2}f_{11}$ \\
-			维度在外（对） & $f_{00}+f_{01}+f_{10}+f_{11}$ \\
-		\end{tabular}
+			\includegraphics[width=\linewidth]{image/sos-dp-dimension-vs-graph-view.png}
 		\end{center}
 
-		错的那行里 $f_{11}$ 被经 $01$ 与 $10$ 各加了一次。反过来，维度在外时\textbf{内层状态的枚举顺序无所谓}（正序倒序都对）：本轮只改第 $i$ 位为 $0$ 的状态，而被读的 $S \cup \{i\}$ 第 $i$ 位是 $1$、本轮不会被改，层内没有依赖。口诀：\textbf{维度在外，状态在内}。
+		\textbf{左半（错）}：按「图论最短路」的直觉去想，$11$ 沿两条边各把 $V_1$ 送给 $10$ 与 $01$，两路再汇到 $00$，于是 $00$ 吃进 $2V_1$——$f_{11}$ 被经 $10$ 与 $01$ 各加了一次。\textbf{右半（对）}：维度在外时每一轮只沿\textbf{一个}维度走，$11 \to 00$ 的两条边必然分属 $i = 1$ 与 $i = 0$ 两个不同轮次，所以 $11$ 只会被累加一次，「只有这条是通的」。
+
+		反过来，维度在外时\textbf{内层状态的枚举顺序无所谓}（正序倒序都对）：本轮只改第 $i$ 位为 $0$ 的状态，而被读的 $S \cup \{i\}$ 第 $i$ 位是 $1$、本轮不会被改，层内没有依赖。口诀：\textbf{维度在外，状态在内}。
 
 		\textbf{例题}：\href{https://ac.nowcoder.com/acm/contest/133879/C}{2026 牛客多校 4 C. Retest Queue}——$n \le 2\times 10^4$ 个程序、$m \le 20$ 个测试点，测试队列可任意重排；每个程序从队首依次跑，\textbf{遇到第一个 rejected 的测试就停}（那个测试本身仍计时），程序 $i$ 跑测试 $j$ 花 $d_{i,j}$，求最小总耗时。令 $mask_i$ = 程序 $i$ 能 accept 的测试集合，把测试 $j$ 排在已排集合 $S$ 之后时，此刻\textbf{还没停下来}的程序恰是那些 $mask_i \supseteq S$ 的，它们都要付 $d_{i,j}$，于是
 		$$\mathrm{cost}(S, j) = \sum_{mask_i \supseteq S} d_{i,j},$$
