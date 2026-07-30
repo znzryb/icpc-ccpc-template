@@ -2,16 +2,16 @@
 
 		维护满足\textbf{结合律}的二元运算 \texttt{op} 与其\textbf{单位元} \texttt{e}（即幺半群 monoid）上的序列，支持单点赋值 $O(\log n)$、区间求积 $O(\log n)$、以及在线段树上二分 $O(\log n)$。
 
-		\textbf{接口一览}（$n$ 为序列长度，下标 \textbf{1-based}（合法位置 $1 \dots n$），区间 $[l, r]$ \textbf{左闭右闭}）：
+		\textbf{接口一览}（区间一律 $[l, r]$ \textbf{左闭右闭}；\texttt{seg(n)} 的合法位置是 $0 \dots n$，共 $n+1$ 个叶子，所以 0-based 与 1-based \textbf{都能直接用}，多出来的那一格恒为 \texttt{e()} 不影响结果）：
 
 		\begin{itemize}
-			\item \texttt{segtree<S, op, e> seg(n)}：长度 $n$，全部初始化为 \texttt{e()}。
-			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$。\textbf{注意 \texttt{v} 仍按 0-based 装}，\texttt{v[i]} 对应 1-based 位置 $i+1$。
+			\item \texttt{segtree<S, op, e> seg(n)}：合法位置 $0 \dots n$，全部初始化为 \texttt{e()}。
+			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$；\texttt{v[i]} 就是位置 $i$，长度自己定（1-based 用法写 \texttt{vector<S> a(n + 1, e())} 再填 \texttt{a[1..n]}）。
 			\item \texttt{seg.set(p, x)}：令 $a_p \leftarrow x$。
 			\item \texttt{seg.get(p)}：返回 $a_p$。
-			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_r)$（闭区间）；$l = r + 1$ 表示空区间，返回 \texttt{e()}。
+			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_r)$（闭区间）；$r = l - 1$ 表示空区间，返回 \texttt{e()}。
 			\item \texttt{seg.all\_prod()}：返回全区间积，$O(1)$。
-			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $l - 1$ 表示空）。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
+			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $l - 1$ 表示一个都取不到）。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
 			\item \texttt{seg.min\_left(r, f)}：返回最小的 $l$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $r + 1$ 表示空）。同样要求 \texttt{f} 单调且 \texttt{f(e())} 为真。
 		\end{itemize}
 
@@ -20,7 +20,7 @@
 		\begin{enumerate}
 			\item \texttt{op} 与 \texttt{e} 必须是\textbf{自由函数}（或函数指针 / 无捕获 lambda 转成的函数指针），\textbf{不能}是带捕获的 lambda——它们是模板参数，编译期就要定死。
 			\item \texttt{e()} 必须是真单位元：求最大值时用足够小的哨兵（如 \texttt{-4e18}）而非 $0$，否则负数序列查询结果错。
-			\item \textbf{只有建树的 \texttt{vector} 是 0-based}，其余接口全是 1-based：\texttt{seg(v)} 之后 \texttt{v[0]} 要用 \texttt{seg.get(1)} 取。混了就整体错位一格。
+			\item 从 \texttt{vector} 建树时\textbf{长度不再自动 $+1$}：想 1-based 用就得自己开 \texttt{a(n + 1)}，直接传 \texttt{a(n)} 的话位置 $n$ 不合法。另外 $n$ 恰为 $2$ 的幂时多开的那格会让 \texttt{bit\_ceil} 翻倍（$n = 2^{20} \Rightarrow$ \texttt{d} 数组 $2^{22}$），卡空间的题留意。
 		\end{enumerate}
 
 		\textbf{示例一：区间最大值}（单点赋值 + 区间查最大，完整可提交骨架）
@@ -46,10 +46,9 @@ int main() {
     int n, q;
     cin >> n >> q;
 
-    // 建树用的 vector 按 0-based 装,
-    // a[0] 建完之后就是树里的位置 1
-    vector<S> a(n);
-    for (auto &x: a) cin >> x;
+    // 想 1-based 用就自己开 n+1 格, a[i] 就是位置 i
+    vector<S> a(n + 1, e_max());
+    for (int i = 1; i <= n; i++) cin >> a[i];
 
     // 用 vector 一次性建树是 O(n);
     // 先 segtree(n) 再逐个 set 是 O(n log n),
@@ -86,11 +85,11 @@ int main() {
     int n;
     ll x;
     cin >> n >> x;
-    vector<S> a(n);
-    for (auto &v: a) cin >> v;
+    vector<S> a(n + 1, e_sum());   // 1-based
+    for (int i = 1; i <= n; i++) cin >> a[i];
     segtree<S, op_sum, e_sum> seg(a);
 
-    int l = 1;   // 从位置 l 出发 (1-based)
+    int l = 1;   // 从位置 l 出发
 
     // 谓词 f 可以是「带捕获的 lambda」——
     // 它是普通函数参数, 不是模板参数,
@@ -121,27 +120,25 @@ int main() {
 		\textbf{模板本体}：
 
 		\begin{minted}{cpp}
-/* AtCoder Library v1.6 atcoder/segtree 自包含移植
- * 改动: 去 #ifndef 守卫与 namespace atcoder,
- *      去 std:: 前缀, internal_bit 的
- *      bit_ceil / countr_zero 内联成私有 static,
- *      对外改成 1-based 闭区间
- * 约定: 下标 1-based (合法位置 1..n), 区间 [l, r] 左闭右闭
- *      内部实现仍是 0-based 半开, 只在各接口入口映射一次:
- *        1-based 闭 [l, r] -> 0-based 半开 [l-1, r)
- *      即「左端/单点 l--/p--, 右端 r 不变」
- *      空区间: l == r+1 合法(prod 返回 e()); l > r+1 撞 assert
- *      min_left 的入参 r 是右端不用减, 只有返回值 +1
- *      建树的 vector 仍按 0-based 传: v[i] 对应位置 i+1
+/* AtCoder Library v1.6 atcoder/segtree 自包含移植 + 闭区间
+ * 用法: segtree(n) 合法位置 0..n (开 n+1 个叶子), 区间 [l, r] 左闭右闭
+ *      1-based 就只碰 1..n, 0-based 就只碰 0..n-1,
+ *      多出来的那个位置恒为 e(), 不影响任何查询
+ *      从 vector 建: v[i] 对应位置 i, 长度自己定
+ *        1-based -> vector<S> a(n + 1, e()); a[1..n] 填数据; segtree seg(a);
+ *      空区间写 r == l - 1 (prod 返回 e())
+ * 注意: n 恰为 2 的幂时多开的那个叶子会让 bit_ceil 翻倍, 卡空间的题留意
  */
 template<class S, S (*op)(S, S), S (*e)()>
 struct segtree {
 public:
     segtree() : segtree(0) {}
 
+    // 合法位置 0..n, 内部开 n+1 个叶子
     explicit segtree(int n)
-        : segtree(vector<S>(n, e())) {}
+        : segtree(vector<S>(n + 1, e())) {}
 
+    // v[i] 对应位置 i, 合法位置 0..v.size()-1
     explicit segtree(const vector<S> &v)
         : _n(int(v.size())) {
         size = (int) bit_ceil((unsigned) _n);
@@ -153,9 +150,8 @@ public:
             update(i);
     }
 
-    // a[p] = x   (1 <= p <= n)
+    // a[p] = x   (0 <= p <= n)
     void set(int p, S x) {
-        p--;
         assert(0 <= p && p < _n);
         p += size;
         d[p] = x;
@@ -163,16 +159,15 @@ public:
             update(p >> i);
     }
 
-    // 返回 a[p]   (1 <= p <= n)
+    // 返回 a[p]   (0 <= p <= n)
     S get(int p) const {
-        p--;
         assert(0 <= p && p < _n);
         return d[p + size];
     }
 
     // 返回 op(a[l], ..., a[r])   闭区间
     S prod(int l, int r) const {
-        l--;
+        r++;
         assert(0 <= l && l <= r && r <= _n);
         S sml = e(), smr = e();
         l += size, r += size;
@@ -186,14 +181,13 @@ public:
 
     S all_prod() const { return d[1]; }
 
-    // 最大的 r 使 f(op(a[l..r])) 为真 (闭区间)
-    // 一个都取不到时返回 l-1
+    // 最大的 r 使 f(op(a[l..r])) 为真 (闭区间); 取不到时返回 l-1
+    // 内部返回的是半开右端, 所以返回值统一 -1
     template<class F>
     int max_right(int l, F f) const {
-        l--;
         assert(0 <= l && l <= _n);
         assert(f(e()));
-        if (l == _n) return _n;
+        if (l == _n) return _n - 1;
         l += size;
         S sm = e();
         do {
@@ -206,23 +200,22 @@ public:
                         l++;
                     }
                 }
-                return l - size;
+                return (l - size) - 1;
             }
             sm = op(sm, d[l]);
             l++;
         } while ((l & -l) != l);
-        return _n;
+        return _n - 1;
     }
 
-    // 最小的 l 使 f(op(a[l..r])) 为真 (闭区间)
-    // 一个都取不到时返回 r+1
-    // 注: 入参 r 是闭区间右端 = 内部半开右端, 不用减,
-    //     只有返回值 (左端) 要 +1
+    // 最小的 l 使 f(op(a[l..r])) 为真 (闭区间); 取不到时返回 r+1
+    // 入参 r++ 成半开右端即可, 返回值本身就是闭区间左端
     template<class F>
     int min_left(int r, F f) const {
+        r++;
         assert(0 <= r && r <= _n);
         assert(f(e()));
-        if (r == 0) return 1;
+        if (r == 0) return 0;
         r += size;
         S sm = e();
         do {
@@ -236,11 +229,11 @@ public:
                         r--;
                     }
                 }
-                return (r + 1 - size) + 1;
+                return r + 1 - size;
             }
             sm = op(d[r], sm);
         } while ((r & -r) != r);
-        return 1;
+        return 0;
     }
 
 private:
