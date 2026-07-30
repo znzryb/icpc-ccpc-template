@@ -64,19 +64,19 @@ int main() {
                 int p = rng() % n;
                 ll v = (ll) (rng() % 2000) - 1000;
                 a[p] = v;
-                mine.set(p, v);
+                mine.set(p + 1, v);
                 off.set(p, v);
             } else if (t == 1) {  // get
                 int p = rng() % n;
-                CHECK(mine.get(p) == a[p], "seg.get vs brute");
-                CHECK(mine.get(p) == off.get(p), "seg.get vs acl");
+                CHECK(mine.get(p + 1) == a[p], "seg.get vs brute");
+                CHECK(mine.get(p + 1) == off.get(p), "seg.get vs acl");
             } else if (t == 2) {  // prod
                 int l = rng() % (n + 1), r = rng() % (n + 1);
                 if (l > r) swap(l, r);
                 ll want = e1();
                 for (int i = l; i < r; i++) want = max(want, a[i]);
-                CHECK(mine.prod(l, r) == want, "seg.prod vs brute");
-                CHECK(mine.prod(l, r) == off.prod(l, r), "seg.prod vs acl");
+                CHECK(mine.prod(l + 1, r) == want, "seg.prod vs brute");
+                CHECK(mine.prod(l + 1, r) == off.prod(l, r), "seg.prod vs acl");
             } else if (t == 3) {  // all_prod
                 ll want = e1();
                 for (int i = 0; i < n; i++) want = max(want, a[i]);
@@ -87,7 +87,7 @@ int main() {
                 auto f = [&](S1 v) { return v <= x; };
                 if (f(e1())) {
                     int l = rng() % (n + 1);
-                    int got = mine.max_right(l, f);
+                    int got = mine.max_right(l + 1, f);
                     int want = l;
                     ll cur = e1();
                     while (want < n && f(max(cur, a[want]))) {
@@ -105,8 +105,8 @@ int main() {
                         cur = max(cur, a[want2 - 1]);
                         want2--;
                     }
-                    CHECK(got2 == want2, "seg.min_left vs brute");
-                    CHECK(got2 == off.min_left(r, f), "seg.min_left vs acl");
+                    CHECK(got2 == want2 + 1, "seg.min_left vs brute");
+                    CHECK(got2 == off.min_left(r, f) + 1, "seg.min_left vs acl");
                 }
             }
         }
@@ -141,34 +141,34 @@ int main() {
             if (t == 0) {  // 区间加
                 ll v = randv();
                 for (int i = l; i < r; i++) a[i] += v;
-                mine.apply(l, r, v);
+                mine.apply(l + 1, r, v);
                 off.apply(l, r, v);
             } else if (t == 1) {  // 单点加
                 int p = rng() % n;
                 ll v = randv();
                 a[p] += v;
-                mine.apply(p, v);
+                mine.apply(p + 1, v);
                 off.apply(p, v);
             } else if (t == 2) {  // 区间和
                 ll want = 0;
                 for (int i = l; i < r; i++) want += a[i];
-                CHECK(mine.prod(l, r).sum == want, "lazy.prod vs brute");
-                CHECK(mine.prod(l, r).sum == off.prod(l, r).sum,
+                CHECK(mine.prod(l + 1, r).sum == want, "lazy.prod vs brute");
+                CHECK(mine.prod(l + 1, r).sum == off.prod(l, r).sum,
                       "lazy.prod vs acl");
-                CHECK(mine.prod(l, r).len == r - l, "lazy.prod len");
+                CHECK(mine.prod(l + 1, r).len == r - l, "lazy.prod len");
             } else if (t == 3) {  // 单点 get / set
                 int p = rng() % n;
-                CHECK(mine.get(p).sum == a[p], "lazy.get vs brute");
-                CHECK(mine.get(p).sum == off.get(p).sum, "lazy.get vs acl");
+                CHECK(mine.get(p + 1).sum == a[p], "lazy.get vs brute");
+                CHECK(mine.get(p + 1).sum == off.get(p).sum, "lazy.get vs acl");
                 ll v = randv();
                 a[p] = v;
-                mine.set(p, {v, 1});
+                mine.set(p + 1, {v, 1});
                 off.set(p, {v, 1});
             } else {  // 树上二分: 最长前缀和 <= x
                 ll x = (ll) (rng() % 400) - 100;
                 auto g = [&](S2 s) { return s.sum <= x; };
                 if (g(e2())) {
-                    int got = mine.max_right(l, g);
+                    int got = mine.max_right(l + 1, g);
                     if (nonneg) {  // 谓词单调才有唯一答案
                         int want = l;
                         ll cur = 0;
@@ -203,17 +203,17 @@ int main() {
             if (t == 0) {  // 区间赋值
                 ll v = (ll) (rng() % 200) - 100;
                 for (int i = l; i < r; i++) a[i] = v;
-                mine.apply(l, r, v);
+                mine.apply(l + 1, r, v);
                 off.apply(l, r, v);
             } else if (t == 1) {  // 区间最大
                 ll want = e3();
                 for (int i = l; i < r; i++) want = max(want, a[i]);
-                CHECK(mine.prod(l, r) == want, "lazyset.prod vs brute");
-                CHECK(mine.prod(l, r) == off.prod(l, r), "lazyset.prod vs acl");
+                CHECK(mine.prod(l + 1, r) == want, "lazyset.prod vs brute");
+                CHECK(mine.prod(l + 1, r) == off.prod(l, r), "lazyset.prod vs acl");
             } else {  // 单点
                 int p = rng() % n;
-                CHECK(mine.get(p) == a[p], "lazyset.get vs brute");
-                CHECK(mine.get(p) == off.get(p), "lazyset.get vs acl");
+                CHECK(mine.get(p + 1) == a[p], "lazyset.get vs brute");
+                CHECK(mine.get(p + 1) == off.get(p), "lazyset.get vs acl");
             }
         }
     }
@@ -224,12 +224,12 @@ int main() {
         segtree<S1, op1, e1> s0;
         CHECK(s0.all_prod() == e1(), "empty segtree all_prod");
         segtree<S1, op1, e1> s1(0);
-        CHECK(s1.prod(0, 0) == e1(), "segtree prod(0,0)");
+        CHECK(s1.prod(1, 0) == e1(), "segtree prod(0,0)");
         MineAdd z0;
         CHECK(z0.all_prod().sum == 0, "empty lazy all_prod");
         MineAdd z1(5);
-        z1.apply(0, 5, 3);
-        CHECK(z1.prod(0, 5).sum == 0, "lazy default e() then apply");
+        z1.apply(1, 5, 3);
+        CHECK(z1.prod(1, 5).sum == 0, "lazy default e() then apply");
     }
 
     printf(fails ? "TOTAL FAILS: %d\n" : "ALL PASS (fails=%d)\n", fails);
