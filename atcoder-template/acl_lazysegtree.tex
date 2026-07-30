@@ -35,6 +35,144 @@
 			\item \texttt{seg.set} / \texttt{get} / \texttt{prod} / \texttt{all\_prod} / \texttt{max\_right} / \texttt{min\_left}：语义同 \texttt{segtree}。
 		\end{itemize}
 
+		\textbf{示例一：区间加 + 区间和}（洛谷 P3372 那类板子题，完整可提交骨架）
+
+		\begin{minted}{cpp}
+/* 题意: n 个数, q 次操作
+ *   1 l r v -> 把 [l, r] 每个数加上 v (闭区间)
+ *   2 l r   -> 输出 [l, r] 的区间和
+ */
+
+// 结点存什么: 和 + 长度。
+// 为什么要存长度: mapping(f, x) 只拿到 f 和 x,
+// 拿不到「这段有多长」, 而区间加 v 让和增加
+// v * 长度 —— 长度只能自己存进 S 里跟着 op 合并
+struct S {
+    ll sum;   // 这段区间的元素和
+    int len;  // 这段区间的元素个数
+};
+
+using F = ll;  // 懒标记: 这段区间「待加上的数」
+
+// op: 合并两段 —— 和相加, 长度相加
+S op(S a, S b) {
+    return {a.sum + b.sum, a.len + b.len};
+}
+
+// e: op 的单位元 = 空区间 (和 0, 长度 0)
+S e() { return {0, 0}; }
+
+// mapping: 把「每个元素 +f」作用到整段 x 上
+// 和增加 f * 元素个数; 长度不变
+S mapping(F f, S x) {
+    return {x.sum + f * x.len, x.len};
+}
+
+// composition: 复合成「先 g 再 f」
+// 先加 g 再加 f, 等价于一次加 (f + g)
+F composition(F f, F g) { return f + g; }
+
+// id: 恒等作用 = 加 0 (表示「这段没有待下传的加法」)
+F id() { return 0; }
+
+// 七个模板参数顺序: S, op, e, F,
+//                  mapping, composition, id
+using Seg = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+int main() {
+    int n, q;
+    cin >> n >> q;
+
+    vector<S> a(n);            // 全程 0-based
+    for (int i = 0; i < n; i++) {
+        ll x;
+        cin >> x;
+        a[i] = {x, 1};         // 单点: 和 = x, 长度 = 1
+    }
+    Seg seg(a);                // 建树 O(n)
+
+    while (q--) {
+        int t, l, r;
+        cin >> t >> l >> r;
+        if (t == 1) {          // 区间加
+            ll v;
+            cin >> v;
+            // apply 是左闭右开 [l, r), 题面是
+            // 闭区间 [l, r] -> apply(l-1, r, v)
+            seg.apply(l - 1, r, v);
+        } else {               // 区间求和
+            // prod 返回的是 S, 取 .sum
+            cout << seg.prod(l - 1, r).sum
+                 << "\n";
+        }
+    }
+}
+		\end{minted}
+
+		\textbf{示例二：区间赋值 + 区间最大}。赋值标记要能表达「这段没有被赋值」，用一个数据里不可能出现的值当哨兵：
+
+		\begin{minted}{cpp}
+/* 题意: 1 l r v -> [l, r] 全部赋值为 v
+ *      2 l r   -> 输出 [l, r] 的最大值
+ */
+using S = ll;   // 结点存这段的最大值
+using F = ll;   // 懒标记: 这段待赋成的值
+
+// 哨兵: 表示「这段没有待下传的赋值」。
+// 必须取一个数据里绝不会出现的值, 否则
+// 「真的赋值成 NONE」会被误判成「没赋值」
+const F NONE = LLONG_MIN;
+
+S op(S a, S b) { return max(a, b); }
+
+// max 的单位元: 足够小的极小值 (不能写 0)
+S e() { return -4e18; }
+
+// mapping: f == NONE 说明没赋值, 原样返回;
+// 否则整段都变成 f, 那么这段的最大值就是 f
+// (注意这里不需要区间长度 —— 换成「赋值 +
+//  区间和」就需要, 那时 S 要存 {sum, len},
+//  返回 {f * x.len, x.len})
+S mapping(F f, S x) {
+    return f == NONE ? x : f;
+}
+
+// composition: 「先 g 再 f」。
+// f 是真赋值 -> 它把 g 覆盖掉, 结果是 f;
+// f 是 NONE (本层没动) -> 才轮到 g 生效
+F composition(F f, F g) {
+    return f == NONE ? g : f;
+}
+
+F id() { return NONE; }   // 恒等 = 不赋值
+
+using Seg = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+int main() {
+    int n, q;
+    cin >> n >> q;
+    vector<S> a(n);
+    for (auto &x: a) cin >> x;
+    Seg seg(a);
+
+    while (q--) {
+        int t, l, r;
+        cin >> t >> l >> r;
+        if (t == 1) {
+            ll v;
+            cin >> v;
+            seg.apply(l - 1, r, v);   // [l-1, r)
+        } else {
+            cout << seg.prod(l - 1, r) << "\n";
+        }
+    }
+}
+		\end{minted}
+
+		\textbf{模板本体}：
+
 		\begin{minted}{cpp}
 /* AtCoder Library v1.6 atcoder/lazysegtree
  * 自包含移植, 改动同 segtree 小节
@@ -227,60 +365,4 @@ private:
 };
 		\end{minted}
 
-		\textbf{用法一：区间加 + 区间和}。\texttt{S} 里带上 \texttt{len} 解决「\texttt{mapping} 不知道区间长度」：
-
-		\begin{minted}{cpp}
-struct S {
-    ll sum;
-    int len;
-};
-using F = ll;  // 懒标记 = 这段区间要加的数
-
-S op(S a, S b) {
-    return {a.sum + b.sum, a.len + b.len};
-}
-S e() { return {0, 0}; }
-S mapping(F f, S x) {
-    return {x.sum + f * x.len, x.len};
-}
-F composition(F f, F g) { return f + g; }
-F id() { return 0; }
-
-using Seg = lazy_segtree<S, op, e, F,
-        mapping, composition, id>;
-
-// ...
-int n;
-cin >> n;
-vector<S> a(n);
-for (int i = 0; i < n; i++) {
-    ll x;
-    cin >> x;
-    a[i] = {x, 1};  // 单点长度是 1
-}
-Seg seg(a);
-
-seg.apply(l, r, 5);   // [l, r) 每个元素 += 5
-cout << seg.prod(l, r).sum << "\n";
-		\end{minted}
-
-		\textbf{用法二：区间赋值 + 区间最大}。赋值标记要能表达「没有赋值」，用一个不可能出现的哨兵值当 \texttt{id()}：
-
-		\begin{minted}{cpp}
-using S = ll;
-using F = ll;
-const F NONE = LLONG_MIN;  // 「未赋值」哨兵
-
-S op(S a, S b) { return max(a, b); }
-S e() { return -4e18; }
-S mapping(F f, S x) {
-    return f == NONE ? x : f;
-}
-// 先 g 再 f: f 是 NONE 才轮到 g 生效
-F composition(F f, F g) {
-    return f == NONE ? g : f;
-}
-F id() { return NONE; }
-		\end{minted}
-
-		\textbf{区间赋值 + 区间和}要把两者拼起来：\texttt{S} 存 \texttt{\{sum, len\}}，\texttt{mapping} 里 \texttt{f != NONE} 时返回 \texttt{\{f * x.len, x.len\}}。同理「区间赋值 + 区间加」的复合标记要写成 \texttt{struct F \{ ll assign, add; \}}，\texttt{composition} 按「先 \texttt{g} 再 \texttt{f}」的顺序把两层压平——这类复合标记的分配律要在纸上验一遍再敲。
+		\textbf{再组合下去}：「区间赋值 + 区间和」把两者拼起来——\texttt{S} 存 \texttt{\{sum, len\}}，\texttt{mapping} 里 \texttt{f != NONE} 时返回 \texttt{\{f * x.len, x.len\}}。「区间赋值 + 区间加」的复合标记要写成 \texttt{struct F \{ ll assign, add; \}}，\texttt{composition} 按「先 \texttt{g} 再 \texttt{f}」的顺序把两层压平——这类复合标记的分配律要在纸上验一遍再敲。
