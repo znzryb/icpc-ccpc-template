@@ -30,9 +30,9 @@
 		\textbf{接口一览}（比 \texttt{segtree} 多出 \texttt{apply}，且因为要 \texttt{push} 懒标记，\texttt{get} / \texttt{prod} 不再是 \texttt{const}）：
 
 		\begin{itemize}
-			\item \texttt{seg.apply(p, f)}：单点作用 $a_p \leftarrow mapping(f, a_p)$。
-			\item \texttt{seg.apply(l, r, f)}：区间 $[l, r)$ 上每个元素都作用 \texttt{f}。
-			\item \texttt{seg.set} / \texttt{get} / \texttt{prod} / \texttt{all\_prod} / \texttt{max\_right} / \texttt{min\_left}：语义同 \texttt{segtree}。
+			\item \texttt{seg.apply(p, f)}：单点作用 $a_p \leftarrow mapping(f, a_p)$（$p$ 为 1-based）。
+			\item \texttt{seg.apply(l, r, f)}：\textbf{闭区间} $[l, r]$ 上每个元素都作用 \texttt{f}；$l = r + 1$ 表示空，直接返回。
+			\item \texttt{seg.set} / \texttt{get} / \texttt{prod} / \texttt{all\_prod} / \texttt{max\_right} / \texttt{min\_left}：语义同 \texttt{segtree}，同样是 \textbf{1-based 闭区间}。
 		\end{itemize}
 
 		\textbf{示例一：区间加 + 区间和}（洛谷 P3372 那类板子题，完整可提交骨架）
@@ -84,7 +84,9 @@ int main() {
     int n, q;
     cin >> n >> q;
 
-    vector<S> a(n);            // 全程 0-based
+    // 建树用的 vector 按 0-based 装,
+    // a[0] 建完之后就是树里的位置 1
+    vector<S> a(n);
     for (int i = 0; i < n; i++) {
         ll x;
         cin >> x;
@@ -98,12 +100,11 @@ int main() {
         if (t == 1) {          // 区间加
             ll v;
             cin >> v;
-            // apply 是左闭右开 [l, r), 题面是
-            // 闭区间 [l, r] -> apply(l-1, r, v)
-            seg.apply(l - 1, r, v);
+            // apply 就是闭区间 [l, r], 不用换算
+            seg.apply(l, r, v);
         } else {               // 区间求和
             // prod 返回的是 S, 取 .sum
-            cout << seg.prod(l - 1, r).sum
+            cout << seg.prod(l, r).sum
                  << "\n";
         }
     }
@@ -163,9 +164,9 @@ int main() {
         if (t == 1) {
             ll v;
             cin >> v;
-            seg.apply(l - 1, r, v);   // [l-1, r)
+            seg.apply(l, r, v);       // 闭区间 [l, r]
         } else {
-            cout << seg.prod(l - 1, r) << "\n";
+            cout << seg.prod(l, r) << "\n";
         }
     }
 }
@@ -175,8 +176,14 @@ int main() {
 
 		\begin{minted}{cpp}
 /* AtCoder Library v1.6 atcoder/lazysegtree
- * 自包含移植, 改动同 segtree 小节
- * 约定: 下标 0-based, 区间 [l, r) 左闭右开
+ * 自包含移植, 改动同 segtree 小节 (含 1-based 闭区间改造)
+ * 约定: 下标 1-based (合法位置 1..n), 区间 [l, r] 左闭右闭
+ *      内部实现仍是 0-based 半开, 只在各接口入口映射一次:
+ *        1-based 闭 [l, r] -> 0-based 半开 [l-1, r)
+ *      即「左端/单点 l--/p--, 右端 r 不变」
+ *      空区间: l == r+1 合法(prod 返回 e(), apply 直接 return)
+ *      min_left 的入参 r 是右端不用减, 只有返回值 +1
+ *      建树的 vector 仍按 0-based 传: v[i] 对应位置 i+1
  */
 template<class S, S (*op)(S, S), S (*e)(),
          class F, S (*mapping)(F, S),
@@ -200,8 +207,9 @@ public:
             update(i);
     }
 
-    // a[p] = x
+    // a[p] = x   (1 <= p <= n)
     void set(int p, S x) {
+        p--;
         assert(0 <= p && p < _n);
         p += size;
         for (int i = log; i >= 1; i--) push(p >> i);
@@ -209,16 +217,18 @@ public:
         for (int i = 1; i <= log; i++) update(p >> i);
     }
 
-    // 返回 a[p]
+    // 返回 a[p]   (1 <= p <= n)
     S get(int p) {
+        p--;
         assert(0 <= p && p < _n);
         p += size;
         for (int i = log; i >= 1; i--) push(p >> i);
         return d[p];
     }
 
-    // 返回 op(a[l], ..., a[r - 1])
+    // 返回 op(a[l], ..., a[r])   闭区间
     S prod(int l, int r) {
+        l--;
         assert(0 <= l && l <= r && r <= _n);
         if (l == r) return e();
         l += size, r += size;
@@ -238,8 +248,9 @@ public:
 
     S all_prod() { return d[1]; }
 
-    // 单点作用 a[p] = mapping(f, a[p])
+    // 单点作用 a[p] = mapping(f, a[p])   (1 <= p <= n)
     void apply(int p, F f) {
+        p--;
         assert(0 <= p && p < _n);
         p += size;
         for (int i = log; i >= 1; i--) push(p >> i);
@@ -247,8 +258,9 @@ public:
         for (int i = 1; i <= log; i++) update(p >> i);
     }
 
-    // 区间作用, [l, r) 内每个元素都施加 f
+    // 区间作用, 闭区间 [l, r] 内每个元素都施加 f
     void apply(int l, int r, F f) {
+        l--;
         assert(0 <= l && l <= r && r <= _n);
         if (l == r) return;
         l += size, r += size;
@@ -273,9 +285,11 @@ public:
         }
     }
 
-    // 最大的 r 使 g(op(a[l..r-1])) 为真
+    // 最大的 r 使 g(op(a[l..r])) 为真 (闭区间)
+    // 一个都取不到时返回 l-1
     template<class G>
     int max_right(int l, G g) {
+        l--;
         assert(0 <= l && l <= _n);
         assert(g(e()));
         if (l == _n) return _n;
@@ -301,12 +315,15 @@ public:
         return _n;
     }
 
-    // 最小的 l 使 g(op(a[l..r-1])) 为真
+    // 最小的 l 使 g(op(a[l..r])) 为真 (闭区间)
+    // 一个都取不到时返回 r+1
+    // 注: 入参 r 是闭区间右端 = 内部半开右端, 不用减,
+    //     只有返回值 (左端) 要 +1
     template<class G>
     int min_left(int r, G g) {
         assert(0 <= r && r <= _n);
         assert(g(e()));
-        if (r == 0) return 0;
+        if (r == 0) return 1;
         r += size;
         for (int i = log; i >= 1; i--)
             push((r - 1) >> i);
@@ -323,11 +340,11 @@ public:
                         r--;
                     }
                 }
-                return r + 1 - size;
+                return (r + 1 - size) + 1;
             }
             sm = op(d[r], sm);
         } while ((r & -r) != r);
-        return 0;
+        return 1;
     }
 
 private:
