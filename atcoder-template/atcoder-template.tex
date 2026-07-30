@@ -1,0 +1,56 @@
+% AtCoder Library 移植模板 —— 独立文档, 与 template-main.tex 无关
+% 编译: cd atcoder-template && xelatex -shell-escape -output-directory=out atcoder-template.tex
+% minted cachedir = _minted-atcoder-template (按 basename 命名, 与主板子的 cache 互不污染)
+\documentclass{article}
+
+\usepackage{amsmath}  % aligned / cases 等数学环境
+\usepackage{amssymb}  % \mathbb 等符号
+\usepackage{xeCJK}    % 中文支持
+
+% CJK 字体与主板子保持一致: 正文思源宋体, 无衬线/等宽思源黑体, 斜体借系统楷体
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}, ItalicFont={Kaiti SC}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans CJK SC}
+
+\usepackage{multicol}  % 双栏排版
+\usepackage{tocloft}   % 目录引导点
+\usepackage{xcolor}    % 须先于 minted 以便 bgcolor 生效
+\usepackage[cachedir=_minted-atcoder-template]{minted} % 需 -shell-escape + pygmentize
+\usepackage[a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm]{geometry}
+
+% 与主板子相同的 minted 外观
+\setminted{
+	breaklines=true,
+	breakanywhere=true,
+	fontsize=\small,
+	frame=single,
+	bgcolor=gray!5,
+	tabsize=2,
+}
+
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+
+\usepackage[colorlinks=true, linkcolor=black, anchorcolor=black, citecolor=black,
+	filecolor=black, menucolor=black, runcolor=black, urlcolor=blue]{hyperref}
+
+\begin{document}
+
+	\begin{center}
+		{\LARGE \textbf{AtCoder Library 移植模板}}
+
+		\vspace{6pt}
+		{\small 自包含可粘贴版 · 基于 \href{https://github.com/atcoder/ac-library}{ac-library v1.6}}
+
+		\vspace{4pt}
+		{\small Build Time: \today}
+	\end{center}
+
+	\vspace{6pt}
+
+	\tableofcontents
+
+	\newpage
+
+	\input{atcoder_library.tex}
+
+\end{document}
