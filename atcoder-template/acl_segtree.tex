@@ -189,4 +189,4 @@ int r = seg.max_right(l,
 
 		注意 \texttt{max\_right} 的谓词 \texttt{f} 可以是\textbf{带捕获的 lambda}（它是普通函数参数，不是模板参数），与 \texttt{op} / \texttt{e} 的限制不同。
 
-		\textbf{与本模板其它线段树的取舍}：ACL 版是非递归实现，常数小、代码短，但\textbf{只支持单点修改}；要区间修改（区间加 / 区间赋值）请用下一小节的 \texttt{lazy\_segtree}，或第 8 章的递归式懒标记线段树。ACL 版另一个优势是 \texttt{max\_right} / \texttt{min\_left} 这对树上二分接口，第 8 章模板没有等价物。
+		\textbf{与本模板其它线段树的取舍}：ACL 版是非递归实现，常数小、代码短，但\textbf{只支持单点修改}；要区间修改（区间加 / 区间赋值）请用下一小节的 \texttt{lazy\_segtree}，或主板子数据结构章的递归式懒标记线段树。ACL 版另一个优势是 \texttt{max\_right} / \texttt{min\_left} 这对树上二分接口，主板子的线段树模板没有等价物。

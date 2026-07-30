@@ -3,6 +3,8 @@ out/*
 !out/template-main.pdf
 TemplateDetailedExplain/out/*
 !TemplateDetailedExplain/out/*.pdf
+atcoder-template/out/*
+!atcoder-template/out/*.pdf
 auxil/
 _minted-*/
 *.synctex.gz

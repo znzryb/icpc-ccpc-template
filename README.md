@@ -8,7 +8,7 @@
 
 - `template-main.tex` —— 主文件（input 列表 + preamble）
 - `sections/` —— 各章节正文（数学 / 计数 / 博弈 / 数据结构 / 图论 / 字符串 / DP / 计算几何 / STL / 常用技巧等 16 章）
-- `atcoder-template/` —— AtCoder Library 自包含移植章节（`segtree` / `lazy_segtree`，赛场可直接手抄）
+- `atcoder-template/` —— **独立文档**：AtCoder Library 自包含移植版（`segtree` / `lazy_segtree`，赛场可直接手抄）。主文件 `atcoder-template/atcoder-template.tex`，自带 preamble，产物落在 `atcoder-template/out/`，与 `template-main` 互不相干
 - `TemplateDetailedExplain/` —— 部分模板的详细讲解
 - `template-check/` —— 模板代码的本地验证工程（CMake；`acl_stress/` 是 ACL 移植版的三方对拍）
 - `archive/` / `snippets/` / `image/` —— 快照、代码片段与图片资源
