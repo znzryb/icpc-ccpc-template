@@ -2,17 +2,17 @@
 
 		维护满足\textbf{结合律}的二元运算 \texttt{op} 与其\textbf{单位元} \texttt{e}（即幺半群 monoid）上的序列，支持单点赋值 $O(\log n)$、区间求积 $O(\log n)$、以及在线段树上二分 $O(\log n)$。
 
-		\textbf{接口一览}（$n$ 为序列长度，下标 0-based）：
+		\textbf{接口一览}（$n$ 为序列长度，下标 \textbf{1-based}（合法位置 $1 \dots n$），区间 $[l, r]$ \textbf{左闭右闭}）：
 
 		\begin{itemize}
 			\item \texttt{segtree<S, op, e> seg(n)}：长度 $n$，全部初始化为 \texttt{e()}。
-			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$。
+			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$。\textbf{注意 \texttt{v} 仍按 0-based 装}，\texttt{v[i]} 对应 1-based 位置 $i+1$。
 			\item \texttt{seg.set(p, x)}：令 $a_p \leftarrow x$。
 			\item \texttt{seg.get(p)}：返回 $a_p$。
-			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_{r-1})$；$l = r$ 时返回 \texttt{e()}。
+			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_r)$（闭区间）；$l = r + 1$ 表示空区间，返回 \texttt{e()}。
 			\item \texttt{seg.all\_prod()}：返回全区间积，$O(1)$。
-			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_{r-1}))$ 为真。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
-			\item \texttt{seg.min\_left(r, f)}：返回最小的 $l$，使 $f(op(a_l, \dots, a_{r-1}))$ 为真。同样要求 \texttt{f} 单调且 \texttt{f(e())} 为真。
+			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $l - 1$ 表示空）。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
+			\item \texttt{seg.min\_left(r, f)}：返回最小的 $l$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $r + 1$ 表示空）。同样要求 \texttt{f} 单调且 \texttt{f(e())} 为真。
 		\end{itemize}
 
 		\textbf{三个易错点}：
@@ -20,7 +20,7 @@
 		\begin{enumerate}
 			\item \texttt{op} 与 \texttt{e} 必须是\textbf{自由函数}（或函数指针 / 无捕获 lambda 转成的函数指针），\textbf{不能}是带捕获的 lambda——它们是模板参数，编译期就要定死。
 			\item \texttt{e()} 必须是真单位元：求最大值时用足够小的哨兵（如 \texttt{-4e18}）而非 $0$，否则负数序列查询结果错。
-			\item \texttt{prod} 是 $[l, r)$ 左闭右开；从 1-based 闭区间 $[L, R]$ 换算过来是 \texttt{prod(L - 1, R)}。
+			\item \textbf{只有建树的 \texttt{vector} 是 0-based}，其余接口全是 1-based：\texttt{seg(v)} 之后 \texttt{v[0]} 要用 \texttt{seg.get(1)} 取。混了就整体错位一格。
 		\end{enumerate}
 
 		\textbf{示例一：区间最大值}（单点赋值 + 区间查最大，完整可提交骨架）
