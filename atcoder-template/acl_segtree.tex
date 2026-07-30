@@ -46,7 +46,9 @@ int main() {
     int n, q;
     cin >> n >> q;
 
-    vector<S> a(n);            // 全程 0-based
+    // 建树用的 vector 按 0-based 装,
+    // a[0] 建完之后就是树里的位置 1
+    vector<S> a(n);
     for (auto &x: a) cin >> x;
 
     // 用 vector 一次性建树是 O(n);
@@ -61,13 +63,12 @@ int main() {
             int p;
             ll v;
             cin >> p >> v;
-            seg.set(p - 1, v); // 题面 1-based, 减 1
+            seg.set(p, v);     // 1-based, 题面给什么用什么
         } else {               // 区间查最大
             int l, r;
             cin >> l >> r;
-            // prod 是左闭右开 [l, r), 而题面给的
-            // 是闭区间 [l, r] -> 写成 prod(l-1, r)
-            cout << seg.prod(l - 1, r) << "\n";
+            // prod 就是闭区间 [l, r], 不用换算
+            cout << seg.prod(l, r) << "\n";
         }
     }
 }
@@ -89,7 +90,7 @@ int main() {
     for (auto &v: a) cin >> v;
     segtree<S, op_sum, e_sum> seg(a);
 
-    int l = 0;   // 从下标 l 出发
+    int l = 1;   // 从位置 l 出发 (1-based)
 
     // 谓词 f 可以是「带捕获的 lambda」——
     // 它是普通函数参数, 不是模板参数,
@@ -102,17 +103,18 @@ int main() {
         return sum <= x;
     });
 
-    // r 是「最大的下标」, 使
-    //   a[l] + a[l+1] + ... + a[r-1] <= x
-    // 所以能取的元素个数 = r - l
-    cout << r - l << "\n";
+    // r 是「最大的位置」, 使闭区间和
+    //   a[l] + a[l+1] + ... + a[r] <= x
+    // 取不到任何元素时 r == l-1
+    // 所以能取的元素个数 = r - l + 1
+    cout << r - l + 1 << "\n";
 
     // 对称接口: min_left(r, f) 从右往左找
-    // 最小的 l 使 a[l..r-1] 满足 f
+    // 最小的 l 使闭区间 a[l..r] 满足 f
     int l2 = seg.min_left(n, [&](S sum) {
         return sum <= x;
     });
-    cout << n - l2 << "\n";  // 后缀能取几个
+    cout << n - l2 + 1 << "\n";  // 后缀能取几个
 }
 		\end{minted}
 
@@ -122,8 +124,15 @@ int main() {
 /* AtCoder Library v1.6 atcoder/segtree 自包含移植
  * 改动: 去 #ifndef 守卫与 namespace atcoder,
  *      去 std:: 前缀, internal_bit 的
- *      bit_ceil / countr_zero 内联成私有 static
- * 约定: 下标 0-based, 区间 [l, r) 左闭右开
+ *      bit_ceil / countr_zero 内联成私有 static,
+ *      对外改成 1-based 闭区间
+ * 约定: 下标 1-based (合法位置 1..n), 区间 [l, r] 左闭右闭
+ *      内部实现仍是 0-based 半开, 只在各接口入口映射一次:
+ *        1-based 闭 [l, r] -> 0-based 半开 [l-1, r)
+ *      即「左端/单点 l--/p--, 右端 r 不变」
+ *      空区间: l == r+1 合法(prod 返回 e()); l > r+1 撞 assert
+ *      min_left 的入参 r 是右端不用减, 只有返回值 +1
+ *      建树的 vector 仍按 0-based 传: v[i] 对应位置 i+1
  */
 template<class S, S (*op)(S, S), S (*e)()>
 struct segtree {
@@ -144,8 +153,9 @@ public:
             update(i);
     }
 
-    // a[p] = x
+    // a[p] = x   (1 <= p <= n)
     void set(int p, S x) {
+        p--;
         assert(0 <= p && p < _n);
         p += size;
         d[p] = x;
@@ -153,14 +163,16 @@ public:
             update(p >> i);
     }
 
-    // 返回 a[p]
+    // 返回 a[p]   (1 <= p <= n)
     S get(int p) const {
+        p--;
         assert(0 <= p && p < _n);
         return d[p + size];
     }
 
-    // 返回 op(a[l], ..., a[r - 1])
+    // 返回 op(a[l], ..., a[r])   闭区间
     S prod(int l, int r) const {
+        l--;
         assert(0 <= l && l <= r && r <= _n);
         S sml = e(), smr = e();
         l += size, r += size;
@@ -174,9 +186,11 @@ public:
 
     S all_prod() const { return d[1]; }
 
-    // 最大的 r 使 f(op(a[l..r-1])) 为真
+    // 最大的 r 使 f(op(a[l..r])) 为真 (闭区间)
+    // 一个都取不到时返回 l-1
     template<class F>
     int max_right(int l, F f) const {
+        l--;
         assert(0 <= l && l <= _n);
         assert(f(e()));
         if (l == _n) return _n;
@@ -200,12 +214,15 @@ public:
         return _n;
     }
 
-    // 最小的 l 使 f(op(a[l..r-1])) 为真
+    // 最小的 l 使 f(op(a[l..r])) 为真 (闭区间)
+    // 一个都取不到时返回 r+1
+    // 注: 入参 r 是闭区间右端 = 内部半开右端, 不用减,
+    //     只有返回值 (左端) 要 +1
     template<class F>
     int min_left(int r, F f) const {
         assert(0 <= r && r <= _n);
         assert(f(e()));
-        if (r == 0) return 0;
+        if (r == 0) return 1;
         r += size;
         S sm = e();
         do {
@@ -219,11 +236,11 @@ public:
                         r--;
                     }
                 }
-                return r + 1 - size;
+                return (r + 1 - size) + 1;
             }
             sm = op(d[r], sm);
         } while ((r & -r) != r);
-        return 0;
+        return 1;
     }
 
 private:
