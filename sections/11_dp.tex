@@ -153,146 +153,89 @@ void solve() {
 
 		图中红色一条 $\varnothing \to \{1\} \to \{1,2\} \to \{0,1,2\}$ 对应排列 $(1, 2, 0)$，路径长度就是这个排列的总代价；$m!$ 种排列被压进 $2^m$ 个结点里，这正是状压 DP 省下阶乘的地方。
 
-		\textbf{代价怎么来}：常见形态是「每条数据带一个能力掩码 $mask$ 与一组权 $w[\,\cdot\,]$，元素 $j$ 排在 $S$ 之后要付出所有 $mask \supseteq S$ 的那些数据的 $w[j]$」。先把每条数据按 $mask$ 丢进桶里累加（\texttt{addBucket}），再对每一维做\textbf{超集和}（上一节 SOS DP 的对偶版，\texttt{buildSupersetSums}），桶就原地变成了 $\mathrm{cost}(S, j)$。
+		\textbf{代价怎么来}：常见形态是「每条数据带一个能力掩码 $mask$ 与一组权 $w[\,\cdot\,]$，元素 $j$ 排在 $S$ 之后要付出所有 $mask \supseteq S$ 的那些数据的 $w[j]$」。先把每条数据按 $mask$ 装桶累加，再对每一维做\textbf{超集和}（上一节 SOS DP 的对偶版），桶就原地变成了 $\mathrm{cost}(S, j)$。
 
-		\textbf{例题}：\href{https://ac.nowcoder.com/acm/contest/133879/C}{2026 牛客多校 4 C. Retest Queue}——$n \le 2\times 10^4$ 个程序、$m \le 20$ 个测试点，测试队列的顺序可以任意重排；每个程序从队首依次跑，\textbf{遇到第一个 rejected 的测试就停}（那个测试本身仍然计时），程序 $i$ 跑测试 $j$ 花 $d_{i,j}$，求最小总耗时。
-
-		建模：令 $mask_i$ = 程序 $i$ 能 accept 的测试集合。把测试 $j$ 排在已排集合 $S$ 之后时，此刻\textbf{还没停下来}的程序恰好是那些 $mask_i \supseteq S$ 的（前面每个测试它都过了），它们都要付 $d_{i,j}$，于是
-		$$\mathrm{cost}(S, j) = \sum_{mask_i \supseteq S} d_{i,j},$$
-		正是按 $mask_i$ 装桶后的超集和。样例里最优顺序 $(2,1,3)$ 的三段耗时 $10$、$1+5$、$2+2+7$ 合计 $27$。
-
-		\textbf{复杂度}：喂数据 $O(nm)$，超集和 $O(2^m m^2)$，最短路 $O(2^m m)$；空间 $O(2^m m)$ 个 \verb|ll|（$m = 20$ 时约 $160\,\mathrm{MB}$，注意题目内存限制）。
-
-		\textbf{实现细节：一维数组模拟二维表}。逻辑上要的是 $2^m \times m$ 的表 $\mathrm{cost}[S][j]$（行号 = 子集掩码，列号 = 元素编号），代码里用一维 \verb|vector<ll> cost_| 按\textbf{行主序}拍平——第 $S$ 行独占下标区间 $[\,S m,\ (S{+}1) m\,)$，于是
-		$$\mathrm{cost}[S][j] \;\equiv\; \texttt{cost\_}[\,S \cdot m + j\,].$$
-		反过来由一维下标 $idx$ 还原：$S = \lfloor idx / m \rfloor$，$j = idx \bmod m$。
+		\textcolor{red!75!black}{\textbf{SOS DP 的精髓：外层先枚举维度，内层才枚举状态}}。高维前缀和 / 超集和的本质是「\textbf{对每一维各做一次}一维前缀和」，$m$ 维就是 $m$ 轮，每轮把这一维「压平」。两层循环\textbf{写反就是错的}：外层若是状态、内层是维度，同一个状态在一次内层里连着吃多个方向的超集，而那些超集已被部分更新，导致\textbf{重复计数}。$m = 2$ 的反例（记初值 $f_{00}, f_{01}, f_{10}, f_{11}$，$S$ 倒序）：
 
 		\begin{center}
-		\begin{tabular}{c|c|c}
-			逻辑行 $S$ & 占用的一维下标 & 行首 \\ \hline
-			$0$ & $0,\,1,\,\dots,\,m-1$ & $0$ \\
-			$1$ & $m,\,\dots,\,2m-1$ & $m$ \\
-			$S$ & $Sm,\,\dots,\,Sm+m-1$ & $Sm$ \\
+		\begin{tabular}{l|l}
+			写法 & $cost[00]$ 最终值 \\ \hline
+			\textcolor{red!75!black}{状态在外（错）} & $f_{00}+f_{01}+f_{10}+\textcolor{red!75!black}{2}f_{11}$ \\
+			维度在外（对） & $f_{00}+f_{01}+f_{10}+f_{11}$ \\
 		\end{tabular}
 		\end{center}
 
-		所以 \verb|ll *row = &cost_[(size_t)mask * m_]| 就是「取第 $mask$ 行的\textbf{行首指针}」，之后 \verb|row[j]| 即 $\mathrm{cost}[mask][j]$：一次乘法定位行首，内层循环退化成纯指针偏移，不必每轮重算 $S m + j$。\verb|buildSupersetSums| 里的 \verb|a| / \verb|c| 同理，是 $S$ 与 $S \cup \{b\}$ 两行的行首，\verb|a[j] += c[j]| 就是\textbf{整行相加}。\verb|(size_t)| 强转是防溢出：两个 \verb|int| 相乘时 $2^m m$ 会超 \verb|int|（$m = 27$ 已达 $3.6 \times 10^9$）。
+		错的那行里 $f_{11}$ 被经 $01$ 与 $10$ 各加了一次。反过来，维度在外时\textbf{内层状态的枚举顺序无所谓}（正序倒序都对）：本轮只改第 $i$ 位为 $0$ 的状态，而被读的 $S \cup \{i\}$ 第 $i$ 位是 $1$、本轮不会被改，层内没有依赖。口诀：\textbf{维度在外，状态在内}。
 
-		为什么不用 \verb|vector<vector<ll>>|：(1) 内层是整行相加，行内连续存放才能被预取、才可向量化；(2) 少一层间接寻址（二维要先读外层指针再跳内层，两次潜在 cache miss）；(3) 省掉 $2^m$ 个 vector 头（$m=20$ 是 $10^6$ 个头，约 $24\,\mathrm{MB}$）。另外\textbf{维度顺序不能反}——写成 $j \cdot 2^m + S$ 的话，整行相加会变成步长 $2^m$ 的跳跃访问，缓存全丢。
+		\textbf{例题}：\href{https://ac.nowcoder.com/acm/contest/133879/C}{2026 牛客多校 4 C. Retest Queue}——$n \le 2\times 10^4$ 个程序、$m \le 20$ 个测试点，测试队列可任意重排；每个程序从队首依次跑，\textbf{遇到第一个 rejected 的测试就停}（那个测试本身仍计时），程序 $i$ 跑测试 $j$ 花 $d_{i,j}$，求最小总耗时。令 $mask_i$ = 程序 $i$ 能 accept 的测试集合，把测试 $j$ 排在已排集合 $S$ 之后时，此刻\textbf{还没停下来}的程序恰是那些 $mask_i \supseteq S$ 的，它们都要付 $d_{i,j}$，于是
+		$$\mathrm{cost}(S, j) = \sum_{mask_i \supseteq S} d_{i,j},$$
+		正是按 $mask_i$ 装桶后的超集和。样例最优顺序 $(2,1,3)$ 的三段耗时 $10$、$1+5$、$2+2+7$ 合计 $27$。
 
-		\begin{minted}{cpp}
-// Retest Queue 的完整 Solve：读入每个程序的 d[] 与 A/R 串，装桶 → 超集和 → 最短路
+		\textbf{复杂度}：装桶 $O(nm)$，超集和 $O(2^m m^2)$，最短路 $O(2^m m)$；空间 $2^m m$ 个 \verb|ll|（$m = 20$ 时约 $160\,\mathrm{MB}$，\verb|vector<vector<ll>>| 还要多 $2^m$ 个 vector 头约 $24\,\mathrm{MB}$——卡内存就换一维 \verb|vector<ll>| 按 $S \cdot m + j$ 行主序拍平，顺带少一层间接寻址）。
+
+		\begin{minted}[highlightlines={33-38}, highlightcolor=red!12]{cpp}
+// N 个程序, M 个测试点
+// D[i][j]  = 程序 i 跑测试 j 的耗时
+// masks[i] = 程序 i 能 accept 的测试集合
 void Solve() {
-	ll M;
 	cin >> N >> M;
-	SubsetLatticeShortestPath sosdp(M);
+	vector<vector<ll> > D(N + 2, vector<ll>(M));
+	vector<ll> masks(N + 2);
 	for (int i = 1; i <= N; ++i) {
-		vector<ll> d(M);
 		for (int j = 0; j < M; ++j) {
-			cin >> d[j];
+			cin >> D[i][j];
 		}
-		string s;
-		cin >> s;
 		ll mask = 0;
-		for (int j = 0; j < SZ(s); ++j) {
-			if (s[j] == 'A') {
+		for (int j = 0; j < M; ++j) {
+			char ch;
+			cin >> ch;
+			if (ch == 'A') {
 				mask |= 1ll << j;
 			}
 		}
-		sosdp.addBucket(mask, d);
+		masks[i] = mask;
 	}
-	sosdp.buildSupersetSums();
-	ll res = sosdp.solve();
-	cout << res << "\n";
+
+	// 装桶: 把每个程序的耗时整行累加到
+	// 「能力恰好等于 masks[i]」的那一行
+	vector<vector<ll> > cost(1ll << M,
+	                         vector<ll>(M));
+	for (int i = 1; i <= N; ++i) {
+		for (int j = 0; j < M; ++j) {
+			cost[masks[i]][j] += D[i][j];
+		}
+	}
+
+	// ===== SOS DP (超集和) =====
+	// 外层 i 是「维度」, 不是状态!! 顺序写反就错
+	for (int i = 0; i < M; ++i) {
+		// 内层 sta 正序倒序都行: 被加的 tosta
+		// 第 i 位是 1, 本层不会被改, 无层内依赖
+		for (int sta = (1 << M) - 1; sta >= 0; --sta) {
+			if (!((sta >> i) & 1)) {
+				ll tosta = sta | (1 << i);
+				for (int j = 0; j < M; ++j) {
+					cost[sta][j] += cost[tosta][j];
+				}
+			}
+		}
+	}
+
+	// 子集格最短路: mask 升序天然是拓扑序,
+	// 不需要 Dijkstra
+	vector<ll> Dis(1 << M, INF);
+	Dis[0] = 0;
+	for (int sta = 0; sta < (1 << M); ++sta) {
+		for (int j = 0; j < M; ++j) {
+			if (!((sta >> j) & 1)) {
+				ll tosta = sta | (1 << j);
+				Dis[tosta] = min(Dis[tosta],
+				        Dis[sta] + cost[sta][j]);
+			}
+		}
+	}
+	cout << Dis[(1 << M) - 1] << "\n";
 }
-// 要输出方案时：vector<int> order = sosdp.bestOrder();   // 0-indexed 的测试顺序
-		\end{minted}
-
-		\begin{minted}{cpp}
-// 通用模板：求解基于子集状态的“最小代价排列问题”
-// 适用场景：每次新增元素 j 的代价，仅取决于当前已选集合 S 的超集。
-class SubsetLatticeShortestPath {
-public:
-	// m 为二进制位的位数
-	explicit SubsetLatticeShortestPath(int m)
-		: m_(m), full_((1 << m) - 1), cost_((size_t)(1 << m) * m, 0) {
-	}
-
-	// 1. 初始喂数据：将代价累加到“能力恰好为 mask”的桶中
-	void addBucket(int mask, const vector<ll> &w) {
-		ll *row = &cost_[(size_t)mask * m_];
-		for (int j = 0; j < m_; j++) {
-			row[j] += w[j];
-		}
-	}
-
-	// 2. SOS DP (高维前缀和)：求超集和，把桶原地变成真正的转移代价
-	void buildSupersetSums() {
-		for (int b = 0; b < m_; b++) {
-			for (int S = 0; S <= full_; S++) {
-				if (!(S >> b & 1)) {
-					ll *a = &cost_[(size_t)S * m_];
-					const ll *c = &cost_[(size_t)(S | (1 << b)) * m_];
-					for (int j = 0; j < m_; j++) {
-						a[j] += c[j];
-					}
-				}
-			}
-		}
-		built_ = true;
-	}
-
-	// 获取从集合 S 转移，新增元素 j 的代价
-	ll arc(int S, int j) const {
-		return cost_[(size_t)S * m_ + j];
-	}
-
-	// 3. 状压 DP：按 mask 从小到大跑最短路，求出最小总代价
-	ll solve() {
-		assert(built_);
-		const ll INF = LLONG_MAX / 4;
-		dist_.assign(1 << m_, INF);
-		from_.assign(1 << m_, -1);
-		dist_[0] = 0;
-
-		for (int S = 0; S <= full_; S++) {
-			if (dist_[S] >= INF) {
-				continue;
-			}
-			const ll *a = &cost_[(size_t)S * m_];
-			for (int j = 0; j < m_; j++) {
-				if (S >> j & 1) {
-					continue; // 元素 j 已经在集合中，跳过
-				}
-				ll v = dist_[S] + a[j];
-				int T = S | (1 << j);
-				if (v < dist_[T]) {
-					dist_[T] = v;
-					from_[T] = j;
-				}
-			}
-		}
-		return dist_[full_];
-	}
-
-	// 4. 逆推：还原出产生最小代价的最优排列顺序 (0-indexed)
-	vector<int> bestOrder() const {
-		vector<int> order;
-		for (int cur = full_; cur;) {
-			int j = from_[cur];
-			order.push_back(j);
-			cur ^= (1 << j);
-		}
-		reverse(order.begin(), order.end());
-		return order;
-	}
-
-private:
-	int m_, full_;
-	vector<ll> cost_, dist_;
-	vector<int> from_;
-	bool built_ = false;
-};
 		\end{minted}
 
 		\subsection{线段树维护 dp 求最大独立集}
