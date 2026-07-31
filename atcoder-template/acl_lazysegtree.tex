@@ -172,6 +172,84 @@ int main() {
 }
 		\end{minted}
 
+		\textbf{示例三：区间加 + 维护「最小值 \& 取到最小值的权值和」}。这是 DP 优化里出现频率最高的一种 \texttt{S}——把\textbf{代价}挂在 $\min$ 上、把 \textbf{DP 值}挂在权值和上，查询时先看区间最小代价是不是目标值（常见是 $0$），是才把对应的 DP 和计入答案，等价于「在所有代价最小的转移点里求 $\sum dp$」。
+
+		关键在于\textbf{区间加不改变「谁是最小值」}：整段每个元素同时 $+f$，最小值跟着平移，但取到最小值的那个集合不变，所以权值和原样不动——分配律因此成立，可以挂懒标记。
+
+		\begin{minted}{cpp}
+/* S = (区间最小值, 取到该最小值的位置的权值之和)
+ * F = 区间加
+ */
+struct S {
+    ll mn;   // 这段区间的最小值
+    ll sum;  // mn 在这段里出现的那些位置的
+             // 权值之和 (取模)
+};
+
+using F = ll;  // 懒标记: 这段区间「待加上的数」
+
+// op: 谁的 mn 小取谁; 一样大则权值和相加
+S op(S a, S b) {
+    if (a.mn < b.mn) return a;
+    if (b.mn < a.mn) return b;
+    ll s = a.sum + b.sum;
+    if (s >= mod) s -= mod;
+    return {a.mn, s};
+}
+
+// e: 单位元 = 空区间。
+// sum 必须是 0 —— 写 1 会让空区间往答案里灌值。
+// mn 的哨兵有两个约束: (1) 比任何真实值都大;
+// (2) 被区间加累加后仍不溢出 —— 所以不能写
+// LLONG_MAX / 4e18, 取 1e18 这种「够大又加得起」
+// 的值 (若 mn 用 int 存, 对应取 INT32_MAX)
+S e() { return {(ll) 1e18, 0}; }
+
+// mapping: 整段 +f -> mn 平移, sum 不动。
+// sum 不乘长度 (这是与「区间加 + 区间和」最大的
+// 区别): 它是「取到 mn 的位置的权值和」, 区间加
+// 只平移了 mn 的绝对值, 没改变谁是 mn, 也没改变
+// 那些位置的权值
+S mapping(F f, S x) { return {x.mn + f, x.sum}; }
+
+F composition(F f, F g) { return f + g; }
+F id() { return 0; }
+
+using Seg = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+		\end{minted}
+
+		\textbf{用法骨架}（以「按代价 $0$ 统计方案数」的线性 DP 为例）：
+
+		\begin{minted}{cpp}
+Seg seg(n);                    // 合法位置 0..n
+
+// 坑: 所有会被查询到的位置必须初始化成
+// {0, 0} 而不是 e()。设成 e() 的话, 哨兵
+// 1e18 被区间加平移后依然是天文数字, 永远
+// 等不到 mn == 0, 这些位置就废了。
+// {0, 0} = 「代价 0, 但还没有 dp 值」
+for (int i = 1; i <= n; i++) seg.set(i, {0, 0});
+seg.set(0, {0, 1});            // dp[0] = 1 (空前缀)
+
+for (int i = 1; i <= n; i++) {
+    // 按题意把某些转移点的代价 +1 / -1
+    // (闭区间, 不用换算)
+    seg.apply(l, r, +1);
+
+    auto q = seg.prod(0, i - 1);   // 闭区间
+    S cur = seg.get(i);
+    if (q.mn == 0) {               // 只有代价最小
+        cur.sum += q.sum;          // = 0 的才合法
+        if (cur.sum >= mod) cur.sum -= mod;
+    }
+    seg.set(i, cur);               // 写回 dp[i]
+}
+cout << seg.get(n).sum << "\n";
+		\end{minted}
+
+		沉淀来源：HDU 2026 杭电多校第 4 场 J. Rare Game（\href{https://acm.hdu.edu.cn/contest/problem?cid=1232&pid=1010}{题目链接}）——那题把「同色相邻超过 3 个」的限制转成惩罚值，用这棵树维护「惩罚为 $0$ 的前缀里 $dp$ 之和」。
+
 		\textbf{模板本体}：
 
 		\begin{minted}{cpp}
