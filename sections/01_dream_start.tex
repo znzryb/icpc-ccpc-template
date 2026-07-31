@@ -145,36 +145,38 @@ EOF
 
 	\subsection{CLion 常用功能与快捷键（默认 keymap）}
 
-	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。赛场机一律 Windows / Linux，认第二列即可；第三列是 macOS 默认 keymap，平时在自己机器上写题时对照用（\texttt{Cmd} = \Cmd，\texttt{Opt} = \Opt）。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区；\textbf{Rename} 是语义级重命名，改变量 / 函数名时所有引用一起改，比全文替换安全（不会误伤字符串和同名的别的符号）。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
+	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。赛场机一律 Windows / Linux，认第二列即可；第三列是 macOS 默认 keymap，平时在自己机器上对照用。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区；\textbf{Rename} 是语义级重命名，改变量 / 函数名时所有引用一起改，比全文替换安全（不会误伤字符串和同名的别的符号）。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
 
-	移动行有两个不同的功能，别混：\textbf{Move Line} 纯粹按物理行搬，不管语法，能把一行挪进 \texttt{if} 的花括号里、也能挪出函数体外；\textbf{Move Statement} 以完整语句 / 代码块为单位跳，光标停在一个函数上按它、整个函数会与相邻函数整体对调，且拒绝挪到破坏语法的位置。重排单行用前者，整块搬家用后者。另外 CLion \textbf{没有}「上下移动时自动复制」这种功能（那是 VSCode 的 \texttt{Alt+Shift+Up/Down}）——要复制行只有 \textbf{Duplicate Line or Selection}，且只能向下复制一份。
+	\textbf{Move Line} 按物理行搬、不管语法；\textbf{Move Statement} 按语句 / 代码块整体对调，且拒绝挪到破坏语法的位置。复制行只有 \textbf{Duplicate Line}（只能向下复制一份），没有 VSCode 那种「上下移动时自动复制」。
 
 	\begin{center}
-		\begin{tabular}{l|l}
+		\begin{tabular}{l|l|l}
 			\hline
-			功能 & Windows / Linux \\
+			功能 & Windows / Linux & macOS \\
 			\hline
-			Run context configuration（跑光标所在目标） & \texttt{Ctrl+Shift+F10}    \\
+			Run context configuration（跑光标所在目标） & \texttt{Ctrl+Shift+F10}    & \texttt{Ctrl+Shift+R}      \\
 			\hline
-			Run（当前选中的配置）                       & \texttt{Shift+F10}         \\
+			Run（当前选中的配置）                       & \texttt{Shift+F10}         & \texttt{Ctrl+R}            \\
 			\hline
-			Debug（当前选中的配置）                     & \texttt{Shift+F9}          \\
+			Debug（当前选中的配置）                     & \texttt{Shift+F9}          & \texttt{Ctrl+D}            \\
 			\hline
-			Build Project（只编译不跑）                 & \texttt{Ctrl+F9}           \\
+			Build Project（只编译不跑）                 & \texttt{Ctrl+F9}           & \texttt{Cmd+F9}            \\
 			\hline
-			Reformat Code（格式化当前文件 / 选区）       & \texttt{Ctrl+Alt+L}        \\
+			Reformat Code（格式化当前文件 / 选区）       & \texttt{Ctrl+Alt+L}        & \texttt{Opt+Cmd+L}         \\
 			\hline
-			Rename（重命名符号 + 所有引用）              & \texttt{Shift+F6}          \\
+			Rename（重命名符号 + 所有引用）              & \texttt{Shift+F6}          & \texttt{Shift+F6}          \\
 			\hline
-			注释 / 取消注释行                           & \texttt{Ctrl+/}            \\
+			注释 / 取消注释行                           & \texttt{Ctrl+/}            & \texttt{Cmd+/}             \\
 			\hline
-			复制当前行 / 选区                           & \texttt{Ctrl+D}            \\
+			Duplicate Line（复制当前行 / 选区到下方）    & \texttt{Ctrl+D}            & \texttt{Cmd+D}             \\
 			\hline
-			删除整行                                   & \texttt{Ctrl+Y}            \\
+			删除整行                                   & \texttt{Ctrl+Y}            & \texttt{Cmd+Backspace}     \\
 			\hline
-			上 / 下移当前行                            & \texttt{Alt+Shift+Up/Down} \\
+			Move Line（纯按行上 / 下移）                & \texttt{Alt+Shift+Up/Down} & \texttt{Opt+Shift+Up/Down} \\
 			\hline
-			Find Action（搜任意功能 / 快捷键）           & \texttt{Ctrl+Shift+A}      \\
+			Move Statement（按语句块上 / 下移）         & \texttt{Ctrl+Shift+Up/Down} & \texttt{Cmd+Shift+Up/Down} \\
+			\hline
+			Find Action（搜任意功能 / 快捷键）           & \texttt{Ctrl+Shift+A}      & \texttt{Cmd+Shift+A}       \\
 			\hline
 		\end{tabular}
 	\end{center}
