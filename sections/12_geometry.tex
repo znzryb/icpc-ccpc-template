@@ -737,7 +737,7 @@ vector<Point<DB> > getCrossPointsCL(const Circle<T> &cir, const Line<T> &l) {
 		\textbf{交点求法}：连心线方向 $\hat{d} = (c_2.c - c_1.c) / D$。弦中点 $M = c_1.c + \hat{d} \cdot a$，其中 $a = (r_1^2 - r_2^2 + D^2) / (2 D)$（联立两圆方程相减消平方项得到）。沿连心线垂直方向 $\hat{d}.\mathrm{rot90}()$ $\pm$ 半弦长 $h = \sqrt{r_1^2 - a^2}$ 即两交点。
 
 		\begin{center}
-			\includegraphics[width=0.78\linewidth]{image/circle_cross_chord_midpoint.png}
+			\includegraphics[width=0.88\linewidth]{image/circle_cross_chord_midpoint.png}
 		\end{center}
 
 		图中 $PM \perp O_1O_2$ 把 $\triangle O_1PO_2$ 切成两个共享高 $h$ 的直角三角形，两边各写一遍勾股定理就得到 $a$ 的闭式：
