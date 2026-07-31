@@ -17,7 +17,7 @@
 \setCJKmonofont{Noto Sans CJK SC}
 \usepackage{multicol} % 引入分栏宏包
 \usepackage{tocloft} % 支持目录引导点
-\usepackage{xcolor}   % 用于设置颜色；须先于 minted 以便 bgcolor 等生效
+\usepackage[table]{xcolor}   % 用于设置颜色；须先于 minted 以便 bgcolor 等生效。[table] 选项启用 \rowcolor
 \usepackage[cachedir=_minted-template-main]{minted} % Pygments 高亮，需 -shell-escape + pygmentize
 \usepackage{tikz}
 \usetikzlibrary{matrix, positioning, arrows.meta, backgrounds, decorations.pathreplacing} % matrix of nodes 让字符序列 spacing 自动化
