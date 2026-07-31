@@ -14,7 +14,9 @@
 
 		\textbf{为什么要移植}：ACL 只在 AtCoder 评测机上预装，ICPC / CCPC 赛场机没有 \texttt{atcoder/} 头文件目录，\texttt{\#include <atcoder/segtree>} 直接 CE。本地开发（如 CMake 里 \texttt{include\_directories(SYSTEM .../ac-library)}）可以照常用官方头，但打印稿上必须是能手抄进单文件的版本。
 
-		\textbf{全文共同约定}：下标 \textbf{0-based}，区间一律 $[l, r)$ \textbf{左闭右开}——与主板子 \texttt{template-main} 各章偏好的 1-based 闭区间相反，混用时注意换算。
+		\textbf{全文共同约定}：区间一律 $[l, r]$ \textbf{左闭右闭}，合法位置 $0 \dots n$（构造 \texttt{(n)} 时内部开 $n+1$ 个叶子）。1-based 就只碰 $1 \dots n$、0-based 就只碰 $0 \dots n-1$，多出来的那格恒为 \texttt{e()} 不影响任何结果——两种习惯都不用换算，与主板子 \texttt{template-main} 各章一致。空区间写 $r = l - 1$。
+
+		\textbf{这是本移植版对官方 ACL 的语义改动}：官方 \texttt{atcoder/segtree} 用 $[l, r)$ 左闭右开、合法位置 $0 \dots n-1$。本文档在 \texttt{prod} / \texttt{apply} / \texttt{min\_left} 入口处 \texttt{r++} 映射回内部的半开实现，\texttt{max\_right} 取不到时返回 $l - 1$（官方返回 $l$）。所以\textbf{照着官方文档抄调用会差一位}，以本文档的注释为准。
 
 		\textbf{正确性验证}：本文档代码块经 \texttt{template-check/} 下的 \texttt{acl\_stress/run.sh} 与官方 ACL v1.6 及朴素暴力三方对拍（含 ASan / UBSan）通过。该脚本直接从本文档 \texttt{.tex} 抽 \texttt{minted} 块编译，改了代码不重跑就会暴露不一致。
 
