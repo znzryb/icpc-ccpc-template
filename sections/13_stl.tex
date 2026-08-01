@@ -6,32 +6,15 @@
 
 		\subsection{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}
 
-		开放寻址哈希表，比 \verb|std::unordered_map| 快 $2$--$5$ 倍。默认 \verb|hash<int>| 是恒等映射会被卡成 $O(n)$ 单次，\textbf{必须自定义 \texttt{chash}}。默认 resize policy 锁死了 \verb|resize|，用下面的 \verb|HashMap| 别名把第 7 个模板参数换成 \verb|external_size_access = true| 才能预留桶（\verb|mp.resize(1 << 20)|，插入提速约 $3.8\times$）。详细对比与用法见\textbf{数据结构}节同名小节。
+		开放寻址哈希表，比 \verb|std::unordered_map| 快 $2$--$5$ 倍。默认 \verb|hash<int>| 是恒等映射会被卡成 $O(n)$ 单次，\textbf{哈希函数 \texttt{H} 自己写}（不给默认值，强制显式传；现成写法见\textbf{数据结构}节 \texttt{chash}）。默认 resize policy 锁死了 \verb|resize|，用下面的 \verb|HashMap| 别名把第 7 个模板参数换成 \verb|external_size_access = true| 才能预留桶（\verb|mp.resize(1 << 20)|，插入提速约 $3.8\times$）。
 
 		\begin{minted}{cpp}
 #include <ext/pb_ds/assoc_container.hpp>
 using namespace __gnu_pbds;
 
-struct chash {
-    const int RANDOM
-        = (long long)(make_unique<char>().get())
-        ^ chrono::high_resolution_clock::now()
-              .time_since_epoch().count();
-    static unsigned long long
-    hash_f(unsigned long long x) {
-        x += 0x9e3779b97f4a7c15;
-        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
-        x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
-        return x ^ (x >> 31);
-    }
-    int operator()(int x) const {
-        return hash_f(x) ^ RANDOM;
-    }
-};
-
 // 可 resize 版别名（默认 resize_policy 锁死 resize，
 // 这里把第 7 个模板参数换成 external_size_access=true）
-template<class K, class V, class H = chash>
+template<class K, class V, class H>
 using HashMap = gp_hash_table<K, V, H,
     equal_to<K>,
     direct_mask_range_hashing<>,
