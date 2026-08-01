@@ -4,7 +4,8 @@
 
 ## 项目结构
 
-- `template-main.tex` —— 模板主体（单文件，~480KB），所有算法/数据结构/几何代码块都在这里，用 minted 排版。
+- `template-main.tex` —— 主文件（preamble + 目录 + 按序 `\input` 各章节），正文内容已拆到 `sections/`。
+- `sections/` —— 各章节 `.tex`（`01_dream_start` … `19_misc_tricks`），所有算法/数据结构/几何代码块在这里，用 minted 排版。**编号是连续的**：新增章节要插在中间时，把后续文件一起顺延重命名并同步 `template-main.tex` 的 `\input` 列表，不要用 `05b` 这种后缀（2026-08-01 已把 `05b_advanced_math` 正名为 `06` 并顺延后续）。
 - `_minted-template-main/` —— minted cachedir（编译产物，勿手改）。
 - `out/` —— xelatex 输出目录。
 - `TemplateDetailedExplain/` —— 部分模板的详细讲解。
