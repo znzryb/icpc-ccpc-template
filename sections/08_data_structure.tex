@@ -200,61 +200,53 @@ struct ST {
 };
 		\end{minted}
 
-		\textbf{用法 1：传入函数对象（适合类成员中使用）}
+		\textbf{定长数组版（全局定义，防爆栈）}
 
-		在类环境（\texttt{struct Solve}）中，数据需要在构造函数体内读入，无法在初始化列表中构造 ST 表，而我们也不想给 ST 表加默认构造函数。因此用 \texttt{optional} 包装实现延迟构造（\href{https://gist.github.com/znzryb/256eb1d8ebb374e211b6ff1201d32992}{什么是 optional？为什么需要它？}），用仿函数指定运算：
-
-		\begin{minted}{cpp}
-struct GCDop {
-	ll operator()(ll a, ll b) {
-		return __gcd(a, b);
-	}
-};
-
-struct Solve {
-	ll N;
-	vector<ll> a;
-	// 用 optional 延迟构造，避免在初始化列表中构造
-	optional<ST<ll, GCDop> > st_gcd;
-
-	Solve() {
-		cin >> N;
-		a.resize(N + 2);
-		for (int i = 1; i <= N; ++i) cin >> a[i];
-		st_gcd.emplace(N, a, GCDop{});
-		// 查询：st_gcd->query(l, r)
-	}
-};
-		\end{minted}
-
-		\textbf{用法 2：在类中使用需要引用外部数据的运算}
-
-		\href{https://gist.github.com/znzryb/4ea5128fe22a19e3bfc75af246b61756}{速度测试：std::function vs 自定义 functor vs 裸写} \\
-		\textcolor{red}{\textbf{不要用 \texttt{std::function}}}。\texttt{std::function} 做了类型擦除，每次调用 \texttt{op()} 都要走虚函数间接跳转，编译器无法内联。实测（$N=10^6$，$Q=5 \times 10^6$，\texttt{-O2}）下查询耗时约为自定义 functor 的 $2$ 倍（$40\,\text{ms}$ vs $20\,\text{ms}$），与裸写硬编码持平。
-
-		正确做法是写一个持有引用的 functor，零开销：
+		上面的 \texttt{vector} 版每次构造都要动态分配；下面这版把 \texttt{dp} 换成定长二维数组、运算用\textbf{函数指针模板参数} \texttt{T (*op)(T, T)}（编译期确定，可内联，零开销），必须\textbf{全局或 static 定义}，否则栈上放不下。\texttt{init} 只要求 \texttt{a[i]} 可下标访问，\texttt{vector} / 裸数组 / 指针都能传。
 
 		\begin{minted}{cpp}
-struct ArgmaxByW {
-	const vector<ll> &w;
-	ArgmaxByW(const vector<ll> &w_) : w(w_) {}
-	ll operator()(ll x, ll y) const {
-		return w[x] > w[y] ? x : y;
-	}
-};
-
-struct Solve {
+/* 2026/8/1 定长数组版, 全局定义防爆栈
+ * MAXN 传最大下标即可 (内部已 +5)
+ * 下标 1..N, 闭区间 query(l, r)
+ * 用法: const int N = 200005;
+ *   int mx(int a, int b) { return max(a, b); }
+ *   ST<int, mx, N> st;   <- 必须全局 / static
+ *   st.init(n, a);       <- a 是 vector 或 int a[N]
+ */
+template<class T, T (*op)(T, T), int MAXN>
+struct ST {
+private:
+	static constexpr int LOG = __lg(MAXN) + 1;
 	ll N;
-	vector<ll> a, w;
-	optional<ST<ll, ArgmaxByW>> st;
+	T dp[LOG][MAXN + 5];
 
-	Solve() {
-		cin >> N;
-		a.resize(N + 2); w.resize(N + 2);
-		for (int i = 1; i <= N; ++i)
-			cin >> a[i] >> w[i];
-		st.emplace(N, a, ArgmaxByW{w});
-		// 查询：st->query(l, r)
+public:
+	ST() {}
+
+	template<class A>
+	ST(ll N, const A &a) { init(N, a); }
+
+	// a 只需支持 a[i], i 取 1..n
+	// vector / T[] / T* / array 均可
+	template<class A>
+	void init(ll n, const A &a) {
+		N = n;
+		for (int i = 1; i <= N; ++i) {
+			dp[0][i] = a[i];
+		}
+		for (int lay = 1; lay <= __lg(N); ++lay) {
+			for (int i = 1;
+				i + (1 << lay) - 1 <= N; ++i) {
+				dp[lay][i] = op(dp[lay - 1][i],
+					dp[lay - 1][i + (1 << (lay - 1))]);
+			}
+		}
+	}
+
+	T query(ll l, ll r) {
+		ll lay = __lg(r - l + 1);
+		return op(dp[lay][l],
+			dp[lay][r - (1 << lay) + 1]);
 	}
 };
 		\end{minted}
