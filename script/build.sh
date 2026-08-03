@@ -5,6 +5,7 @@
 #   ./script/build.sh template-main          # 带不带 .tex 都行
 #   ./script/build.sh atcoder-template/main  # 带路径也行，产物落在该文件所在目录的 out/
 #   ./script/build.sh -1 template-main       # 只跑一遍（快速看语法错，交叉引用/目录可能不准）
+#   ./script/build.sh --clean template-main  # 先删 aux/toc/out 等辅助文件再编（上次编译被中断时用）
 #
 # 产物：<主文件所在目录>/out/<basename>.pdf
 # 编译后自动扫 log 的四类问题：Error / Overfull \hbox / Missing character / 宏包未加载。
@@ -18,10 +19,16 @@ export PATH="$HOME/miniconda3/bin:/Library/TeX/texbin:/opt/homebrew/bin:$PATH"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 passes=2
-if [[ "${1-}" == "-1" ]]; then
-  passes=1
+do_clean=0
+while [[ "${1-}" == -* ]]; do
+  case "$1" in
+    -1) passes=1 ;;
+    --clean) do_clean=1 ;;
+    -h | --help) sed -n '2,13p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    *) echo "未知选项：$1" >&2; exit 1 ;;
+  esac
   shift
-fi
+done
 
 target="${1-template-main}"
 target="${target%.tex}"
@@ -51,16 +58,34 @@ run_xelatex() {
     -shell-escape -output-directory=out "${base}.tex"
 }
 
+# 上次编译被中断会留下截断的 .aux / .out / .toc，下次编译反而炸在这些文件里
+clean_aux() {
+  rm -f "out/${base}".{aux,out,toc,lof,lot,nav,snm,vrb,synctex.gz}
+}
+
+[[ $do_clean == 1 ]] && { echo "==> 清理 out/${base} 的辅助文件"; clean_aux; }
+
 echo "==> 编译 ${tex_path}（${passes} 遍）"
-for ((i = 1; i <= passes; i++)); do
+retried=0
+i=1
+while ((i <= passes)); do
   echo "--- pass ${i}/${passes} ---"
   if ! run_xelatex >/dev/null; then
+    # 首遍失败且错误来自残缺的辅助文件 → 清掉重来一次
+    if ((i == 1 && retried == 0)) &&
+      awk '/^out\/.*\.(aux|out|toc):[0-9]+: /||/File ended while scanning/' "$log" | grep -q .; then
+      echo "    首遍失败在残留的辅助文件上，清掉 out/${base}.{aux,out,toc} 重试"
+      clean_aux
+      retried=1
+      continue
+    fi
     echo
     echo "!! 第 ${i} 遍编译失败，错误如下："
     awk '/^!/ || /^[^ ]+:[0-9]+: /' "$log" | head -30
     echo "完整日志：${log}"
     exit 1
   fi
+  ((i++))
 done
 
 # 交叉引用 / 目录没收敛时补跑一遍
