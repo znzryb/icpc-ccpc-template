@@ -596,22 +596,12 @@ struct LinearBasis {
 
 		\subsection{带权 bitset 线性基（F2 线性方程组求解）}
 
-		上一份模板处理的是「一堆整数任意异或能凑出什么」；本节处理的是它的\textbf{转置}形态：给出 $K$ 个已知向量 $\mathrm{mask}_j \in \mathbb{F}_2^N$ 以及各自挂着的权值 $S_j$，询问某个目标向量能否被这些向量线性表出；能表出就输出对应权值的异或，表不出输出 $-1$。典型来源是「若干个已知集合的信息，去推断新集合的信息」，例如 HDU 2026 多校 5 的「链上 Nim」：每条已知链给出一组位置和该组合的值，询问另一组位置的值。
+		给出 $K$ 个已知向量 $\mathrm{mask}_j \in \mathbb{F}_2^N$ 及各自挂着的权值 $S_j$，询问目标向量能否被它们线性表出：能表出就返回对应权值的异或，表不出返回 $-1$。本质是对增广矩阵 $[\,\mathrm{mask} \mid S\,]$ 做高斯消元——左半边每做一次行异或，右半边同步做一次；$N$ 远大于 $64$ 时整行用 \texttt{bitset} 异或。来源：HDU 2026 多校 5「链上 Nim」。
 
-		与上一份模板的三点差别：
 		\begin{itemize}
-			\item \textbf{主元向量换成 \texttt{bitset<N>}}：$N$ 常常远大于 $64$（位置数上百），塞不进 \texttt{long long}，只能整行做 \texttt{bitset} 异或。行数与位数同为 $N$，所以 \texttt{d} 是一个 $N \times N$ 的位矩阵。
-			\item \textbf{每行额外挂权值 \texttt{val}}：消元时权值跟着行一起异或。等价于对增广矩阵 $[\,\mathrm{mask} \mid S\,]$ 做高斯消元 —— 左半边每做一次行异或，右半边就同步做一次。
-			\item \textbf{查询语义是「解方程」而不是「求最值」}：\texttt{query} 把目标 mask 往下消，消成全 $0$ 说明表出成功，此时累计的 \texttt{res} 就是答案；还剩非零位说明目标不在这些向量张成的子空间里，返回 $-1$。
-		\end{itemize}
-
-		不变量与实现要点：
-		\begin{itemize}
-			\item \texttt{d[i]} 非空时，它的\textbf{最高位恰为第 $i$ 位}（更高的位在插入过程中已被消掉）。因此从高到低扫一遍，每个位至多被处理一次。
-			\item \textbf{落位后立刻 \texttt{break}}（代码中高亮那行）：当前 mask 已经成为第 $i$ 位的主元行，循环必须马上结束。若漏掉这个 \texttt{break}，$\mathtt{d[i]}$ 存的是 mask 的\emph{副本}，循环会带着同一个 mask 继续往低位走，很可能在某个更低的空位上\textbf{再落位一次} —— 同一个向量被记成两条基底，秩虚增，\texttt{query} 会把本来表不出的 mask 判成可表出。
-			\item 走完整个循环都没 \texttt{break}，说明 mask 被消成了 $0$：它能被已有行表出，这一对 $(\mathrm{mask}, v)$ 直接丢弃。
-			\item \textbf{一致性}：若同一个 mask 有两种表出方式却给出不同权值（输入自相矛盾），模板会静默保留先插入的那份。题目一般保证一致；若不保证，在丢弃分支里加一句校验「此时累计的 $v$ 应为 $0$」即可查出矛盾。
-			\item \textbf{复杂度}：单次 \texttt{insert} / \texttt{query} 最多做 $N$ 次 \texttt{bitset} 异或，每次 $O(N/w)$，合计 $O(N^2/w)$；整体 $O((K+Q)\,N^2 / w)$。空间 $O(N^2/w)$。
+			\item \texttt{d[i]} 非空时最高位恰为第 $i$ 位；\texttt{query} 把目标消成全 $0$ 即表出成功，还剩非零位说明不在张成的子空间里，返回 $-1$。
+			\item \textbf{落位后必须立刻 \texttt{break}}（代码中高亮那行）：\texttt{d[i]} 存的是 mask 的副本，不 \texttt{break} 会带着同一个 mask 继续往低位走、在更低的空位上再落位一次，秩虚增后 \texttt{query} 会把本来表不出的 mask 判成可表出。
+			\item 单次 \texttt{insert} / \texttt{query} 为 $O(N^2/w)$，整体 $O((K+Q)\,N^2/w)$，空间 $O(N^2/w)$。
 		\end{itemize}
 
 		\begin{center}
