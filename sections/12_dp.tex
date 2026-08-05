@@ -99,7 +99,7 @@ while (rem) {
 
 		合起来就是「有依赖约束的排列计数 / 拓扑序计数」的标准骨架：
 
-		\begin{minted}[highlightlines={8}]{cpp}
+		\begin{minted}[highlightlines={12}]{cpp}
 // dp[sta] = 只用 sta 内元素、且满足依赖的合法前缀方案数
 vector<uint32_t> dp(1 << n);
 dp[0] = 1;
