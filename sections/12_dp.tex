@@ -62,6 +62,65 @@ for (int use = 0; use <= K; ++use) {
 
 		这个写法常被称为 \texttt{Gosper's hack}。它会按照从小到大的顺序，直接跳到下一个二进制中有相同个数 $1$ 的状态。若 \texttt{use = 0}，则只对应空集这一个状态。
 
+		\subsubsection{枚举补集元素做前向转移（附「交判子集」）}
+
+		状压 DP 常写成\textbf{前向（push）}形式：站在状态 \texttt{sta} 上，枚举一个\textbf{还没被选进来}的元素 \texttt{to}，把 \texttt{dp[sta]} 推给 \texttt{dp[sta | (1 << to)]}。这时不要写成「扫 $0 \ldots n-1$ 再用 \texttt{if} 过滤掉已在 \texttt{sta} 里的位」，而是直接把补集掏出来逐位剥：
+
+		\begin{minted}[highlightlines={4,6}]{cpp}
+int rem = full & (~sta);   // 还没选的元素集合
+while (rem) {
+	// 取出最低位的 1 所在下标
+	int to = __builtin_ctz(rem);
+	// 剥掉最低位的 1，进入下一轮
+	rem &= rem - 1;
+	// ... 用 to 做转移 ...
+}
+		\end{minted}
+
+		两点好处：循环次数等于\textbf{补集大小}而不是 $n$（\texttt{sta} 越满越省，整层下来常数明显更小）；并且 \texttt{\_\_builtin\_ctz} 直接给出\textbf{下标}，省掉「先枚举下标再判位」的那次 \texttt{if}。注意 \texttt{full \& (\textasciitilde sta)} 的 \texttt{full} 掩码不能少，否则 \texttt{\textasciitilde sta} 的高位全是 $1$，\texttt{ctz} 会跑到 $n$ 以外的位上去。\texttt{\_\_builtin\_ctz} 只吃 \texttt{unsigned int}（$32$ 位），$64$ 位状态要用 \texttt{\_\_builtin\_ctzll}；另外 \texttt{ctz(0)} 是 UB，所以判空必须放在循环条件里。
+
+		\textbf{用「交」判子集}：转移往往还带一个前置条件——元素 \texttt{to} 有一个\textbf{前驱依赖集合} \texttt{pre[to]}，只有依赖全部就位才能选它，即 $\texttt{pre[to]} \subseteq \texttt{sta}$。位掩码下的子集判定就是一次按位与：
+		$$A \subseteq B \iff A \mathbin{\&} B = A \iff A \mathbin{\&} \sim\! B = 0 \iff A \mathbin{|} B = B$$
+
+		\begin{center}
+			\begin{tabular}{l|c|l}
+				\hline
+				含义 & 位串 & 说明 \\
+				\hline
+				\texttt{sta}          & \texttt{1 0 1 1} & 已选集合 \\
+				\texttt{pre[to]}      & \texttt{0 0 1 1} & 依赖集合 \\
+				\texttt{pre[to]\&sta} & \texttt{0 0 1 1} & $=$ \texttt{pre[to]}，可转移 \\
+				\hline
+				\texttt{pre[to]}      & \texttt{0 1 1 0} & 换一个依赖 \\
+				\texttt{pre[to]\&sta} & \texttt{0 0 1 0} & $\neq$ \texttt{pre[to]}，不可转移 \\
+				\hline
+			\end{tabular}
+		\end{center}
+
+		合起来就是「有依赖约束的排列计数 / 拓扑序计数」的标准骨架：
+
+		\begin{minted}[highlightlines={8}]{cpp}
+// dp[sta] = 只用 sta 内元素、且满足依赖的合法前缀方案数
+vector<uint32_t> dp(1 << n);
+dp[0] = 1;
+const int full = (1 << n) - 1;
+for (int sta = 0; sta < full; ++sta) {
+	if (!dp[sta]) continue;          // 剪掉不可达状态
+	int rem = full & (~sta);
+	while (rem) {
+		int to = __builtin_ctz(rem);
+		rem &= rem - 1;
+		// pre[to] 全部就位才允许放 to
+		if ((pre[to] & sta) == pre[to]) {
+			dp[sta | (1 << to)] += dp[sta];
+		}
+	}
+}
+cout << dp[full] << "\n";
+		\end{minted}
+
+		复杂度 $O(2^n \cdot n)$。$n = 26$ 时 $2^{26} \cdot 26 \approx 1.7 \times 10^9$ 次极轻的位运算，配合 \texttt{if (!dp[sta]) continue} 的剪枝和 \texttt{uint32\_t}（自然溢出当作 $\bmod 2^{32}$，省掉取模）仍然能过——牛客多校 2026 第 6 场 Full Alphabet 即此模型，依赖集合由 Z 函数导出。
+
 		\subsection{SOS DP（Sum / Max over Subsets，高维前缀和）}
 
 		给定一个长度为 $2^N$ 的数组 $f[\,\cdot\,]$（下标看成 $N$ 位二进制掩码），希望对每个 $mask$ 求出
