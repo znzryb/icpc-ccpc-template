@@ -1,0 +1,131 @@
+		\subsection{\texttt{z\_algorithm}：Z 函数（扩展 KMP）}
+
+		对长度 $n$ 的串 $s$，返回数组 $z$，其中 $z[i]$ 是 $s$ 与其后缀 $s[i..n-1]$ 的\textbf{最长公共前缀长度}，约定 $z[0] = n$。总复杂度 $O(n)$。
+
+		\textbf{下标约定（本节例外）}：字符串这节\textbf{不套}本文档开头的闭区间约定——它没有 \texttt{prod} 这类区间接口，返回的是一个和输入等长的数组。下标一律 \textbf{0-based}，$z$ 的长度就是 $|s|$，与官方 \texttt{atcoder::z\_algorithm} \textbf{完全一致}，照官方文档抄调用不会差位。
+
+		\textbf{接口一览}：
+
+		\begin{itemize}
+			\item \texttt{z\_algorithm(const string \&s)}：字符串重载，内部逐字符转成 \texttt{vector<int>} 再跑泛型版。
+			\item \texttt{z\_algorithm(const vector<T> \&s)}：泛型版，\texttt{T} 只需支持 \texttt{==}。离散化后的 \texttt{vector<int>}、\texttt{vector<ll>}、pair 序列都能直接跑，这是它比「只吃 \texttt{string}」的写法更值钱的地方。
+			\item 空串返回空 \texttt{vector}（不会越界，也不会返回 \texttt{\{0\}}）。
+		\end{itemize}
+
+		\textbf{三个易错点}：
+
+		\begin{enumerate}
+			\item $z[0]$ 是 $n$ 而不是 $0$。统计「$s$ 在自身出现次数」之类时若把 $z[0]$ 一并算入会多算一次；反过来做 exkmp 时又必须靠它。
+			\item 拼接法求「$a$ 的每个后缀与 $b$ 的 LCP」时，分隔符必须是\textbf{两串都不会出现}的字符（小写串用 \texttt{'\#'}，读入含任意可见字符时改用 \texttt{'\textbackslash 1'} 这种控制符），否则 LCP 会跨过分隔符，答案偏大。
+			\item 泛型版比较的是 \texttt{T} 的 \texttt{==}。传 \texttt{vector<double>} 时浮点相等不可靠，先离散化成整数再跑。
+		\end{enumerate}
+
+		\textbf{示例一：扩展 KMP 模板题}（洛谷 P5410，求 $z(b)$ 以及 $a$ 的每个后缀与 $b$ 的 LCP 数组 $p$）。ACL 版没有单独的「两串」接口，标准做法是拼 \verb|b + '#' + a| 跑一遍：
+
+		\begin{minted}{cpp}
+/* 题意: 给 a, b, 输出
+ *   z[i] = LCP(b, b[i..])        长度 |b|
+ *   p[i] = LCP(b, a[i..])        长度 |a|
+ * 按题面要求各输出一个带权异或和
+ */
+int main() {
+    string a, b;
+    cin >> a >> b;
+
+    // 拼接法: 分隔符要保证两串里都不出现
+    // (本题只有小写字母, '#' 安全)
+    vector<int> zz = z_algorithm(b + '#' + a);
+
+    int n = a.size(), m = b.size();
+
+    // 前 m 位就是 b 自身的 z 数组
+    vector<int> z(zz.begin(), zz.begin() + m);
+
+    // 跳过 b 和分隔符, 后 n 位就是 p 数组
+    // 因为分隔符挡着, 匹配长度天然 <= m, 不用 min 截断
+    vector<int> p(zz.begin() + m + 1, zz.end());
+
+    ll ans1 = 0, ans2 = 0;
+    for (int i = 0; i < m; i++)
+        ans1 ^= 1LL * (i + 1) * (z[i] + 1);
+    for (int i = 0; i < n; i++)
+        ans2 ^= 1LL * (i + 1) * (p[i] + 1);
+    cout << ans1 << "\n" << ans2 << "\n";
+}
+		\end{minted}
+
+		\textbf{示例二：找出模式串所有出现位置 + 最小整周期}。这两件事都是 $z$ 的直接推论，不用再写 KMP：
+
+		\begin{minted}{cpp}
+// 1) pat 在 txt 中的所有出现位置 (0-based 起点)
+vector<int> find_all(const string &txt, const string &pat) {
+    vector<int> z = z_algorithm(pat + '\1' + txt);
+    int m = pat.size();
+    vector<int> res;
+    for (int i = 0; i + m <= (int) txt.size(); i++)
+        // 拼接串里 txt[i] 的下标是 m + 1 + i
+        if (z[m + 1 + i] >= m) res.push_back(i);
+    return res;
+}
+
+// 2) s 的最小整周期 (循环节, 整除 n)
+//    z[i] + i == n 说明后缀 s[i..] 是 s 的 border,
+//    对应周期 i; 取最小的这种 i 且 n % i == 0
+int min_period(const string &s) {
+    int n = s.size();
+    vector<int> z = z_algorithm(s);
+    for (int i = 1; i < n; i++)
+        if (z[i] + i == n && n % i == 0) return i;
+    return n;   // 没有真周期, 整串自己就是周期
+}
+		\end{minted}
+
+		\textbf{模板本体}：
+
+		\begin{minted}{cpp}
+/* AtCoder Library v1.6 atcoder/string 的 z_algorithm 自包含移植
+ * z[i] = s 与后缀 s[i..n-1] 的最长公共前缀长度, 约定 z[0] = n
+ * 下标 0-based, 返回长度 == 输入长度, 与官方接口完全一致
+ * 复杂度 O(n); 空串返回空 vector
+ */
+template<class T>
+vector<int> z_algorithm(const vector<T> &s) {
+    int n = int(s.size());
+    if (n == 0) return {};
+    vector<int> z(n);
+
+    // 先当 0 参与递推 (否则 j = 0 时 z[j] 会自污染),
+    // 循环结束再改回 n
+    z[0] = 0;
+
+    // j = 目前「匹配段右端最靠右」的那个起点,
+    // 该段是 [j, j + z[j])
+    for (int i = 1, j = 0; i < n; i++) {
+        int &k = z[i];
+
+        // i 落在匹配段外 -> 从 0 暴力匹配;
+        // 落在段内 -> 用对称位置 z[i-j] 当初值,
+        //   但不能超出段的剩余长度 j + z[j] - i
+        k = (j + z[j] <= i) ? 0 : min(j + z[j] - i, z[i - j]);
+
+        // 暴力扩展 (右端不回退, 总次数线性)
+        while (i + k < n && s[k] == s[i + k]) k++;
+
+        // 只有更靠右才换起点
+        if (j + z[j] < i + z[i]) j = i;
+    }
+
+    z[0] = n;
+    return z;
+}
+
+// 字符串重载: 逐字符转 int 再跑泛型版
+vector<int> z_algorithm(const string &s) {
+    int n = int(s.size());
+    vector<int> s2(n);
+    for (int i = 0; i < n; i++) s2[i] = s[i];
+    return z_algorithm(s2);
+}
+		\end{minted}
+
+		\textbf{和主板子那份的关系}：\texttt{template-main} 的字符串章里有一份 lambda 写法的 Z 函数，用 $[l, r]$ 维护最右匹配区间；本节是 ACL 原版风格，用起点 $j$ 加段长 $z[j]$ 表达同一个区间，两者等价。ACL 版多的是\textbf{泛型 \texttt{vector<T>} 重载}——序列而非字符串的题（如离散化后的数组求 LCP）直接能用。
