@@ -38,6 +38,20 @@ S3 mapping3(F3 f, S3 x) { return f == NONE ? x : f; }
 F3 composition3(F3 f, F3 g) { return f == NONE ? g : f; }
 F3 id3() { return NONE; }
 
+// ================= z_algorithm: 朴素暴力参考 =================
+vector<int> z_brute(const vector<int> &s) {
+    int n = s.size();
+    if (n == 0) return {};
+    vector<int> z(n);
+    z[0] = n;
+    for (int i = 1; i < n; i++) {
+        int k = 0;
+        while (i + k < n && s[k] == s[i + k]) k++;
+        z[i] = k;
+    }
+    return z;
+}
+
 int fails = 0;
 #define CHECK(cond, what)                                                    \
     do {                                                                     \
@@ -232,6 +246,55 @@ int main() {
         MineAdd z1(5);
         z1.apply(0, 5, 3);
         CHECK(z1.prod(0, 5).sum == 0, "lazy default e() then apply");
+    }
+
+    // ---------- z_algorithm: 移植版 vs 官方 vs 暴力 ----------
+    {
+        int iter = -1, n = 0;
+        // 空串
+        CHECK(z_algorithm(string("")).empty(), "z empty string");
+        CHECK(z_algorithm(vector<int>{}).empty(), "z empty vector");
+
+        // 小字母表随机串（逼出周期 / 重叠 border）
+        for (iter = 0; iter < 20000; iter++) {
+            n = rng() % 40;
+            int sigma = 1 + rng() % 3;
+            string s;
+            vector<int> v;
+            for (int i = 0; i < n; i++) {
+                char c = 'a' + rng() % sigma;
+                s += c;
+                v.push_back(c);
+            }
+            auto bf = z_brute(v);
+            CHECK(z_algorithm(s) == bf, "z(string) vs brute");
+            CHECK(z_algorithm(v) == bf, "z(vector) vs brute");
+            CHECK(z_algorithm(s) == atcoder::z_algorithm(s), "z(string) vs acl");
+            CHECK(z_algorithm(v) == atcoder::z_algorithm(v), "z(vector) vs acl");
+        }
+
+        // 大串: 全同 / 每 7 位一个断点
+        for (iter = 0; iter < 20; iter++) {
+            n = 200000;
+            string s(n, 'a');
+            if (iter & 1)
+                for (int i = 0; i < n; i += 7) s[i] = 'b';
+            CHECK(z_algorithm(s) == atcoder::z_algorithm(s), "z big vs acl");
+        }
+
+        // 泛型: ll 序列 / pair 序列（官方无此重载，只对暴力）
+        for (iter = 0; iter < 2000; iter++) {
+            n = rng() % 30;
+            vector<ll> a(n);
+            vector<pair<int, int>> p(n);
+            for (int i = 0; i < n; i++) {
+                a[i] = rng() % 3;
+                p[i] = {int(a[i]), int(a[i])};
+            }
+            vector<int> ai(a.begin(), a.end());
+            CHECK(z_algorithm(a) == z_brute(ai), "z(vector<ll>) vs brute");
+            CHECK(z_algorithm(p) == z_brute(ai), "z(vector<pair>) vs brute");
+        }
     }
 
     printf(fails ? "TOTAL FAILS: %d\n" : "ALL PASS (fails=%d)\n", fails);

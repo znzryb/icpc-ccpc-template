@@ -1,6 +1,6 @@
-# ACL 线段树移植版对拍
+# ACL 移植版对拍
 
-验证 `atcoder-template/` 里 ACL `segtree` / `lazy_segtree` 的**自包含移植版**与官方
+验证 `atcoder-template/` 里 ACL `segtree` / `lazy_segtree` / `z_algorithm` 的**自包含移植版**与官方
 [ac-library](https://github.com/atcoder/ac-library) v1.6 行为一致。
 
 ```bash
@@ -9,9 +9,9 @@ bash template-check/acl_stress/run.sh    # 抽取 + 编译 + 跑，全过打印 
 
 ## 怎么工作
 
-1. `extract.py` 从 `atcoder-template/acl_segtree.tex` / `acl_lazysegtree.tex` 里抽出**模板本体**那个
-   `\begin{minted}{cpp}` 块，写成 `seg.inc` / `lazyseg.inc`。
-   定位靠 marker（`struct segtree {` / `struct lazy_segtree {`）而**不是**「第一个 cpp 块」——
+1. `extract.py` 从 `atcoder-template/acl_segtree.tex` / `acl_lazysegtree.tex` / `acl_z_algorithm.tex`
+   里抽出**模板本体**那个 `\begin{minted}{cpp}` 块，写成 `seg.inc` / `lazyseg.inc` / `z.inc`。
+   定位靠 marker（`struct segtree {` / `struct lazy_segtree {` / `int &k = z[i];`）而**不是**「第一个 cpp 块」——
    示例用法排在本体之前，取第一个会抽到示例；命中数 ≠ 1 直接报错，不静默抽错。
    **测的是 .tex 里的真实内容**，改了模板不同步就会立刻暴露。
 2. `stress.cpp` 把移植版、官方 `atcoder::segtree` / `atcoder::lazy_segtree`、朴素暴力三方对拍：
@@ -19,6 +19,8 @@ bash template-check/acl_stress/run.sh    # 抽取 + 编译 + 跑，全过打印 
    - `lazy_segtree` 区间加 + 区间和：`apply(p,f)` / `apply(l,r,f)` / `prod` / `get` / `set` / `max_right`
    - `lazy_segtree` 区间赋值 + 区间最大（`NONE` 哨兵那套 `mapping` / `composition`）
    - 空树 / 默认构造 / `prod(0,0)` 边界
+   - `z_algorithm`：小字母表随机串（`string` / `vector<int>` 两个重载）对官方 + 暴力，
+     20 万长度的全同串 / 周期串对官方，`vector<ll>` / `vector<pair>` 泛型重载对暴力，空串边界
 3. 编译带 ASan + UBSan（`-fno-sanitize=vptr,function`，libstdc++ 下必须关）。
 
 ## 注意
