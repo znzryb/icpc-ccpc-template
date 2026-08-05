@@ -80,7 +80,11 @@ while (rem) {
 		两点好处：循环次数等于\textbf{补集大小}而不是 $n$（\texttt{sta} 越满越省，整层下来常数明显更小）；并且 \texttt{\_\_builtin\_ctz} 直接给出\textbf{下标}，省掉「先枚举下标再判位」的那次 \texttt{if}。注意 \texttt{full \& (\textasciitilde sta)} 的 \texttt{full} 掩码不能少，否则 \texttt{\textasciitilde sta} 的高位全是 $1$，\texttt{ctz} 会跑到 $n$ 以外的位上去。\texttt{\_\_builtin\_ctz} 只吃 \texttt{unsigned int}（$32$ 位），$64$ 位状态要用 \texttt{\_\_builtin\_ctzll}；另外 \texttt{ctz(0)} 是 UB，所以判空必须放在循环条件里。
 
 		\textbf{用「交」判子集}：转移往往还带一个前置条件——元素 \texttt{to} 有一个\textbf{前驱依赖集合} \texttt{pre[to]}，只有依赖全部就位才能选它，即 $\texttt{pre[to]} \subseteq \texttt{sta}$。位掩码下的子集判定就是一次按位与：
-		$$A \subseteq B \iff A \mathbin{\&} B = A \iff A \mathbin{\&} \sim\! B = 0 \iff A \mathbin{|} B = B$$
+		\begin{align*}
+			A \subseteq B &\iff A \mathbin{\&} B = A \\
+			              &\iff A \mathbin{\&} \sim\! B = 0 \\
+			              &\iff A \mathbin{|} B = B
+		\end{align*}
 
 		\begin{center}
 			\begin{tabular}{l|c|l}
