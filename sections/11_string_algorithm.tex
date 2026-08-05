@@ -77,6 +77,43 @@ auto Z = [&](string s) -> vector<int>
 };
 		\end{minted}
 
+		\textbf{函数版}（与本章 \texttt{kmp} 同风格，直接复制即可用；此版把 $z[0]$ 留成 $0$ 而不是 $n$，用到 $z[0]$ 时记得自己特判）：
+
+		\begin{minted}[highlightlines={6}]{cpp}
+vector<int> z_function(const string &s) {
+	int n = SZ(s);
+	vector<int> z(n, 0);
+	for (int i = 1, l = 0, r = 0; i < n; ++i) {
+		// 落在最右匹配区间内: 用对称位置的答案做初值
+		if (i <= r) z[i] = min(z[i - l], r - i + 1);
+		while (i + z[i] < n && s[z[i]] == s[z[i] + i]) {
+			z[i]++;
+		}
+		// 只有右端点更远才更新区间
+		if (i + z[i] > r) {
+			l = i, r = i + z[i] - 1;
+		}
+	}
+	return z;
+}
+		\end{minted}
+
+		两个版本完全等价：\texttt{min(z[i - l], r - i + 1)} 里，\texttt{z[i - l]} 是对称位置已算好的答案，\texttt{r - i + 1} 是「不能超出已知区间」的截断，取小者当初值后再暴力外扩。
+
+		\textbf{失配字符的用法}：$z[i]$ 匹配到头之后，下标 $z[i]$（前缀侧）与 $i + z[i]$（后缀侧）这两个位置的字符必然\textbf{不同}（除非 $i + z[i] = n$ 已到串尾）。于是每个 $i$ 免费给出一对有序关系 $\big(s[z[i]],\, s[i + z[i]]\big)$，把「后缀 $i$ 与原串的大小/字典序比较」压成一次单字符比较。牛客多校 2026 第 6 场 Full Alphabet 就是用它对每个后缀取出这一对字符，攒成 $26$ 个字母之间的前驱依赖，再交给状压 DP 数拓扑序。
+
+		\begin{minted}{cpp}
+auto z = z_function(s);
+vector<int> pre(26);              // pre[c]: 字母 c 的前驱依赖集合
+for (int i = 0; i < n; ++i) {
+	int u = z[i], v = i + z[i];
+	if (v >= n) continue;         // 后缀是原串前缀, 无失配位
+	u = s[u] - 'a', v = s[v] - 'a';
+	if (u == v) continue;
+	pre[v] |= 1 << u;             // 这一对的先后由题意决定
+}
+		\end{minted}
+
 		\subsection{KMP（前缀函数 pi）}
 
 		KMP 的核心是 \textbf{前缀函数}：对串 $A$，$\pi[i]$ 表示 $A[0..i]$ 这一段中最长 \emph{真前缀 = 真后缀} 的长度（约定 $\pi[0] = 0$）。求出 $\pi$ 后做模式匹配的常用技巧是把模式串 $s_2$、文本串 $s_1$ 拼成 \verb|s2 + '#' + s1| 一起跑前缀函数，凡是 $\pi[i] = |s_2|$ 的位置就对应一次匹配。
