@@ -2,12 +2,14 @@
 #include <bits/stdc++.h>
 #include <atcoder/lazysegtree>
 #include <atcoder/segtree>
+#include <atcoder/string>
 
 using namespace std;
 using ll = long long;
 
 #include "lazyseg.inc"
 #include "seg.inc"
+#include "z.inc"
 
 // ================= segtree: 区间最大值 =================
 using S1 = ll;
