@@ -54,6 +54,12 @@
 \usepackage{tocloft}
 \renewcommand{\cftsecleader}
 {\cftdotfill{\cftdotsep}} % 让 section 也有点点
+% 目录项高亮：\tochl{标题}，只染目录，不动正文标题与 PDF 书签
+% 用法 \section[\tochl{对拍与 checker}]{对拍与 checker}——方括号那份才进目录
+% 只要变字色不要底色：把 \colorbox{yellow!60} 换成 \textcolor{red}
+% 注：\texorpdfstring 由下面的 hyperref 提供（定义时不展开，故写在其前无妨）
+\newcommand{\tochl}[1]{%
+	\texorpdfstring{\protect\colorbox{yellow!60}{\protect\textbf{#1}}}{#1}}
 % ------------------
 \usepackage[colorlinks=true, linkcolor=black, anchorcolor=black, citecolor=black, filecolor=black, menucolor=black, runcolor=black, urlcolor=blue]{hyperref} % 添加超链接和PDF书签支持
 

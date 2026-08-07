@@ -287,7 +287,7 @@ int main() {
 		\includegraphics[width=\linewidth]{image/duipai_diff_output.png}
 	\end{center}
 
-	\subsubsection{Special Judge（答案不唯一）题目怎么对拍}
+	\subsubsection[\tochl{Special Judge（答案不唯一）题目怎么对拍}]{Special Judge（答案不唯一）题目怎么对拍}
 
 	答案不唯一时（「输出任意一组方案」/ \texttt{Yes} 后跟构造 / 浮点误差），\texttt{diff} 逐字节比对会把「两个都对但长得不一样」误报成不一致。做法：把 \texttt{diff a.out b.out} 换成自己写的 \textbf{checker}，通过返回 $0$、发现错返回非 $0$——仍然沿用 \texttt{system()} 返回值判断，框架其余部分完全不变：
 
