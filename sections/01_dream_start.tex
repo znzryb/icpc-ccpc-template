@@ -1,15 +1,37 @@
-	\begin{center}
-		\section{梦的开始}
-	\end{center}
+\begin{center}
+	\section{梦的开始}
+\end{center}
 
-	\subsection{ASCII表}
-	\includegraphics[width=\linewidth]{ASCII.png}
+\subsection{ASCII表}
+\includegraphics[width=\linewidth]{ASCII.png}
 
-	\begin{multicols*}{2} % 开始双栏，数字 2 表示分两栏
+\begin{multicols*}{2} % 开始双栏，数字 2 表示分两栏
+	\subsection{dxdy 4}
+	\begin{minted}{cpp}
+/* -> (Right, Down, Left, Up)
+  |  |
+   <-
+*/
+int dx[4] = {1, 0, -1, 0};
+int dy[4] = {0, 1, 0, -1};
+	\end{minted}
+	
+	\subsection{一维数组二维化}
 
-		\subsection{初始化模板}
+	\begin{minted}{cpp}
+// 如果 n * m <= 1e6，那么应该开 3e6（如果一行为M+2）
+static constexpr ll MAXN = (ll)3e6 + 10
+struct GRID {
+	ll a[MAXN] = {};
 
-		\begin{minted}{cpp}
+	ll *operator[](int i) {
+		return a + i * (M + 2);
+	}
+} grid;
+	\end{minted}
+	\subsection{初始化模板}
+
+	\begin{minted}{cpp}
 // teamname: Gospel_rock
 /**
  * Problem: ${PROBLEM_NAME}
@@ -76,17 +98,17 @@ signed main() {
 /*
 
 */
-		\end{minted}
+	\end{minted}
 
-		这个 \texttt{debug(x)} 是简版宏：单参数、直接 \texttt{cerr << x}，要求 \texttt{x} 支持 \texttt{operator<<}（基本类型 / \texttt{string} 都 OK，\texttt{vector<T>} 等容器不能直接打）。不再做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，留着也无伤大雅；介意的话提交前手动把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL} 即可。容器调试请用 range-for 手写循环。
+	这个 \texttt{debug(x)} 是简版宏：单参数、直接 \texttt{cerr << x}，要求 \texttt{x} 支持 \texttt{operator<<}（基本类型 / \texttt{string} 都 OK，\texttt{vector<T>} 等容器不能直接打）。不再做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，留着也无伤大雅；介意的话提交前手动把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL} 即可。容器调试请用 range-for 手写循环。
 
-		\subsection{CMake 配置}
+	\subsection{CMake 配置}
 
-		\subsubsection{Sanitizer 小技巧}
+	\subsubsection{Sanitizer 小技巧}
 
-		有些越界或未定义行为问题，仅开 \texttt{address} 不一定能完整暴露。实践中建议同时开启 \texttt{address + undefined}，并保留帧指针，方便定位调用栈。
+	有些越界或未定义行为问题，仅开 \texttt{address} 不一定能完整暴露。实践中建议同时开启 \texttt{address + undefined}，并保留帧指针，方便定位调用栈。
 
-		\begin{minted}[highlightlines={9,10}]{cmake}
+	\begin{minted}[highlightlines={9,10}]{cmake}
 cmake_minimum_required(VERSION 3.31)
 project(Edu_CF_186)
 
@@ -105,155 +127,164 @@ add_executable(A_New_Year_String "src/A_New_Year_String.cpp")
 add_executable(B_New_Year_Cake "src/B_New_Year_Cake.cpp")
 add_executable(odt_callback_bench "speed test/odt_callback_bench.cpp")
 target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEASE}")
-		\end{minted}
+	\end{minted}
 
-		\subsubsection{Cmake Release 配置小技巧}
+	\subsubsection{Cmake Release 配置小技巧}
 
-		这个写法的主要目的有两个：一是只给特定目标启用 \texttt{Release} 进行性能测试，二是避免在 GUI 里把全局配置切到 \texttt{Release} 后忘记切回 \texttt{Debug}，进而出现调试信息异常、断点行为不符合预期等问题。
+	这个写法的主要目的有两个：一是只给特定目标启用 \texttt{Release} 进行性能测试，二是避免在 GUI 里把全局配置切到 \texttt{Release} 后忘记切回 \texttt{Debug}，进而出现调试信息异常、断点行为不符合预期等问题。
 
-		\begin{minted}{cmake}
+	\begin{minted}{cmake}
 add_executable(odt_callback_bench "speed test/odt_callback_bench.cpp")
 target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEASE}")
-		\end{minted}
+	\end{minted}
 
-		\subsection{本地手测时怎么发 EOF}
+	\subsubsection{小心 vector 大小等相关调试信息信息显示错误}
 
-		本地跑 \mintinline{cpp}{while (cin >> x)} / \mintinline{cpp}{while (scanf("\%d",&x) != EOF)} 这类按 EOF 终止的 CP 代码，手动在终端输完样例后要发 EOF 让 stdin 关流，否则程序一直阻塞读不到末尾。**EOF 的发送键在不同系统/终端里不一样**：
+	\begin{minted}{cpp}
+#ifdef LOCAL
+#define _GLIBCXX_DEBUG
+#endif
+	\end{minted}
 
-		\begin{itemize}
-			\item \textbf{macOS / Linux 真终端}：\texttt{Ctrl-D}（在空输入行上按）。
-			\item \textbf{Windows \texttt{cmd} / PowerShell}：\texttt{Ctrl-Z} 后按 \texttt{Enter}。
-			\item \textbf{WSL / Git Bash on Windows}：\texttt{Ctrl-D}（同 Unix）。
-			\item \textbf{CLion / VSCode Run 控制台}：跟底层 shell 走，mac/Linux $\Rightarrow$ \texttt{Ctrl-D}，Windows $\Rightarrow$ \texttt{Ctrl-Z}+\texttt{Enter}。
-		\end{itemize}
+	不要在这个 LLDB 调试器下使用这个东西，可能会导致显示错误，因为类型变为了 \texttt{std::\_\_debug::vector}，调试器不支持。
+	\subsection{本地手测时怎么发 EOF}
 
-		\textbf{两个坑}：
+	本地跑 \mintinline{cpp}{while (cin >> x)} / \mintinline{cpp}{while (scanf("\%d",&x) != EOF)} 这类按 EOF 终止的 CP 代码，手动在终端输完样例后要发 EOF 让 stdin 关流，否则程序一直阻塞读不到末尾。**EOF 的发送键在不同系统/终端里不一样**：
 
-		\begin{itemize}
-			\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
-			\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
+	\begin{itemize}
+		\item \textbf{macOS / Linux 真终端}：\texttt{Ctrl-D}（在空输入行上按）。
+		\item \textbf{Windows \texttt{cmd} / PowerShell}：\texttt{Ctrl-Z} 后按 \texttt{Enter}。
+		\item \textbf{WSL / Git Bash on Windows}：\texttt{Ctrl-D}（同 Unix）。
+		\item \textbf{CLion / VSCode Run 控制台}：跟底层 shell 走，mac/Linux $\Rightarrow$ \texttt{Ctrl-D}，Windows $\Rightarrow$ \texttt{Ctrl-Z}+\texttt{Enter}。
+	\end{itemize}
 
-\begin{minted}{bash}
+	\textbf{两个坑}：
+
+	\begin{itemize}
+		\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
+		\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
+
+		\begin{minted}{bash}
 ./a.out << 'EOF'
 3
 1 2 3
 EOF
-\end{minted}
-		\end{itemize}
+		\end{minted}
+	\end{itemize}
 
-	\end{multicols*} % 结束双栏
+\end{multicols*} % 结束双栏
 
-	\subsection{CLion 常用功能与快捷键（默认 keymap）}
+\subsection{CLion 常用功能与快捷键（默认 keymap）}
 
-	赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。赛场机一律 Windows / Linux，认第二列即可；第三列是 macOS 默认 keymap，平时在自己机器上对照用。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区；\textbf{Rename} 是语义级重命名，改变量 / 函数名时所有引用一起改，比全文替换安全（不会误伤字符串和同名的别的符号）。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
+赛场 / 平时最常用的几个 CLion 操作与默认快捷键如下。赛场机一律 Windows / Linux，认第二列即可；第三列是 macOS 默认 keymap，平时在自己机器上对照用。\textbf{Run context configuration} 指「运行光标当前所在的那个目标」——多目标 CMake 工程里免去手动切下拉框，直接跑当前打开的这道题；\textbf{Reformat Code} 是一键格式化当前文件 / 选区；\textbf{Rename} 是语义级重命名，改变量 / 函数名时所有引用一起改，比全文替换安全（不会误伤字符串和同名的别的符号）。快捷键随 keymap 版本略有出入，忘了就用 \textbf{Find Action}（\texttt{Ctrl+Shift+A}）搜功能名，弹出项右侧直接显示当前绑定。
 
-	\textbf{Move Line} 按物理行搬、不管语法；\textbf{Move Statement} 按语句 / 代码块整体对调，且拒绝挪到破坏语法的位置。复制行只有 \textbf{Duplicate Line}（只能向下复制一份），没有 VSCode 那种「上下移动时自动复制」。
+\textbf{Move Line} 按物理行搬、不管语法；\textbf{Move Statement} 按语句 / 代码块整体对调，且拒绝挪到破坏语法的位置。复制行只有 \textbf{Duplicate Line}（只能向下复制一份），没有 VSCode 那种「上下移动时自动复制」。
 
+\begin{center}
+	\begin{tabular}{l|l|l}
+		\hline
+		功能                               & Windows / Linux             & macOS                      \\
+		\hline
+		Run context configuration（跑光标所在目标） & \texttt{Ctrl+Shift+F10}     & \texttt{Ctrl+Shift+R}      \\
+		\hline
+		Run（当前选中的配置）                       & \texttt{Shift+F10}          & \texttt{Ctrl+R}            \\
+		\hline
+		Debug（当前选中的配置）                     & \texttt{Shift+F9}           & \texttt{Ctrl+D}            \\
+		\hline
+		Build Project（只编译不跑）               & \texttt{Ctrl+F9}            & \texttt{Cmd+F9}            \\
+		\hline
+		Reformat Code（格式化当前文件 / 选区）        & \texttt{Ctrl+Alt+L}         & \texttt{Opt+Cmd+L}         \\
+		\hline
+		\rowcolor{yellow!30}
+		Rename（重命名符号 + 所有引用）               & \texttt{Shift+F6}           & \texttt{Shift+F6}          \\
+		\hline
+		注释 / 取消注释行                         & \texttt{Ctrl+/}             & \texttt{Cmd+/}             \\
+		\hline
+		\rowcolor{yellow!30}
+		Duplicate Line（复制当前行 / 选区到下方）      & \texttt{Ctrl+D}             & \texttt{Cmd+D}             \\
+		\hline
+		\rowcolor{yellow!30}
+		删除整行                               & \texttt{Ctrl+Y}             & \texttt{Cmd+Backspace}     \\
+		\hline
+		\rowcolor{yellow!30}
+		Move Line（纯按行上 / 下移）               & \texttt{Alt+Shift+Up/Down}  & \texttt{Opt+Shift+Up/Down} \\
+		\hline
+		Move Statement（按语句块上 / 下移）         & \texttt{Ctrl+Shift+Up/Down} & \texttt{Cmd+Shift+Up/Down} \\
+		\hline
+		Find Action（搜任意功能 / 快捷键）           & \texttt{Ctrl+Shift+A}       & \texttt{Cmd+Shift+A}       \\
+		\hline
+	\end{tabular}
+\end{center}
+
+\subsection{CLion 语言引擎：赛场机上先切 Nova}
+
+CLion 有两套语言引擎：\textbf{Classic}（补全 / 高亮走 clangd）和 \textbf{Nova}（换成 ReSharper C++ 引擎，核心功能不走 clangd）。\textbf{赛场机开机先切 Nova}——最直接的好处是类模板补全带尖括号：敲 \texttt{vec} 回车，Nova 给 \texttt{vector<>} 且光标落在尖括号中间，Classic 只给 \texttt{vector}。竞赛里 \texttt{vector} / \texttt{map} 满屏都是，省下的按键很可观。
+
+Classic 这边\textbf{没有开关能打开}：clangd 只对函数模板补尖括号，类模板一律不补（C++17 有了 CTAD，\texttt{vector v\{1, 2\};} 本身合法，判断不出要不要那对尖括号）。
+
+切换：右侧工具栏齿轮 $\rightarrow$ \textbf{Switch to Nova Engine} $\rightarrow$ \textbf{Enable and Restart}；或 \textbf{Settings} $\rightarrow$ \textbf{Advanced Settings} $\rightarrow$ 勾 \textbf{Use the ReSharper C++ language engine (CLion Nova)}。要重启 + 重新解析项目，所以\textbf{热身赛就切好}；设置每台机独立，换机器要重切。CLion 2025.3 起 Nova 已是默认，新版本不用管这节。
+
+切到 Nova 后还多一个改名捷径：直接把变量名敲成新的，行内浮出 \textbf{Apply Rename refactoring}（下图），点它或按 \texttt{Alt+Enter} 回车，所有引用一起改掉，省掉先按 \texttt{Shift+F6} 开对话框这一步。Classic 引擎没有这个提示，行内提示样式则要 CLion 2025.2 以上。
+
+\begin{center}
+	\includegraphics[width=0.72\linewidth]{image/clion_nova_inplace_rename.png}
+\end{center}
+
+\subsection{Windows：禁用 \texttt{Shift} 切换中英文输入}
+
+Windows 赛场机上敲代码，误碰 \texttt{Shift}（打大写、打符号松手稍慢）就会被输入法切到中文模式，接着敲出一串全角字符——开赛前先把这个切换键关掉。
+
+\subsubsection{微软拼音（系统自带，Win10 逐步截图）}
+
+\begin{enumerate}
+	\item 开始菜单 → \textbf{设置}：
 	\begin{center}
-		\begin{tabular}{l|l|l}
-			\hline
-			功能 & Windows / Linux & macOS \\
-			\hline
-			Run context configuration（跑光标所在目标） & \texttt{Ctrl+Shift+F10}    & \texttt{Ctrl+Shift+R}      \\
-			\hline
-			Run（当前选中的配置）                       & \texttt{Shift+F10}         & \texttt{Ctrl+R}            \\
-			\hline
-			Debug（当前选中的配置）                     & \texttt{Shift+F9}          & \texttt{Ctrl+D}            \\
-			\hline
-			Build Project（只编译不跑）                 & \texttt{Ctrl+F9}           & \texttt{Cmd+F9}            \\
-			\hline
-			Reformat Code（格式化当前文件 / 选区）       & \texttt{Ctrl+Alt+L}        & \texttt{Opt+Cmd+L}         \\
-			\hline
-			\rowcolor{yellow!30}
-			Rename（重命名符号 + 所有引用）              & \texttt{Shift+F6}          & \texttt{Shift+F6}          \\
-			\hline
-			注释 / 取消注释行                           & \texttt{Ctrl+/}            & \texttt{Cmd+/}             \\
-			\hline
-			\rowcolor{yellow!30}
-			Duplicate Line（复制当前行 / 选区到下方）    & \texttt{Ctrl+D}            & \texttt{Cmd+D}             \\
-			\hline
-			\rowcolor{yellow!30}
-			删除整行                                   & \texttt{Ctrl+Y}            & \texttt{Cmd+Backspace}     \\
-			\hline
-			\rowcolor{yellow!30}
-			Move Line（纯按行上 / 下移）                & \texttt{Alt+Shift+Up/Down} & \texttt{Opt+Shift+Up/Down} \\
-			\hline
-			Move Statement（按语句块上 / 下移）         & \texttt{Ctrl+Shift+Up/Down} & \texttt{Cmd+Shift+Up/Down} \\
-			\hline
-			Find Action（搜任意功能 / 快捷键）           & \texttt{Ctrl+Shift+A}      & \texttt{Cmd+Shift+A}       \\
-			\hline
-		\end{tabular}
+		\includegraphics[width=0.42\linewidth]{image/ime_win10_01_开始菜单设置.jpg}
 	\end{center}
-
-	\subsection{CLion 语言引擎：赛场机上先切 Nova}
-
-	CLion 有两套语言引擎：\textbf{Classic}（补全 / 高亮走 clangd）和 \textbf{Nova}（换成 ReSharper C++ 引擎，核心功能不走 clangd）。\textbf{赛场机开机先切 Nova}——最直接的好处是类模板补全带尖括号：敲 \texttt{vec} 回车，Nova 给 \texttt{vector<>} 且光标落在尖括号中间，Classic 只给 \texttt{vector}。竞赛里 \texttt{vector} / \texttt{map} 满屏都是，省下的按键很可观。
-
-	Classic 这边\textbf{没有开关能打开}：clangd 只对函数模板补尖括号，类模板一律不补（C++17 有了 CTAD，\texttt{vector v\{1, 2\};} 本身合法，判断不出要不要那对尖括号）。
-
-	切换：右侧工具栏齿轮 $\rightarrow$ \textbf{Switch to Nova Engine} $\rightarrow$ \textbf{Enable and Restart}；或 \textbf{Settings} $\rightarrow$ \textbf{Advanced Settings} $\rightarrow$ 勾 \textbf{Use the ReSharper C++ language engine (CLion Nova)}。要重启 + 重新解析项目，所以\textbf{热身赛就切好}；设置每台机独立，换机器要重切。CLion 2025.3 起 Nova 已是默认，新版本不用管这节。
-
-	切到 Nova 后还多一个改名捷径：直接把变量名敲成新的，行内浮出 \textbf{Apply Rename refactoring}（下图），点它或按 \texttt{Alt+Enter} 回车，所有引用一起改掉，省掉先按 \texttt{Shift+F6} 开对话框这一步。Classic 引擎没有这个提示，行内提示样式则要 CLion 2025.2 以上。
-
+	\item 进入\textbf{时间和语言}：
 	\begin{center}
-		\includegraphics[width=0.72\linewidth]{image/clion_nova_inplace_rename.png}
+		\includegraphics[width=0.85\linewidth]{image/ime_win10_02_时间和语言.jpg}
 	\end{center}
+	\item 左侧栏切到\textbf{语言}：
+	\begin{center}
+		\includegraphics[width=0.75\linewidth]{image/ime_win10_03_左栏语言.jpg}
+	\end{center}
+	\item 「首选语言」列表里点\textbf{中文(简体，中国)}：
+	\begin{center}
+		\includegraphics[width=0.85\linewidth]{image/ime_win10_04_首选语言点中文.jpg}
+	\end{center}
+	\item 点展开出来的\textbf{选项}按钮：
+	\begin{center}
+		\includegraphics[width=0.75\linewidth]{image/ime_win10_05_选项按钮.jpg}
+	\end{center}
+	\item 键盘列表里点\textbf{微软拼音} → 进入\textbf{按键}：
+	\begin{center}
+		\includegraphics[width=0.45\linewidth]{image/ime_win10_06_微软拼音按键.jpg}
+	\end{center}
+	\item 「中/英文模式切换」里\textbf{把 \texttt{Shift} 的勾去掉}（保留 \texttt{Ctrl + 空格键}，这就是之后手动切中英文的键）：
+	\begin{center}
+		\includegraphics[width=0.55\linewidth]{image/ime_win10_07_取消Shift勾选.jpg}
+	\end{center}
+\end{enumerate}
 
-	\subsection{Windows：禁用 \texttt{Shift} 切换中英文输入}
+改完后 \texttt{Shift} 只做普通修饰键；切中英文用 \texttt{Ctrl + Space}，切输入法 / 语言用 \texttt{Win + Space}。Win11 路径名稍有不同：设置 → 时间和语言 → \textbf{语言和区域} → 中文右侧「…」→ 语言选项 → 微软拼音 → 键盘选项 → 按键，最后一步相同。
 
-	Windows 赛场机上敲代码，误碰 \texttt{Shift}（打大写、打符号松手稍慢）就会被输入法切到中文模式，接着敲出一串全角字符——开赛前先把这个切换键关掉。
+\subsubsection{搜狗输入法}
 
-	\subsubsection{微软拼音（系统自带，Win10 逐步截图）}
+\begin{enumerate}
+	\item 任务栏搜狗图标打开工具面板 → \textbf{更多设置(P)}：
+	\begin{center}
+		\includegraphics[width=0.3\linewidth]{image/ime_sogou_01_更多设置.jpg}
+	\end{center}
+	\item 属性设置 → \textbf{按键} → 「中英切换」选\textbf{无}（不想彻底禁可选 \texttt{Ctrl}）：
+	\begin{center}
+		\includegraphics[width=0.6\linewidth]{image/ime_sogou_02_中英切换选无.jpg}
+	\end{center}
+\end{enumerate}
 
-	\begin{enumerate}
-		\item 开始菜单 → \textbf{设置}：
-		      \begin{center}
-			      \includegraphics[width=0.42\linewidth]{image/ime_win10_01_开始菜单设置.jpg}
-		      \end{center}
-		\item 进入\textbf{时间和语言}：
-		      \begin{center}
-			      \includegraphics[width=0.85\linewidth]{image/ime_win10_02_时间和语言.jpg}
-		      \end{center}
-		\item 左侧栏切到\textbf{语言}：
-		      \begin{center}
-			      \includegraphics[width=0.75\linewidth]{image/ime_win10_03_左栏语言.jpg}
-		      \end{center}
-		\item 「首选语言」列表里点\textbf{中文(简体，中国)}：
-		      \begin{center}
-			      \includegraphics[width=0.85\linewidth]{image/ime_win10_04_首选语言点中文.jpg}
-		      \end{center}
-		\item 点展开出来的\textbf{选项}按钮：
-		      \begin{center}
-			      \includegraphics[width=0.75\linewidth]{image/ime_win10_05_选项按钮.jpg}
-		      \end{center}
-		\item 键盘列表里点\textbf{微软拼音} → 进入\textbf{按键}：
-		      \begin{center}
-			      \includegraphics[width=0.45\linewidth]{image/ime_win10_06_微软拼音按键.jpg}
-		      \end{center}
-		\item 「中/英文模式切换」里\textbf{把 \texttt{Shift} 的勾去掉}（保留 \texttt{Ctrl + 空格键}，这就是之后手动切中英文的键）：
-		      \begin{center}
-			      \includegraphics[width=0.55\linewidth]{image/ime_win10_07_取消Shift勾选.jpg}
-		      \end{center}
-	\end{enumerate}
+QQ / 百度输入法路径类似，都在「按键设置」里。
 
-	改完后 \texttt{Shift} 只做普通修饰键；切中英文用 \texttt{Ctrl + Space}，切输入法 / 语言用 \texttt{Win + Space}。Win11 路径名稍有不同：设置 → 时间和语言 → \textbf{语言和区域} → 中文右侧「…」→ 语言选项 → 微软拼音 → 键盘选项 → 按键，最后一步相同。
-
-	\subsubsection{搜狗输入法}
-
-	\begin{enumerate}
-		\item 任务栏搜狗图标打开工具面板 → \textbf{更多设置(P)}：
-		      \begin{center}
-			      \includegraphics[width=0.3\linewidth]{image/ime_sogou_01_更多设置.jpg}
-		      \end{center}
-		\item 属性设置 → \textbf{按键} → 「中英切换」选\textbf{无}（不想彻底禁可选 \texttt{Ctrl}）：
-		      \begin{center}
-			      \includegraphics[width=0.6\linewidth]{image/ime_sogou_02_中英切换选无.jpg}
-		      \end{center}
-	\end{enumerate}
-
-	QQ / 百度输入法路径类似，都在「按键设置」里。
-
-	\textbf{更省事的做法}（比赛全程不需要中文输入时）：直接在上面第 4 步的语言列表里\textbf{删掉中文输入法}或把默认语言切到 \texttt{ENG}，\texttt{Shift} 就完全没有切换语义了。快速定位入口：开始菜单搜「输入法」→「编辑语言和键盘选项」。
+\textbf{更省事的做法}（比赛全程不需要中文输入时）：直接在上面第 4 步的语言列表里\textbf{删掉中文输入法}或把默认语言切到 \texttt{ENG}，\texttt{Shift} 就完全没有切换语义了。快速定位入口：开始菜单搜「输入法」→「编辑语言和键盘选项」。
 
 
 
