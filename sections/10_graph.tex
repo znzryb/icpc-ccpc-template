@@ -288,7 +288,7 @@ void Solve() {
 // AC https://codeforces.com/contest/613/submission/384497446
 		\end{minted}
 
-		\subsection{并查集（DSU）与 DSU on next 技巧}
+		\subsection[\tochl{并查集（DSU）与 DSU on next 技巧}]{并查集（DSU）与 DSU on next 技巧}
 
 		朴素并查集 + 路径压缩，外加 \texttt{taglr(l, r)} 把 $[l, r]$ 这段区间整段标记为「已处理」——具体做法是让区间里的每个点都不指向自己（指向 $r+1$）。\texttt{find(x)} 因此天然返回 \texttt{x} 之后第一个未被标记的位置，扫描时常用来\textbf{跳过整段已处理区间}。
 

@@ -58,6 +58,8 @@
 % 用法 \section[\tochl{对拍与 checker}]{对拍与 checker}——方括号那份才进目录
 % 只要变字色不要底色：把 \colorbox{yellow!60} 换成 \textcolor{red}
 % 注：\texorpdfstring 由下面的 hyperref 提供（定义时不展开，故写在其前无妨）
+% 这个下面的宏像下面这样子使用啊
+% \subsection[\tochl{\texttt{pb\_ds} 红黑树（\texttt{tree})}]{\texttt{pb\_ds} 红黑树（\texttt{tree})}
 \newcommand{\tochl}[1]{%
 	\texorpdfstring{\protect\colorbox{yellow!60}{\protect\textbf{#1}}}{#1}}
 % ------------------
