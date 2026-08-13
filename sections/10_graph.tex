@@ -511,13 +511,11 @@ public:
 			\end{tikzpicture}
 		\end{center}
 
-		图中箭头是 \texttt{fa} 指针（指向父亲），而边上标的映射方向\emph{相反}：$d_x$ 把父亲的取值映到 $x$ 的取值。压缩时把整条路径的映射按「先靠近根的、后靠近 $x$ 的」顺序复合，挂到根上即可；\texttt{diff(x, y)} 就是 $\texttt{op}(\texttt{inv}(d_x),\ d_y)$，即先退回根再走到 $y$。
+		图中箭头是 \texttt{fa} 指针，边上标的映射方向与它\emph{相反}（$d_x$ 把父亲的取值映到 $x$ 的取值）。压缩就是把路径上的映射按「先靠近根」的顺序复合后挂到根上；\texttt{diff(x, y)} $= \texttt{op}(\texttt{inv}(d_x),\ d_y)$，即先退回根再走到 $y$。
 
-		\textbf{为什么还要一层 \texttt{pinned\_dsu}}：裸 \texttt{weighted\_dsu} 在同块时用 \texttt{op(inv(dx), dy) == w} 判一致，这\textbf{只在群作用自由时（非单位元一律没有不动点，如平移 / 异或）才等价于「矛盾」}。一旦作用不自由，\texttt{false} 就可能是误判——例如仿射群里已知 $\texttt{value}[y] = \texttt{value}[x]$，又来一条 $\texttt{value}[y] = -\texttt{value}[x] + 4$：两个变换确实不同，但它们并不矛盾，只是联立后把整块的取值\textbf{钉死}成了 $h(v) = -v + 4$ 的不动点 $v = 2$。
+		\textbf{那层 \texttt{pinned\_dsu} 解决什么}：裸版同块时判 \texttt{op(inv(dx), dy) == w}，这只在群作用\textbf{自由}（非单位元一律没有不动点，如平移 / 异或）时才等价于「矛盾」。仿射群下就会误判：已知 $v_y = v_x$ 又来一条 $v_y = -v_x + 4$，两个变换确实不同，但并不矛盾——只是把整块钉死成了 $h(v) = -v + 4$ 的不动点 $v = 2$。所以 \texttt{pinned\_dsu} 多存 \texttt{det[根]} / \texttt{val[根]}，冲突时改判 $h = \texttt{op}(w,\ \texttt{inv}(g_0))$ 有没有不动点：没有才是真矛盾，有就钉死或与已钉死的值核对。让 \texttt{fix} 恒返回 \texttt{\{false, *\}} 即退化成裸 \texttt{weighted\_dsu}。
 
-		\texttt{pinned\_dsu} 在外面多存 \texttt{det[根]}（这块是否已被钉死）和 \texttt{val[根]}（钉死时根的取值），同块冲突时改判 $h = \texttt{op}(w,\ \texttt{inv}(g_0))$ 有没有不动点：没有才是真矛盾，有就钉死（或与已钉死的值核对）；跨块合并时把「锚点」的真实取值先取出来，合并后再传播到新根（合并会改变 \texttt{dist}，先取后传的顺序不能反）。群作用自由时让 \texttt{fix} 恒返回 \texttt{\{false, *\}}，本结构就退化成裸 \texttt{weighted\_dsu}。
-
-		\textbf{坑}：示例里的 \texttt{fix} 用 \texttt{h.d / 2} 求不动点，只有 \texttt{h.d} 为偶数时才是整数解——若题目允许出现无整数解的情形（即 \texttt{h.d} 为奇数），要自己在这里返回矛盾，别让它被整除截断悄悄吞掉。
+		\textbf{坑}：示例的 \texttt{fix} 用 \texttt{h.d / 2} 求不动点，\texttt{h.d} 为奇数时其实无整数解，这种题要自己在这里返回矛盾，别被整除截断悄悄吞掉。
 
 		\begin{minted}{cpp}
 /* 泛型带权并查集：权是一个群 S，作用在取值集合 V 上
@@ -735,9 +733,45 @@ namespace T1 {
 }
 
 using WDSU = pinned_dsu<T1::S, T1::op, T1::e, T1::inv, T1::V, T1::act, T1::fix>;
-// WDSU dsu(n);
-// dsu.merge(x, y, {-1, 4});      // 约束 value[y] = -value[x] + 4
-// auto [det, v] = dsu.value(x);  // det=true 时 v 就是 x 的唯一取值
+		\end{minted}
+
+		\textbf{用法例子}：$n$ 个未知数 \verb|value[1..n]|，逐条读入 $m$ 条形如「\verb|1 x y d| $\Rightarrow v_y = v_x + d$」「\verb|2 x y d| $\Rightarrow v_y = -v_x + d$」的约束，输出第一条与前面矛盾的编号（没有则 $0$），再输出所有已被唯一确定的未知数。要点：\verb|merge| 返回 \verb|false| 时内部状态\textbf{不会被改动}，所以撞到矛盾之后还能接着往下加。
+
+		\begin{minted}{cpp}
+void Solve() {
+	int n, m;
+	cin >> n >> m;
+	WDSU dsu(n); // 合法下标 0..n，这里只用 1..n
+	int bad = 0;
+	for (int i = 1; i <= m; ++i) {
+		int type, x, y;
+		ll d;
+		cin >> type >> x >> y >> d;
+		int s = (type == 1 ? 1 : -1); // 群元素 w: value[y] = s * value[x] + d
+		if (!dsu.merge(x, y, {s, d}) && bad == 0) {
+			bad = i;
+		}
+	}
+	cout << bad << "\n";
+	for (int i = 1; i <= n; ++i) {
+		auto [det, v] = dsu.value(i); // det=false 表示这块还有自由度，取值不唯一
+		if (det) {
+			cout << i << " = " << v << "\n";
+		}
+	}
+}
+
+/* 样例输入        样例输出
+ * 4 4             4
+ * 1 1 2 3         1 = 3
+ * 2 1 2 9         2 = 6
+ * 1 3 4 5
+ * 1 1 2 100
+ *
+ * v2 = v1+3 与 v2 = -v1+9 联立 -> v1 钉死成 3, v2 = 6
+ * v3 v4 只有相对关系, 没被钉死, 不输出
+ * 第 4 条 v2 = v1+100 与前面冲突 -> bad = 4
+ */
 		\end{minted}
 
 
