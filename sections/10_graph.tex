@@ -481,6 +481,268 @@ public:
 		\end{minted}
 
 
+		\subsubsection{带权并查集（群作用泛型版）+ 不动点钉死 \texttt{pinned\_dsu}}
+
+		上一份 \texttt{WeightedDSU} 把「权」写死成 \texttt{ll} 上的加法。把权换成一个抽象的群 $S$（只需给出 \texttt{op}（复合）/ \texttt{e}（单位元）/ \texttt{inv}（逆）三个函数指针），同一套代码就能处理加法、异或、模 $k$ 加法、仿射变换 $v \mapsto s\cdot v + d$ 等各种约束。约定：\texttt{d[x]} 存的是「\texttt{value[fa[x]]} $\mapsto$ \texttt{value[x]}」这个映射，\texttt{op(a, b)} 表示\textbf{先 a 后 b}。
+
+		\texttt{leader} 用两趟迭代代替递归（链长 $10^5$ 时递归版会爆栈）：第一趟从 $x$ 一路往上把沿途的映射复合成 \texttt{acc}（\texttt{value[root]} $\mapsto$ \texttt{value[x]}），第二趟原路返回，边把 \texttt{fa} 直接改指 \texttt{root}、边用 \texttt{inv} 逐段退掉多余的一步，得到每个点各自到根的映射。
+
+		\begin{center}
+			\begin{tikzpicture}[
+				st/.style={draw, circle, minimum size=6.5mm, inner sep=1pt, font=\small},
+				ed/.style={-Stealth, thick},
+				lb/.style={font=\footnotesize, inner sep=2pt}
+			]
+				% 压缩前
+				\node[st] (r1) at (0,2.2) {$r$};
+				\node[st] (a1) at (0,1.1) {$a$};
+				\node[st] (x1) at (0,0)   {$x$};
+				\draw[ed] (a1) -- node[lb,right] {$d_a$} (r1);
+				\draw[ed] (x1) -- node[lb,right] {$d_x$} (a1);
+				\node[lb] at (0,-0.75) {压缩前};
+
+				\node[lb] at (2.7,1.1) {$\Longrightarrow$};
+
+				% 压缩后
+				\node[st] (r2) at (5.4,2.2) {$r$};
+				\node[st] (a2) at (4.6,0.6) {$a$};
+				\node[st] (x2) at (6.4,0.6) {$x$};
+				\draw[ed] (a2) -- node[lb,left=1pt] {$d_a$} (r2);
+				\draw[ed] (x2) -- node[lb,right=1pt] {$\texttt{op}(d_a, d_x)$} (r2);
+				\node[lb] at (5.4,-0.75) {压缩后};
+			\end{tikzpicture}
+		\end{center}
+
+		图中箭头是 \texttt{fa} 指针（指向父亲），而边上标的映射方向\emph{相反}：$d_x$ 把父亲的取值映到 $x$ 的取值。压缩时把整条路径的映射按「先靠近根的、后靠近 $x$ 的」顺序复合，挂到根上即可；\texttt{diff(x, y)} 就是 $\texttt{op}(\texttt{inv}(d_x),\ d_y)$，即先退回根再走到 $y$。
+
+		\textbf{为什么还要一层 \texttt{pinned\_dsu}}：裸 \texttt{weighted\_dsu} 在同块时用 \texttt{op(inv(dx), dy) == w} 判一致，这\textbf{只在群作用自由时（非单位元一律没有不动点，如平移 / 异或）才等价于「矛盾」}。一旦作用不自由，\texttt{false} 就可能是误判——例如仿射群里已知 $\texttt{value}[y] = \texttt{value}[x]$，又来一条 $\texttt{value}[y] = -\texttt{value}[x] + 4$：两个变换确实不同，但它们并不矛盾，只是联立后把整块的取值\textbf{钉死}成了 $h(v) = -v + 4$ 的不动点 $v = 2$。
+
+		\texttt{pinned\_dsu} 在外面多存 \texttt{det[根]}（这块是否已被钉死）和 \texttt{val[根]}（钉死时根的取值），同块冲突时改判 $h = \texttt{op}(w,\ \texttt{inv}(g_0))$ 有没有不动点：没有才是真矛盾，有就钉死（或与已钉死的值核对）；跨块合并时把「锚点」的真实取值先取出来，合并后再传播到新根（合并会改变 \texttt{dist}，先取后传的顺序不能反）。群作用自由时让 \texttt{fix} 恒返回 \texttt{\{false, *\}}，本结构就退化成裸 \texttt{weighted\_dsu}。
+
+		\textbf{坑}：示例里的 \texttt{fix} 用 \texttt{h.d / 2} 求不动点，只有 \texttt{h.d} 为偶数时才是整数解——若题目允许出现无整数解的情形（即 \texttt{h.d} 为奇数），要自己在这里返回矛盾，别让它被整除截断悄悄吞掉。
+
+		\begin{minted}{cpp}
+/* 泛型带权并查集：权是一个群 S，作用在取值集合 V 上
+ * 2026 杭电多校 7 1011 https://acm.hdu.edu.cn/contest/problem?cid=1235&pid=1011
+ * 约定：d[x] 是映射 value[fa[x]] |-> value[x]；op(a, b) 表示「先 a 后 b」
+ */
+template<class S, S (*op)(S, S), S (*e)(), S (*inv)(S)>
+struct weighted_dsu {
+public:
+	weighted_dsu() : weighted_dsu(0) {
+	}
+
+	// 合法位置 0..n, 内部开 n+1 个槽
+	explicit weighted_dsu(int n)
+		: _n(n + 1), fa(n + 1), siz(n + 1, 1), d(n + 1, e()) {
+		iota(fa.begin(), fa.end(), 0);
+	}
+
+	// 找根 + 路径压缩; 返回后 d[x] 就是映射 value[root] |-> value[x]
+	int leader(int x) {
+		assert(0 <= x && x < _n);
+		// 第一趟: 往上走, 新边排在前面(它更靠近根, 先被走到)
+		int r = x;
+		S acc = e(); // 映射 value[r] |-> value[x]
+		while (fa[r] != r) {
+			acc = op(d[r], acc); // 先 d[r], 后 acc
+			r = fa[r];
+		}
+		// 第二趟: 求逆回填, 沿途每个点直接挂到 r
+		S cur = acc; // 映射 value[r] |-> value[当前点]
+		while (x != r) {
+			int nxt = fa[x];
+			S old = d[x]; // 必须先存旧边
+			d[x] = cur;
+			fa[x] = r;
+			cur = op(cur, inv(old)); // 先 cur, 后退掉 x 这一步
+			x = nxt;
+		}
+		return r;
+	}
+
+	bool same(int x, int y) { return leader(x) == leader(y); }
+	int size(int x) { return siz[leader(x)]; }
+
+	// 映射 value[根] |-> value[x]
+	S dist(int x) {
+		leader(x);
+		return d[x];
+	}
+
+	// 同块时返回 g, 满足 value[y] = g(value[x])
+	S diff(int x, int y) {
+		int rx = leader(x), ry = leader(y); // 显式压缩, 不依赖 assert
+		assert(rx == ry);
+		(void)rx;
+		(void)ry;
+		// value[x] --inv(d[x])--> V --d[y]--> value[y]
+		return op(inv(d[x]), d[y]);
+	}
+
+	// 加入约束 value[y] = w(value[x]); 返回 false 表示与已有约束不一致
+	bool merge(int x, int y, S w) {
+		int rx = leader(x), ry = leader(y);
+		S dx = d[x], dy = d[y];
+		if (rx == ry) return op(inv(dx), dy) == w;
+
+		// 目标 g = 映射 V_rx |-> V_ry
+		// V_rx --dx--> value[x] --w--> value[y] --inv(dy)--> V_ry
+		S g = op(op(dx, w), inv(dy));
+		if (siz[rx] < siz[ry]) {
+			swap(rx, ry);
+			g = inv(g);
+		}
+		fa[ry] = rx;
+		d[ry] = g;
+		siz[rx] += siz[ry];
+		return true;
+	}
+
+private:
+	int _n; // 槽数, 合法下标 0.._n-1
+	vector<int> fa, siz;
+	vector<S> d;
+};
+
+/* 在 weighted_dsu 之上加一层「不动点钉死」
+ *
+ * 用途: 当群在取值集合上的作用【不自由】时(存在非单位元有不动点),
+ *      裸 weighted_dsu 的 merge 返回 false 只表示「两个变换不同」,
+ *      不等于矛盾 —— 它可能只是把某个块的取值钉死到了不动点上。
+ *
+ * 用法: pinned_dsu(n) 合法位置 0..n, 与 weighted_dsu 一致
+ *
+ * 额外需要:
+ *   V            : 被群作用的值类型, 需可默认构造且有 operator==
+ *   act(f, v)    : 群作用, 返回 f(v)
+ *   fix(h)       : h 的不动点集合; 返回 {true, p} 表示唯一不动点 p,
+ *                  {false, *} 表示无不动点。
+ *                  仅在 h != e 时被调用, 故不必处理「处处不动」的情形。
+ *
+ * 自由作用的群(加法/异或/模 k 加法)让 fix 恒返回 {false, *} 即可,
+ * 此时本结构退化成裸 weighted_dsu。
+ */
+template<class S, S (*op)(S, S), S (*e)(), S (*inv)(S),
+	class V, V (*act)(S, V), pair<bool, V> (*fix)(S)>
+struct pinned_dsu {
+public:
+	pinned_dsu() : pinned_dsu(0) {
+	}
+
+	explicit pinned_dsu(int n)
+		: uf(n), det(n + 1, 0), val(n + 1, V{}) {
+	}
+
+	// 加入约束 value[y] = w(value[x]); 返回 false 表示与已有约束矛盾
+	bool merge(int x, int y, S w) {
+		int rx = uf.leader(x), ry = uf.leader(y);
+
+		if (rx == ry) {
+			// ---------- 同一个块 ----------
+			S g0 = uf.diff(x, y); // 已知的 value[x] |-> value[y]
+			if (g0 == w) return true; // 恒成立, 无新信息
+
+			// 约束 <=> value[x] 是 h 的不动点
+			S h = op(w, inv(g0));
+			auto [has, p] = fix(h);
+			if (!has) return false; // 无不动点 -> 真矛盾
+
+			if (det[rx]) // 已钉死过, 验证是否一致
+				return act(uf.dist(x), val[rx]) == p;
+			det[rx] = 1; // 由 value[x] = p 反解出根
+			val[rx] = act(inv(uf.dist(x)), p);
+			return true;
+		}
+
+		// ---------- 跨块 ----------
+		if (det[rx] && det[ry]) {
+			// 两块数值全已知, 必须先验证
+			V vx = act(uf.dist(x), val[rx]);
+			V vy = act(uf.dist(y), val[ry]);
+			if (!(act(w, vx) == vy)) return false;
+		}
+		// 合并前先取出「锚点」的真实值(合并后 dist 会变)
+		bool anchored = det[rx] || det[ry];
+		int src = det[rx] ? x : y;
+		V sv = V{};
+		if (anchored) sv = act(uf.dist(src), det[rx] ? val[rx] : val[ry]);
+
+		uf.merge(x, y, w); // 挂载方向由内层自行决定
+
+		if (anchored) {
+			// 钉死状态传播到新根
+			int nr = uf.leader(src);
+			det[nr] = 1;
+			val[nr] = act(inv(uf.dist(src)), sv);
+		}
+		return true;
+	}
+
+	bool same(int x, int y) { return uf.same(x, y); }
+	int size(int x) { return uf.size(x); }
+
+	// 该点所在块是否已被钉死; 是则一并返回该点的确定取值
+	pair<bool, V> value(int x) {
+		int r = uf.leader(x);
+		if (!det[r]) return {false, V{}};
+		return {true, act(uf.dist(x), val[r])};
+	}
+
+private:
+	weighted_dsu<S, op, e, inv> uf;
+	vector<char> det; // det[根]: 该块是否已被钉死
+	vector<V> val; // val[根]: 钉死时根的取值
+};
+
+/* ---- 用法示例: 仿射约束 value[y] = s * value[x] + d, s 取 +1 / -1 ---- */
+namespace T1 {
+	struct S {
+		int s;
+		ll d;
+
+		bool operator==(const S &o) const {
+			return o.s == s && d == o.d;
+		}
+	};
+
+	// 先 a 后 b
+	S op(S a, S b) {
+		//              一次项              常数项
+		return {a.s * b.s, b.s * (a.d) + b.d};
+	}
+
+	S e() {
+		return {1, 0};
+	}
+
+	// V=a.s*X+a.d;
+	// a.s*X=V-a.d
+	// X=a.s*V-a.d*a.s
+	S inv(S a) {
+		return {a.s, -a.d * a.s};
+	}
+
+	using V = ll;
+	// 群作用: f(v) = f.s * v + f.d
+	V act(S f, V v) { return (ll)f.s * v + f.d; }
+
+	// 仅在 h != e 时调用
+	//   h.s = +1 : h(v) = v + h.d 且 h.d != 0, 纯平移, 无不动点
+	//   h.s = -1 : h(v) = -v + h.d, 唯一不动点 h.d / 2
+	pair<bool, V> fix(S h) {
+		if (h.s == 1) return {false, 0};
+		return {true, h.d / 2};
+	}
+}
+
+using WDSU = pinned_dsu<T1::S, T1::op, T1::e, T1::inv, T1::V, T1::act, T1::fix>;
+// WDSU dsu(n);
+// dsu.merge(x, y, {-1, 4});      // 约束 value[y] = -value[x] + 4
+// auto [det, v] = dsu.value(x);  // det=true 时 v 就是 x 的唯一取值
+		\end{minted}
+
+
 		\subsection{Borůvka 最小生成树}
 
 		每轮让每个连通块各挑一条最小出边一次性合并，块数至少减半，故至多 $O(\log V)$ 轮、每轮 $O(E)$ 扫边，总 $O(E\log V)$。边以 \texttt{(w, u, v)} 数组给入，节点 0-based，函数自带精简 \texttt{DSU}（与上一节的 \texttt{DSU} 独立）。
