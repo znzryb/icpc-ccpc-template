@@ -483,9 +483,7 @@ public:
 
 		\subsubsection{带权并查集（群作用泛型版）+ 不动点钉死 \texttt{pinned\_dsu}}
 
-		上一份 \texttt{WeightedDSU} 把「权」写死成 \texttt{ll} 上的加法。把权换成一个抽象的群 $S$（只需给出 \texttt{op}（复合）/ \texttt{e}（单位元）/ \texttt{inv}（逆）三个函数指针），同一套代码就能处理加法、异或、模 $k$ 加法、仿射变换 $v \mapsto s\cdot v + d$ 等各种约束。约定：\texttt{d[x]} 存的是「\texttt{value[fa[x]]} $\mapsto$ \texttt{value[x]}」这个映射，\texttt{op(a, b)} 表示\textbf{先 a 后 b}。
-
-		\texttt{leader} 用两趟迭代代替递归（链长 $10^5$ 时递归版会爆栈）：第一趟从 $x$ 一路往上把沿途的映射复合成 \texttt{acc}（\texttt{value[root]} $\mapsto$ \texttt{value[x]}），第二趟原路返回，边把 \texttt{fa} 直接改指 \texttt{root}、边用 \texttt{inv} 逐段退掉多余的一步，得到每个点各自到根的映射。
+		把上一份 \texttt{WeightedDSU} 里写死的「\texttt{ll} 加法」换成抽象的群 $S$（给出 \texttt{op}（复合）/ \texttt{e}（单位元）/ \texttt{inv}（逆）三个函数指针即可），同一套代码就能吃加法、异或、模 $k$ 加法、仿射变换 $v \mapsto s\cdot v + d$ 等各种约束。约定 \texttt{d[x]} 是映射「\texttt{value[fa[x]]} $\mapsto$ \texttt{value[x]}」，\texttt{op(a, b)} 表示\textbf{先 a 后 b}；\texttt{leader} 用两趟迭代代替递归（链长 $10^5$ 时递归版会爆栈），顺手把整条路径压到根上。
 
 		\begin{center}
 			\begin{tikzpicture}[
