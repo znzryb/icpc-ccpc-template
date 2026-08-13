@@ -345,6 +345,115 @@ struct seqAuto {
 };
 		\end{minted}
 
+		\subsection{后缀自动机（SAM）}
+
+		后缀自动机是接受 $s$ 全部子串的最小 DFA：从初始状态 $0$ 出发沿转移边能走出的字符串，恰好是 $s$ 的子串（走不动 = 不是子串）。状态数 $\le 2n - 1$、转移数 $\le 3n - 4$，在线增量构造，每次 \verb|sam_extend| 均摊 $O(\Sigma)$（这里 $\Sigma = 26$，转移用定长数组存）。
+
+		核心是把「结束位置集合 \verb|endpos| 相同」的子串归成一个状态。同一状态里的串一定互为后缀且长度连续，占据区间 $[\,\verb|len[link]|+1,\ \verb|len|\,]$。后缀链接 \verb|link| 指向「把首字母去掉后掉进另一个 \verb|endpos| 等价类」的那个状态；所有 \verb|link| 反过来看构成一棵以状态 $0$ 为根的树（\verb|endpos| 树 / parent 树），\verb|endpos(v)| 就是 $v$ 子树里所有「前缀状态」的集合。
+
+		\begin{center}
+			\begin{forest}
+				for tree={draw, rounded corners, font=\small, align=center,
+				edge={-Stealth}, l sep=6mm, s sep=3mm, inner sep=3pt}
+				[$\varepsilon$\\{\scriptsize len 0}
+					[\texttt{a}\\{\scriptsize len 1}]
+					[\texttt{b}\\{\scriptsize len 1}
+						[\texttt{ab}\\{\scriptsize len 2}]
+						[\texttt{abcb}\\{\scriptsize len 4}]
+					]
+					[\texttt{bc}\\{\scriptsize len 2（clone）}
+						[\texttt{abc}\\{\scriptsize len 3}]
+						[\texttt{abcbc}\\{\scriptsize len 5}]
+					]
+				]
+			\end{forest}
+		\end{center}
+
+		上图是 $s = \texttt{abcbc}$ 的 \verb|link| 树（结点标的是该状态的\emph{最长}串）。读法：结点 \texttt{bc} 表示状态里装着 $\{\texttt{c},\ \texttt{bc}\}$（长度区间 $[\,0+1,\ 2\,]$），它们的 \verb|endpos| 都是 $\{3, 5\}$；而 \texttt{abc} 的 \verb|endpos| 只有 $\{3\}$，所以挂在 \texttt{bc} 下面。这个 \texttt{bc} 正是构造 \texttt{abcbc} 最后一个 \texttt{c} 时分裂出来的 clone。
+
+		\verb|sam_extend| 里唯一麻烦的就是这个 clone：沿 \verb|link| 链往上找到第一个已有 $c$ 转移的 $p$，记 \verb|to = st[p].next[c]|。若 \verb|st[p].len + 1 == st[to].len|，说明 $\mathrm{maxstr}(p) + c$ 就是 \verb|to| 的最长串，\verb|to| 整个都是新前缀的后缀，直接 \verb|link[cur] = to|；否则 \verb|to| 里只有长度 $\le \verb|len[p]|+1$ 的那一半多出了新的结束位置，必须复制出 \verb|clone|（继承 \verb|to| 的全部转移与 \verb|link|，\verb|len| 取 \verb|len[p] + 1|），再把 \verb|link| 链上仍指向 \verb|to| 的那些 $c$ 转移改挂到 \verb|clone|。
+
+		常见套路：不同子串个数 $= \sum_{v \ne 0} \big(\verb|len[v]| - \verb|len[link[v]]|\big)$；某子串的出现次数 = 它所在状态在 \verb|link| 树上的子树里「前缀状态」个数（把状态按 \verb|len| 桶排后倒序把 \verb|cnt| 累加给父亲即可）；两串最长公共子串 = 拿另一串在自动机上走、走不动就沿 \verb|link| 回退并把当前长度压到 \verb|len[link]|。
+
+		两个坑：\textbf{一}是 \verb|st| 要开 \verb|MAXLEN * 2 + 5|（状态数上界 $2n-1$，\verb|MAXLEN| 取单串最长长度）；\textbf{二}是多测每组都要重新 \verb|sam_init()|，且 \verb|sam_extend| 结尾的 \verb|last = cur| 千万别漏——漏了整台自动机就是错的，而且小数据照样跑得出「看着对」的结果。
+
+		\begin{minted}{cpp}
+template<int MAXLEN>
+struct SufAutomaton {
+	struct State {
+		int len; // 该状态包含的最长子串的长度
+		int link; // 后缀链接，指向包含当前状态最短子串的最长真后缀的状态
+		// （把最短子串的第一个字母去掉，也就是所谓的最长真后缀）
+		int next[26]; // 字符转移边，假设字符集为小写字母 a-z
+	};
+
+	State st[MAXLEN * 2 + 5]; // 状态数上界 2n-1，多开几个保险
+	int sz; // 当前自动机中的状态总数，合法编号 0 .. sz-1
+	int last; // 指向当前整个字符串完整前缀所在的状态
+	static constexpr char BASE = 'a';
+
+	void sam_init() {
+		st[0].len = 0;
+		st[0].link = -1;
+		for (int i = 0; i < 26; ++i) {
+			st[0].next[i] = -1;
+		}
+		sz = 1;
+		last = 0;
+	}
+
+	void sam_extend(char c) {
+		int cur = sz++;
+		st[cur].len = st[last].len + 1;
+		st[cur].link = -1;
+		for (int i = 0; i < 26; ++i) {
+			st[cur].next[i] = -1;
+		}
+		int p = last;
+		while (p != -1 && st[p].next[c - BASE] == -1) {
+			st[p].next[c - BASE] = cur;
+			p = st[p].link;
+		}
+		if (p == -1) {
+			st[cur].link = 0;
+		} else {
+			int to = st[p].next[c - BASE]; // 注意是 st[p] 不是 st[cur]
+			// to 可以作为我们的 link 啊
+			// 但是我们需要其为最小串的这个去掉首字母以后的串啊
+			if (st[p].len + 1 == st[to].len) {
+				// （p 是字符串）p + ‘c’ 就是 to 中的最长子串，因此不需要对这个 to 进行这个分裂
+				// 根据 end pos 性质，to 中更短的，也是这个 cur 的这个后缀啊
+				st[cur].link = to;
+			} else {
+				int clone = sz++;
+				st[clone].link = st[to].link;
+				st[clone].len = st[p].len + 1;
+				for (int i = 0; i < 26; ++i) {
+					st[clone].next[i] = st[to].next[i];
+				}
+				while (p != -1 && st[p].next[c - BASE] == to) {
+					// 原先的，转移到 to 已经不合适了
+					// maxstr(p) + c 的这个 endpos 包含 cur
+					// 但是原来的 to 是不包含 cur 的，因此需要更新
+					// 更新为这个这个 clone，因为 clone endpos 包含这个 cur
+					st[p].next[c - BASE] = clone;
+					p = st[p].link;
+				}
+				st[cur].link = clone;
+				// 使用连续性定理（后缀自动机的性质里面提到的），我们知道 to 中包含 len(maxstr(p))+2 的这个字符串啊
+				// 因此也接到这个 clone 上面啊
+				st[to].link = clone;
+			}
+		}
+		last = cur; // 千万别漏：不推进 last，整台自动机就建错了
+	}
+};
+
+// 全局开，别放栈上：MAXLEN=1e6 时 st 有 2e6+ 个 State，约 200 MB 级别
+// SufAutomaton<1000006> sam;
+// sam.sam_init(); for (char c : s) sam.sam_extend(c);
+		\end{minted}
+
 		\subsection{Trie 树}
 
 		普通 26 叉 Trie，节点上挂 \verb|cnt| 表示有多少串经过该节点；\verb|query(s)| 返回已有集合中所有串与 $s$ 的最长公共前缀长度之和（每个串按其与 $s$ 的 LCP 长度计入一次）。\verb|remove| 用懒计数撤回，不释放节点。
