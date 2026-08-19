@@ -50,6 +50,12 @@
 	tabsize=2,
 }
 
+% 行内代码 \mintinline 单独关掉 breakanywhere。
+% 原因：fvextra 1.14.0 下 breaklines + breakanywhere + bgcolor 三者同时生效时，
+% \mintinline 的内容会被整体吞掉（PDF 里只剩一段空白，exit 0、log 无任何 error/warning，
+% 属于静默失败）。行内代码本就不需要任意位置断行，关掉即可，灰底与代码块设置均不受影响。
+\setmintedinline{breakanywhere=false}
+
 % --- 目录样式修改 ---
 \usepackage{tocloft}
 \renewcommand{\cftsecleader}
