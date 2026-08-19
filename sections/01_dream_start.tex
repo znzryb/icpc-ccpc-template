@@ -149,7 +149,7 @@ target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEA
 	不要在这个 LLDB 调试器下使用这个东西，可能会导致显示错误，因为类型变为了 \texttt{std::\_\_debug::vector}，调试器不支持。
 	\subsection{本地手测时怎么发 EOF}
 
-	本地跑 \mintinline{cpp}{while (cin >> x)} / \mintinline{cpp}{while (scanf("\%d",&x) != EOF)} 这类按 EOF 终止的 CP 代码，手动在终端输完样例后要发 EOF 让 stdin 关流，否则程序一直阻塞读不到末尾。**EOF 的发送键在不同系统/终端里不一样**：
+	本地跑 \texttt{while (cin >> x)} / \texttt{while (scanf("\%d",\&x) != EOF)} 这类按 EOF 终止的 CP 代码，手动在终端输完样例后要发 EOF 让 stdin 关流，否则程序一直阻塞读不到末尾。**EOF 的发送键在不同系统/终端里不一样**：
 
 	\begin{itemize}
 		\item \textbf{macOS / Linux 真终端}：\texttt{Ctrl-D}（在空输入行上按）。
@@ -162,7 +162,7 @@ target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEA
 %
 %	\begin{itemize}
 %		\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
-%		\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
+%		\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\texttt{./a.out < in.txt}，或者直接用 heredoc：
 %
 %		\begin{minted}{bash}
 %./a.out << 'EOF'
