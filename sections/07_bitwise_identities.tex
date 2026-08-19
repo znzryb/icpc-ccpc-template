@@ -50,9 +50,31 @@
 		$$\operatorname{lowbit}(a) = a \mathbin{\&} ((\operatorname{NOT} a) + 1) = a \mathbin{\&} (-a)$$
 		\textbf{意义解释}：由于计算机中负数采用补码表示，$-a$ 等价于 $\operatorname{NOT} a + 1$。将 $a$ 按位取反后，原来最低位的 $1$ 变成了 $0$，其右侧的所有 $0$ 都变成了 $1$。此时再加 $1$，会导致进位一直传递，直到遇到那个变为了 $0$ 的原始最低位，将其变回 $1$，且进位停止。因此，原来最低位的 $1$ 及其右侧的所有位在 $-a$ 中与在 $a$ 中完全相同，而更高位则全部相反。取按位与后，就只剩下了最低位的 $1$。
 
-		\subsection{去除最低位的 $1$}
+		\subsection[\tochl{去除最低位的 $1$}]{去除最低位的 $1$}
 		$$a \mathbin{\&} (a - 1) = a - \operatorname{lowbit}(a)$$
 		\textbf{意义解释}：将 $a$ 减去 $1$，相当于把 $a$ 中最低位的 $1$ 变成 $0$，并将该位右侧所有的 $0$ 变成 $1$。更高位保持不变。因此 $a$ 和 $a - 1$ 在最低位 $1$ 的左侧完全相同，但在最低位 $1$ 及其右侧的位全都不一致。进行按位与操作后，最低位 $1$ 及其右侧被清零，达到了去除最低位 $1$ 的效果。
+
+		其实 \texttt{x-lowbit(x)} 去除这个最低位更好用，\texttt{__lg(lowbit(x))}, 这个获得这个最低位 1 编号（0-based）也很好用。
+
+		如果要获得最低位 0 编号，取反一下即可，注意不要使用这个 \texttt{signed}，\texttt{signed} 类型取反以后是负数。
+		\begin{minted}{cpp}
+int i = __lg(lowbit(rev_s));
+int rest = rev_s - lowbit(rev_s);
+for (int j = rest; j; j -= lowbit(j)) {
+	int jb = __lg(lowbit(j));
+	for (int k = j - lowbit(j); k; k -= lowbit(k)) {
+		int kb = __lg(lowbit(k));
+		ll val = maze[i][jb];
+		val += maze[i][kb];
+		val += maze[jb][kb];
+		int to_sta = sta;
+		to_sta |= 1 << i;
+		to_sta |= 1 << jb;
+		to_sta |= 1 << kb;
+		dp[to_sta] = max(dp[to_sta], dp[sta] + val);
+	}
+}
+		\end{minted}
 
 		\subsection{连续异或前缀和}
 		定义 $F(n) = 0 \oplus 1 \oplus 2 \oplus \cdots \oplus n$，则 $F(n)$ 以 $4$ 为周期循环：

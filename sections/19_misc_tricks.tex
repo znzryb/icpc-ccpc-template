@@ -7,6 +7,12 @@
 	\subsection[\tochl{快读快写}]{快读快写}
 	下面这个模板来自 wida 的 GitHub 仓库并补充了一些功能，适合需要高性能读写的场景。
 
+	一般使用快读以后，就选择这个重定向输入从这个输入文件啊。Clion 即便 SendEOF 了，有可能也会无法输出这个这个 stdout。
+
+	\begin{center}
+		\includegraphics[width=\linewidth]{image/Clion-从文件重定向输入}
+	\end{center}
+
 	\begin{minted}{cpp}
 // 来自wida github仓库 https://github.com/hh2048/XCPC/tree/main 加了一些新功能
 //46 ms https://acm.hdu.edu.cn/contest/view-code?cid=1179&rid=14912 读入字符getc(a) 的AC记录

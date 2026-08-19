@@ -155,22 +155,22 @@ target_compile_options(odt_callback_bench PRIVATE "SHELL:${CMAKE_CXX_FLAGS_RELEA
 		\item \textbf{macOS / Linux 真终端}：\texttt{Ctrl-D}（在空输入行上按）。
 		\item \textbf{Windows \texttt{cmd} / PowerShell}：\texttt{Ctrl-Z} 后按 \texttt{Enter}。
 		\item \textbf{WSL / Git Bash on Windows}：\texttt{Ctrl-D}（同 Unix）。
-		\item \textbf{CLion / VSCode Run 控制台}：跟底层 shell 走，mac/Linux $\Rightarrow$ \texttt{Ctrl-D}，Windows $\Rightarrow$ \texttt{Ctrl-Z}+\texttt{Enter}。
+		\item \textbf{CLion / VSCode Run 控制台}：看 Clion KeyMap SendEOF，mac/Linux $\Rightarrow$ \texttt{Cmd-D} \texttt{Ctrl-D}，Windows $\Rightarrow$ \texttt{Ctrl-Z}+\texttt{Enter}。
 	\end{itemize}
-
-	\textbf{两个坑}：
-
-	\begin{itemize}
-		\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
-		\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
-
-		\begin{minted}{bash}
-./a.out << 'EOF'
-3
-1 2 3
-EOF
-		\end{minted}
-	\end{itemize}
+%
+%	\textbf{两个坑}：
+%
+%	\begin{itemize}
+%		\item \texttt{Ctrl-D} 只有在\textbf{空输入行}上才发 EOF；当前行已经敲了字符时，\texttt{Ctrl-D} 只把缓冲 flush 一次，要再按一次才真关流。
+%		\item CLion / VSCode 内嵌的 Run / Debug 控制台不是真 TTY，有的版本不响应 \texttt{Ctrl-D}——这时改用文件重定向喂输入：\mintinline{bash}{./a.out < in.txt}，或者直接用 heredoc：
+%
+%		\begin{minted}{bash}
+%./a.out << 'EOF'
+%3
+%1 2 3
+%EOF
+%		\end{minted}
+%	\end{itemize}
 
 \end{multicols*} % 结束双栏
 
