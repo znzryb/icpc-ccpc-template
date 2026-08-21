@@ -142,7 +142,886 @@ vector<ll> c = multiply(a, b);
 
 		分治 FFT 可以加速多项式多点求值、多点插值等操作，核心都是递归地调用 \texttt{multiply} 合并子问题的结果多项式。
 
-	\end{multicols*} % 线性规划一节改用单栏：字典表代码行较长，双栏会频繁折行
+	\end{multicols*} % 从这里起改用单栏：多项式与线性规划的代码行都较长，双栏会频繁折行
+
+		\subsection{NTT 卷积（ac-library 精简移植）}
+
+		\href{https://www.luogu.com.cn/problem/P3803}{洛谷 P3803 多项式乘法} \\
+
+		上一节的复数 FFT 只能算整数卷积，一旦要在模 $998244353$ 意义下做多项式运算就得换成
+		NTT。本节直接移植 \href{https://github.com/atcoder/ac-library}{ac-library} 的
+		\texttt{convolution.hpp}，它是目前公开实现里常数最小的一档，理由有三：
+
+		\begin{itemize}
+			\item \textbf{radix-4 蝶形}：一次推进两层，乘法次数比常见的 radix-2 少约三成；
+			\item \textbf{不需要位逆序置换数组}：正变换故意把结果留在位逆序上，逆变换再吃回去，
+			      于是那个 \texttt{rev} 数组和它的预处理全都省掉了；
+			\item \textbf{小规模自动降级}：短的一侧不超过 $60$ 时直接朴素乘，
+			      避开两次变换的固定开销——多项式求逆、\texttt{exp} 这类倍增算法
+			      会反复在很短的长度上调用卷积，这个降级的收益比想象中大。
+		\end{itemize}
+
+		\textbf{代价是 \texttt{butterfly} 的输出不是自然序}。只做点乘的场景
+		（卷积、转置卷积、多点求值）完全不受影响；但如果哪天想在频域上「按下标做事」
+		（比如手动取某一位的单位根），必须先想清楚下标已经被位逆序打乱了。
+
+		\textbf{模数与原根}：NTT 要求模数形如 $c \cdot 2^k + 1$，且 $2^k$ 不小于变换长度。
+		常用的几个如下（\texttt{rk} 即 $k$，决定了最长能做多长）：
+
+		\begin{center}
+		\begin{tabular}{rrrl}
+			\hline
+			模数 & 原根 & \texttt{rk} & 备注 \\
+			\hline
+			$998244353$   & $3$  & $23$ & 最常用，$= 119 \cdot 2^{23} + 1$ \\
+			$1004535809   $ & $3$  & $21$ & 备用，与上者互质 \\
+			$167772161$   & $3$  & $25$ & 三模数之一 \\
+			$469762049$   & $3$  & $26$ & 三模数之一 \\
+			$754974721$   & $\mathbf{11}$ & $24$ & 三模数之一，\textbf{原根不是 3} \\
+			$2281701377$  & $3$  & $27$ & 超 \texttt{int} 范围，乘法要用 \texttt{\_\_int128} \\
+			\hline
+		\end{tabular}
+		\end{center}
+
+		最后一行的坑很值得记：$754974721$ 的原根是 $11$，抄板子时顺手写成 $3$，
+		单模数的题照样能过（因为根本没用到它），一上三模数就会 WA 到怀疑人生。
+		所以下面的模板把原根做成了\textbf{编译期自动求解}的默认模板参数，
+		换模数时不用查表，也就没有写错的机会。
+
+		\begin{minted}{cpp}
+// ===== NTT 卷积：ac-library atcoder/convolution.hpp 精简移植 =====
+// 参考（抄的） https://github.com/atcoder/ac-library/blob/master/atcoder/convolution.hpp
+// 模板题 https://www.luogu.com.cn/problem/P3803
+// 编译期快速幂 + 最小原根：换模数时不用查表，也就不会写错原根
+constexpr ull powConst(ull b, ull e, ull m) {
+    ull r = 1;
+    for (b %= m; e; e >>= 1, b = b * b % m)
+        if (e & 1) r = r * b % m;
+    return r;
+}
+constexpr uint32_t primitiveRoot(uint32_t m) {
+    uint32_t divs[20] = {2}, x = (m - 1) / 2;
+    int cnt = 1;
+    while (x % 2 == 0) x /= 2;
+    for (uint32_t i = 3; (ull)i * i <= x; i += 2)
+        if (x % i == 0) {
+            divs[cnt++] = i;
+            while (x % i == 0) x /= i;
+        }
+    if (x > 1) divs[cnt++] = x;
+    for (uint32_t g = 2;; g++) {
+        bool ok = true;
+        for (int i = 0; i < cnt && ok; i++)
+            ok = powConst(g, (m - 1) / divs[i], m) != 1;
+        if (ok) return g;
+    }
+}
+
+// MOD 必须形如 c * 2^k + 1（k 要够大），G 默认取最小原根
+template <uint32_t MOD, uint32_t G = primitiveRoot(MOD)>
+struct NTT {
+    using mint = modint<uint32_t, MOD>;
+    static constexpr int rk = __builtin_ctz(MOD - 1);   // 最长支持 2^rk
+    struct Info {
+        mint root[rk + 1], iroot[rk + 1];               // root[i]^(2^i) == 1
+        mint rate2[rk - 1], irate2[rk - 1];
+        mint rate3[rk - 2], irate3[rk - 2];
+        Info() {
+            root[rk] = mint::powmod(mint(G), (MOD - 1) >> rk);
+            iroot[rk] = mint::inv(root[rk]);
+            for (int i = rk - 1; i >= 0; i--) {
+                root[i] = root[i + 1] * root[i + 1];
+                iroot[i] = iroot[i + 1] * iroot[i + 1];
+            }
+            mint prod = 1, iprod = 1;
+            for (int i = 0; i + 2 <= rk; i++) {
+                rate2[i] = root[i + 2] * prod;
+                irate2[i] = iroot[i + 2] * iprod;
+                prod *= iroot[i + 2], iprod *= root[i + 2];
+            }
+            prod = 1, iprod = 1;
+            for (int i = 0; i + 3 <= rk; i++) {
+                rate3[i] = root[i + 3] * prod;
+                irate3[i] = iroot[i + 3] * iprod;
+                prod *= iroot[i + 3], iprod *= root[i + 3];
+            }
+        }
+    };
+    static const Info &info() { static Info x; return x; }
+
+    // 正变换：一次推两层（radix-4），出来是位逆序，因此不需要 rev 置换数组
+    static void butterfly(vector<mint> &a) {
+        const Info &w = info();
+        int n = a.size(), h = __builtin_ctz((unsigned)n), len = 0;
+        while (len < h) {
+            if (h - len == 1) {                       // 只剩一层，走 radix-2
+                int p = 1 << (h - len - 1);
+                mint rot = 1;
+                for (int s = 0; s < (1 << len); s++) {
+                    int off = s << (h - len);
+                    for (int i = 0; i < p; i++) {
+                        mint l = a[i + off], r = a[i + off + p] * rot;
+                        a[i + off] = l + r, a[i + off + p] = l - r;
+                    }
+                    if (s + 1 != (1 << len))
+                        rot *= w.rate2[__builtin_ctz(~(unsigned)s)];
+                }
+                len++;
+            } else {                                  // radix-4
+                int p = 1 << (h - len - 2);
+                mint rot = 1, imag = w.root[2];
+                for (int s = 0; s < (1 << len); s++) {
+                    mint rot2 = rot * rot, rot3 = rot2 * rot;
+                    int off = s << (h - len);
+                    for (int i = 0; i < p; i++) {
+                        ull m2 = (ull)MOD * MOD;
+                        ull a0 = a[i + off].val();
+                        ull a1 = (ull)a[i + off + p].val() * rot.val();
+                        ull a2 = (ull)a[i + off + 2 * p].val() * rot2.val();
+                        ull a3 = (ull)a[i + off + 3 * p].val() * rot3.val();
+                        ull t = (ull)mint(a1 + m2 - a3).val() * imag.val();
+                        ull na2 = m2 - a2;
+                        a[i + off] = a0 + a2 + a1 + a3;
+                        a[i + off + p] = a0 + a2 + (2 * m2 - (a1 + a3));
+                        a[i + off + 2 * p] = a0 + na2 + t;
+                        a[i + off + 3 * p] = a0 + na2 + (m2 - t);
+                    }
+                    if (s + 1 != (1 << len))
+                        rot *= w.rate3[__builtin_ctz(~(unsigned)s)];
+                }
+                len += 2;
+            }
+        }
+    }
+    // 逆变换：吃位逆序输入，还原自然序（未除以 n，交给 conv 统一处理）
+    static void butterflyInv(vector<mint> &a) {
+        const Info &w = info();
+        int n = a.size(), h = __builtin_ctz((unsigned)n), len = h;
+        while (len) {
+            if (len == 1) {
+                int p = 1 << (h - len);
+                mint irot = 1;
+                for (int s = 0; s < (1 << (len - 1)); s++) {
+                    int off = s << (h - len + 1);
+                    for (int i = 0; i < p; i++) {
+                        mint l = a[i + off], r = a[i + off + p];
+                        a[i + off] = l + r;
+                        a[i + off + p] =
+                            (ull)((uint32_t)(l.val() - r.val()) + MOD) * irot.val();
+                    }
+                    if (s + 1 != (1 << (len - 1)))
+                        irot *= w.irate2[__builtin_ctz(~(unsigned)s)];
+                }
+                len--;
+            } else {
+                int p = 1 << (h - len);
+                mint irot = 1, iimag = w.iroot[2];
+                for (int s = 0; s < (1 << (len - 2)); s++) {
+                    mint irot2 = irot * irot, irot3 = irot2 * irot;
+                    int off = s << (h - len + 2);
+                    for (int i = 0; i < p; i++) {
+                        ull a0 = a[i + off].val(), a1 = a[i + off + p].val();
+                        ull a2 = a[i + off + 2 * p].val();
+                        ull a3 = a[i + off + 3 * p].val();
+                        ull t = mint((MOD + a2 - a3) * iimag.val()).val();
+                        a[i + off] = a0 + a1 + a2 + a3;
+                        a[i + off + p] = (a0 + (MOD - a1) + t) * irot.val();
+                        a[i + off + 2 * p] =
+                            (a0 + a1 + (MOD - a2) + (MOD - a3)) * irot2.val();
+                        a[i + off + 3 * p] =
+                            (a0 + (MOD - a1) + (MOD - t)) * irot3.val();
+                    }
+                    if (s + 1 != (1 << (len - 2)))
+                        irot *= w.irate3[__builtin_ctz(~(unsigned)s)];
+                }
+                len -= 2;
+            }
+        }
+    }
+    static vector<mint> naive(const vector<mint> &a, const vector<mint> &b) {
+        vector<mint> c(a.size() + b.size() - 1);
+        for (size_t i = 0; i < a.size(); i++)
+            for (size_t j = 0; j < b.size(); j++) c[i + j] += a[i] * b[j];
+        return c;
+    }
+    // 短的一侧不超过 60 时直接朴素乘，省掉两次变换的常数
+    static vector<mint> conv(vector<mint> a, vector<mint> b) {
+        int n = a.size(), m = b.size();
+        if (!n || !m) return {};
+        if (min(n, m) <= 60) return naive(a, b);
+        int z = 1;
+        while (z < n + m - 1) z <<= 1;
+        assert((MOD - 1) % z == 0);   // 长度超过 2^rk：换模数或走三模数版本
+        a.resize(z), b.resize(z);
+        butterfly(a), butterfly(b);
+        for (int i = 0; i < z; i++) a[i] *= b[i];
+        butterflyInv(a);
+        a.resize(n + m - 1);
+        mint iz = mint::inv(mint(z));
+        for (auto &x : a) x *= iz;
+        return a;
+    }
+};
+
+constexpr uint32_t P = 998244353;   // 原根 3，rk = 23（最长做到 2^23）
+using Z = modint<uint32_t, P>;
+vector<Z> convolution(const vector<Z> &a, const vector<Z> &b) {
+    return NTT<P>::conv(a, b);
+}
+		\end{minted}
+
+		\textbf{用法}：\texttt{convolution(a, b)} 返回 $c_k = \sum_{i+j=k} a_i b_j$，
+		长度是 \texttt{a.size() + b.size() - 1}。依赖基础数学一章的自动取模类 \texttt{modint}。
+
+		\begin{minted}{cpp}
+vector<Z> a{1, 2, 3}, b{4, 5};       // (1+2x+3x^2)(4+5x)
+vector<Z> c = convolution(a, b);     // c = {4, 13, 22, 15}
+// 换模数只要改这两行，原根会自己算出来：
+// constexpr uint32_t P = 1004535809;
+// using Z = modint<uint32_t, P>;
+		\end{minted}
+
+		\subsection{多项式全家桶（Poly）}
+
+		把系数数组包成一个继承自 \texttt{vector<Z>} 的结构体，所有操作都建立在上面那个
+		\texttt{convolution} 之上。约定：下标即次数，\texttt{f[0]} 是常数项；
+		所有带参数 \texttt{m} 的运算都只保证\textbf{前 $m$ 项正确}
+		（幂级数运算本来就是在 $\bmod\ x^m$ 意义下做的）。
+
+		\textbf{基础部分}：取前 $k$ 项、平移、加减、数乘、求导、积分。
+		\texttt{get(i)} 越界返回 $0$，这样加减法不用先对齐长度。
+
+		\begin{minted}{cpp}
+// ===== 多项式全家桶：系数下标从低到高，f = a[0] + a[1] x + a[2] x^2 + ... =====
+struct Poly : vector<Z> {
+    using vector<Z>::vector;
+    Poly(const vector<Z> &a) : vector<Z>(a) {}
+    Z get(int i) const { return i < 0 || i >= (int)size() ? Z(0) : (*this)[i]; }
+    int deg() const {              // 最高非零次数，零多项式返回 -1
+        int i = (int)size() - 1;
+        while (i >= 0 && (*this)[i] == Z(0)) i--;
+        return i;
+    }
+    Poly &norm() { resize(deg() + 1); return *this; }
+    Poly trunc(int k) const {      // 取前 k 项，不足补零
+        Poly f = *this;
+        f.resize(k);
+        return f;
+    }
+    Poly shift(int k) const {      // 乘上 x^k，k 为负则右移（丢掉低位）
+        if (k >= 0) {
+            Poly f = *this;
+            f.insert(f.begin(), k, Z(0));
+            return f;
+        }
+        if ((int)size() <= -k) return Poly();
+        return Poly(begin() - k, end());
+    }
+    friend Poly operator+(const Poly &a, const Poly &b) {
+        Poly c(max(a.size(), b.size()));
+        for (int i = 0; i < (int)c.size(); i++) c[i] = a.get(i) + b.get(i);
+        return c;
+    }
+    friend Poly operator-(const Poly &a, const Poly &b) {
+        Poly c(max(a.size(), b.size()));
+        for (int i = 0; i < (int)c.size(); i++) c[i] = a.get(i) - b.get(i);
+        return c;
+    }
+    friend Poly operator-(const Poly &a) {
+        Poly c = a;
+        for (auto &x : c) x = -x;
+        return c;
+    }
+    friend Poly operator*(const Poly &a, Z k) {
+        Poly c = a;
+        for (auto &x : c) x *= k;
+        return c;
+    }
+    friend Poly operator*(Z k, const Poly &a) { return a * k; }
+    friend Poly operator*(const Poly &a, const Poly &b) {
+        return Poly(convolution(a, b));
+    }
+    Poly &operator+=(const Poly &b) { return *this = *this + b; }
+    Poly &operator-=(const Poly &b) { return *this = *this - b; }
+    Poly &operator*=(const Poly &b) { return *this = *this * b; }
+    Poly &operator*=(Z k) { return *this = *this * k; }
+		\end{minted}
+
+		\textbf{牛顿迭代五件套}。它们的骨架是同一个：设已经求出 $\bmod\ x^k$ 的解 $x_0$，
+		要把精度翻倍到 $\bmod\ x^{2k}$，就对方程 $G(x) = 0$ 做一步牛顿法
+		$$x \equiv x_0 - \frac{G(x_0)}{G'(x_0)} \pmod{x^{2k}}.$$
+		代入不同的 $G$ 就得到不同的运算：求逆取 $G(x) = 1/x - f$，
+		开方取 $G(x) = x^2 - f$。因为每一步的规模翻倍，总复杂度是
+		$T(n) = T(n/2) + O(n\log n) = O(n\log n)$——\textbf{和一次卷积同阶}，
+		这也是为什么多项式科技能在 $10^5$ 级别的题上跑得动。
+
+		\begin{minted}{cpp}
+    Poly deriv() const {           // 求导
+        if (empty()) return Poly();
+        Poly f(size() - 1);
+        for (int i = 1; i < (int)size(); i++) f[i - 1] = (*this)[i] * Z(i);
+        return f;
+    }
+    Poly integr() const {          // 积分，常数项取 0
+        Poly f(size() + 1);
+        for (int i = 0; i < (int)size(); i++) f[i + 1] = (*this)[i] / Z(i + 1);
+        return f;
+    }
+    // 乘法逆，要求 a[0] != 0    模板题 https://www.luogu.com.cn/problem/P4238
+    Poly inv(int m) const {
+        Poly x{Z::inv((*this)[0])};
+        for (int k = 1; k < m; k <<= 1)
+            x = (x * (Poly{Z(2)} - trunc(k << 1) * x)).trunc(k << 1);
+        return x.trunc(m);
+    }
+    // ln，要求 a[0] == 1        模板题 https://www.luogu.com.cn/problem/P4725
+    Poly log(int m) const { return (deriv() * inv(m)).integr().trunc(m); }
+    // exp，要求 a[0] == 0       模板题 https://www.luogu.com.cn/problem/P4726
+    Poly exp(int m) const {
+        Poly x{Z(1)};
+        for (int k = 1; k < m; k <<= 1)
+            x = (x * (Poly{Z(1)} - x.log(k << 1) + trunc(k << 1))).trunc(k << 1);
+        return x.trunc(m);
+    }
+    // 开方，这里只处理 a[0] == 1；a[0] 是别的二次剩余时先解出 sqrt(a[0]) 再整体缩放
+    // 模板题 https://www.luogu.com.cn/problem/P5205
+    Poly sqrt(int m) const {
+        Poly x{Z(1)};
+        Z inv2 = Z::inv(Z(2));
+        for (int k = 1; k < m; k <<= 1)
+            x = (x + (trunc(k << 1) * x.inv(k << 1)).trunc(k << 1)) * inv2;
+        return x.trunc(m);
+    }
+    // k 次幂，允许最低非零位不在 0 处、也允许 a[i] != 1
+    // 模板题 https://www.luogu.com.cn/problem/P5245
+    Poly pow(ll k, int m) const {
+        if (k == 0) { Poly r(m); if (m) r[0] = 1; return r; }
+        int i = 0;
+        while (i < (int)size() && (*this)[i] == Z(0)) i++;
+        if (i == (int)size() || (__int128)i * k >= m) return Poly(m);
+        Z v = (*this)[i];
+        Poly f = shift(-i) * Z::inv(v);
+        int rest = m - i * (int)k;
+        return (f.log(rest) * Z(k % (ll)P)).exp(rest).shift(i * (int)k)
+               * Z::powmod(v, k);
+    }
+		\end{minted}
+
+		\textbf{使用前提别记错}：\texttt{inv} 要 $f_0 \neq 0$；\texttt{log} 要 $f_0 = 1$
+		（否则 $\ln f$ 的常数项不存在）；\texttt{exp} 要 $f_0 = 0$
+		（否则 $e^{f}$ 的常数项是个超越数）；\texttt{sqrt} 这份只处理 $f_0 = 1$，
+		$f_0$ 是别的二次剩余时先用 Cipolla 解出 $\sqrt{f_0}$ 再整体缩放。
+		\texttt{pow} 已经处理好了「最低非零项不在 $0$ 次」的情况：先把 $x^i$ 提出来，
+		剩下的部分归一化成 $f_0 = 1$ 再走 $\exp(k \ln f)$。
+
+		\textbf{转置卷积与多点求值}。\texttt{mulT} 取 $f \cdot \operatorname{rev}(b)$ 的高位，
+		它算的是「相关」而不是卷积；多点求值就是拿它在分治树上把
+		$\prod (1 - x_i t)$ 一层层往下推，$O(n \log^2 n)$。
+
+		\begin{minted}{cpp}
+    // 转置卷积：取 (*this) * reverse(b) 的高位，多点求值的核心零件
+    Poly mulT(const Poly &b) const {
+        if (b.empty()) return Poly();
+        Poly c = b;
+        reverse(c.begin(), c.end());
+        return (*this * c).shift(-((int)b.size() - 1));
+    }
+    // 多点求值 O(n log^2 n)   模板题 https://www.luogu.com.cn/problem/P5050
+    vector<Z> eval(vector<Z> x) const {
+        if (empty()) return vector<Z>(x.size(), Z(0));
+        int n = max((int)x.size(), (int)size());
+        vector<Poly> q(n << 2);
+        vector<Z> ans(x.size());
+        x.resize(n);
+        auto build = [&](auto &self, int p, int l, int r) -> void {
+            if (r - l == 1) { q[p] = Poly{Z(1), -x[l]}; return; }
+            int m = (l + r) >> 1;
+            self(self, p << 1, l, m), self(self, p << 1 | 1, m, r);
+            q[p] = q[p << 1] * q[p << 1 | 1];
+        };
+        build(build, 1, 0, n);
+        auto work = [&](auto &self, int p, int l, int r, const Poly &f) -> void {
+            if (r - l == 1) { if (l < (int)ans.size()) ans[l] = f.get(0); return; }
+            int m = (l + r) >> 1;
+            self(self, p << 1, l, m, f.mulT(q[p << 1 | 1]).trunc(m - l));
+            self(self, p << 1 | 1, m, r, f.mulT(q[p << 1]).trunc(r - m));
+        };
+        work(work, 1, 0, n, mulT(q[1].inv(n)));
+        return ans;
+    }
+};
+		\end{minted}
+
+		\textbf{带余除法}。设 $\deg f = n$、$\deg g = m$，令 $f^R$ 表示系数翻转，
+		由 $f = qg + r$ 两边翻转可得
+		$$f^R \equiv q^R g^R \pmod{x^{n-m+1}},$$
+		于是 $q^R = f^R \cdot (g^R)^{-1} \bmod x^{n-m+1}$，再翻回去、回代求 $r$。
+
+		\begin{minted}{cpp}
+// 带余除法 f = q * g + r，deg(r) < deg(g)
+// 模板题 https://www.luogu.com.cn/problem/P4512
+pair<Poly, Poly> divmod(Poly f, Poly g) {
+    int n = f.deg(), m = g.deg();
+    f.norm(), g.norm();
+    if (n < m) return {Poly(), f};
+    Poly fr = f, gr = g;
+    reverse(fr.begin(), fr.end()), reverse(gr.begin(), gr.end());
+    Poly q = (fr.trunc(n - m + 1) * gr.inv(n - m + 1)).trunc(n - m + 1);
+    reverse(q.begin(), q.end());
+    Poly r = (f - q * g).trunc(max(m, 1));
+    return {q.norm(), r.norm()};
+}
+		\end{minted}
+
+		\textbf{快速插值}是多点求值的对偶：给 $n$ 个点值还原出 $n-1$ 次多项式。
+		记 $M(x) = \prod (x - x_i)$，则
+		$$f(x) = \sum_i \frac{y_i}{M'(x_i)} \prod_{j \neq i} (x - x_j),$$
+		分母那一堆 $M'(x_i)$ 用一次多点求值批量算出来，分子在分治树上自底向上合并。
+
+		\begin{minted}{cpp}
+// 快速插值：给 n 个点值还原 n-1 次多项式 O(n log^2 n)
+// 模板题 https://www.luogu.com.cn/problem/P5158
+Poly interpolate(const vector<Z> &x, const vector<Z> &y) {
+    int n = x.size();
+    vector<Poly> m(n << 2);
+    auto build = [&](auto &self, int p, int l, int r) -> void {
+        if (r - l == 1) { m[p] = Poly{-x[l], Z(1)}; return; }
+        int mid = (l + r) >> 1;
+        self(self, p << 1, l, mid), self(self, p << 1 | 1, mid, r);
+        m[p] = m[p << 1] * m[p << 1 | 1];
+    };
+    build(build, 1, 0, n);
+    vector<Z> d = m[1].deriv().eval(x);      // d[i] = M'(x_i)
+    auto solve = [&](auto &self, int p, int l, int r) -> Poly {
+        if (r - l == 1) return Poly{y[l] / d[l]};
+        int mid = (l + r) >> 1;
+        return self(self, p << 1, l, mid) * m[p << 1 | 1]
+             + self(self, p << 1 | 1, mid, r) * m[p << 1];
+    };
+    return solve(solve, 1, 0, n);
+}
+		\end{minted}
+
+		\begin{center}
+		\begin{tabular}{lll}
+			\hline
+			操作 & 复杂度 & 模板题 \\
+			\hline
+			\texttt{operator*} & $O(n\log n)$ & P3803 \\
+			\texttt{inv} & $O(n\log n)$ & P4238 \\
+			\texttt{log} / \texttt{exp} & $O(n\log n)$ & P4725 / P4726 \\
+			\texttt{sqrt} & $O(n\log n)$ & P5205 \\
+			\texttt{pow} & $O(n\log n)$ & P5245 \\
+			\texttt{divmod} & $O(n\log n)$ & P4512 \\
+			\texttt{eval} & $O(n\log^2 n)$ & P5050 \\
+			\texttt{interpolate} & $O(n\log^2 n)$ & P5158 \\
+			\hline
+		\end{tabular}
+		\end{center}
+
+		\subsection{任意模数卷积（三模数 NTT + Garner）}
+
+		\href{https://www.luogu.com.cn/problem/P4245}{洛谷 P4245 任意模数多项式乘法} \\
+
+		题目给的模数是 $10^9+7$ 这类\textbf{不支持 NTT} 的数时，常见有两条路：
+
+		\begin{itemize}
+			\item \textbf{拆系数 FFT（MTT）}：把每个系数拆成 $a = a_1 \cdot 2^{15} + a_0$，
+			      做三到四次复数 FFT 再合并。代码短，但全程靠 \texttt{double} 的 53 位尾数硬扛，
+			      系数和长度一起上去就会掉精度，而且掉了不报错。
+			\item \textbf{三模数 NTT + Garner}：在三个 NTT 友好的模数下各算一遍，
+			      再用 CRT 把真值还原出来，最后对题目模数取模。
+			      \textbf{全程整数运算，没有精度问题}，代价是常数约为单次 NTT 的三倍。
+		\end{itemize}
+
+		这里取后者。三个模数的乘积约 $5.9 \times 10^{25}$，足够容纳
+		「长度 $10^6$、系数 $10^9$」量级卷积的真值（上界约 $10^{24}$）。
+
+		\begin{minted}{cpp}
+// ===== 任意模数 / 大整数卷积：三模数 NTT + Garner 合并 =====
+// 模板题 https://www.luogu.com.cn/problem/P4245
+// 三个模数乘积 ~5.9e25，足够容纳任意 int 系数、长度 1e6 级别的卷积真值
+// 注意原根各不相同（167772161 与 469762049 是 3，754974721 是 11），
+// 这里靠 primitiveRoot 编译期算出来，不必手写
+constexpr uint32_t M1 = 167772161, M2 = 469762049, M3 = 754974721;
+
+template <uint32_t MOD>
+vector<ll> convRaw(const vector<ll> &a, const vector<ll> &b) {
+    using mint = modint<uint32_t, MOD>;
+    vector<mint> A(a.size()), B(b.size());
+    for (size_t i = 0; i < a.size(); i++) A[i] = a[i];
+    for (size_t i = 0; i < b.size(); i++) B[i] = b[i];
+    auto C = NTT<MOD>::conv(A, B);
+    vector<ll> c(C.size());
+    for (size_t i = 0; i < C.size(); i++) c[i] = C[i].val();
+    return c;
+}
+
+// p > 0：结果对 p 取模，p 可以是 1e9+7 这种非 NTT 模数
+// p <= 0：不取模，要求真实值 < 2^63（否则请自行换成 __int128 返回）
+vector<ll> convolutionAnyMod(const vector<ll> &a, const vector<ll> &b, ll p) {
+    if (a.empty() || b.empty()) return {};
+    auto c1 = convRaw<M1>(a, b), c2 = convRaw<M2>(a, b), c3 = convRaw<M3>(a, b);
+    ll i12 = modint<uint32_t, M2>::inv(modint<uint32_t, M2>(M1)).val();
+    ll i3 = modint<uint32_t, M3>::inv(
+                modint<uint32_t, M3>((ll)((ull)M1 * M2 % M3))).val();
+    vector<ll> c(c1.size());
+    for (size_t i = 0; i < c1.size(); i++) {
+        ll k1 = (c2[i] - c1[i]) % (ll)M2 * i12 % (ll)M2;
+        if (k1 < 0) k1 += M2;
+        ll x12 = c1[i] + (ll)M1 * k1;                  // < M1*M2 ~ 7.9e16
+        ll k2 = (c3[i] - x12) % (ll)M3 * i3 % (ll)M3;
+        if (k2 < 0) k2 += M3;
+        __int128 x = (__int128)x12 + (__int128)M1 * M2 * k2;
+        c[i] = p > 0 ? (ll)(x % p) : (ll)x;
+    }
+    return c;
+}
+		\end{minted}
+
+		\textbf{两个用途}：\texttt{p > 0} 时是任意模数卷积；\texttt{p <= 0} 时不取模，
+		直接给出真实的整数结果（要求真值 $< 2^{63}$），可以当作\textbf{高精度乘法}
+		或「大整数卷积」用——比上一节的复数 FFT 版本精度可靠得多。
+
+		\subsection{分治 FFT}
+
+		\href{https://www.luogu.com.cn/problem/P4721}{洛谷 P4721 分治 FFT} \\
+
+		要解的是这类自指递推：$f_0$ 已知，且
+		$$f_i = \sum_{j=1}^{i} f_{i-j}\, g_j .$$
+		麻烦在于 $f$ 的每一项都依赖前面所有项，不能一次卷积算完。CDQ 分治的思路是
+		「先把左半边算对，再把左半边对右半边的贡献一次卷积推过去」。
+
+		\begin{minted}{cpp}
+// ===== 分治 FFT：f[0] 已知，f[i] = sum_{j=1..i} f[i-j] * g[j] =====
+// 模板题 https://www.luogu.com.cn/problem/P4721
+// 也可以直接写成 f = f0 / (1 - g)，即 Poly{1} - g 求逆，常数更小、代码更短
+vector<Z> divideConquerFFT(const vector<Z> &g, int n, Z f0 = 1) {
+    vector<Z> f(n);
+    if (!n) return f;
+    f[0] = f0;
+    auto cdq = [&](auto &self, int l, int r) -> void {
+        if (r - l == 1) return;
+        int m = (l + r) >> 1;
+        self(self, l, m);
+        vector<Z> a(f.begin() + l, f.begin() + m);
+        vector<Z> b(g.begin(), g.begin() + min((int)g.size(), r - l));
+        vector<Z> c = convolution(a, b);
+        for (int i = m; i < r; i++)
+            if (i - l < (int)c.size()) f[i] += c[i - l];
+        self(self, m, r);
+    };
+    cdq(cdq, 0, n);
+    return f;
+}
+		\end{minted}
+
+		\textbf{但更该记住的是它的等价形式}。把递推写成生成函数：
+		$F = F G + f_0$，于是
+		$$F = \frac{f_0}{1 - G}.$$
+		直接一次多项式求逆就完了，代码只有一行，常数还比分治小：
+
+		\begin{minted}{cpp}
+// 与 divideConquerFFT(g, n) 等价，但只需一次求逆
+Poly f = (Poly{Z(1)} - Poly(g)).inv(n) * f0;
+		\end{minted}
+
+		那还留着分治版做什么？因为\textbf{当 $g$ 本身依赖 $f$ 时（两个数列互相牵扯），
+		生成函数写不出封闭形式，分治仍然是唯一可行的写法}。
+		「先看看能不能写成求逆」应该是遇到这类递推的第一反应，写不成再退回分治。
+
+		\subsection{线性递推：Berlekamp-Massey 与 Bostan-Mori}
+
+		\href{https://www.luogu.com.cn/problem/P5487}{洛谷 P5487 BM} ·
+		\href{https://www.luogu.com.cn/problem/P4723}{洛谷 P4723 常系数线性递推} \\
+
+		这两个板子是一对，合起来能做一件很赖皮的事：
+		\textbf{打出前几十项，直接问第 $10^{18}$ 项是多少}。
+
+		\textbf{Berlekamp-Massey} 从一段数列里找出最短的线性递推式。经验口径：
+		若怀疑答案满足 $k$ 阶递推，喂给它至少 $2k$ 项（保险起见 $2k + 10$），
+		返回的系数 $c$ 满足 $s_i = \sum_j c_j\, s_{i-1-j}$。
+
+		\begin{minted}{cpp}
+// ===== Berlekamp-Massey：求最短线性递推式 O(n^2) =====
+// 模板题 https://www.luogu.com.cn/problem/P5487
+// 返回 c，满足 s[i] = sum_{j} c[j] * s[i-1-j]
+vector<Z> berlekampMassey(const vector<Z> &s) {
+    vector<Z> ls, cur;
+    int lf = 0;
+    Z ld = 0;
+    for (int i = 0; i < (int)s.size(); i++) {
+        Z t = 0;
+        for (int j = 0; j < (int)cur.size(); j++) t += cur[j] * s[i - 1 - j];
+        if (t == s[i]) continue;
+        if (cur.empty()) {                    // 还没有任何递推式
+            cur.resize(i + 1);
+            lf = i, ld = t - s[i];
+            continue;
+        }
+        Z k = (t - s[i]) / ld;
+        vector<Z> c(i - lf - 1);
+        c.push_back(k);
+        for (int j = 0; j < (int)ls.size(); j++) c.push_back(-ls[j] * k);
+        if (c.size() < cur.size()) c.resize(cur.size());
+        for (int j = 0; j < (int)cur.size(); j++) c[j] += cur[j];
+        if (i - (int)cur.size() > lf - (int)ls.size()) ls = cur, lf = i, ld = t - s[i];
+        cur = c;
+    }
+    return cur;
+}
+		\end{minted}
+
+		\textbf{Bostan-Mori} 求有理分式的第 $n$ 项系数 $[x^n]\dfrac{P(x)}{Q(x)}$。
+		核心恒等式是分母有理化：
+		$$\frac{P(x)}{Q(x)} = \frac{P(x)Q(-x)}{Q(x)Q(-x)},$$
+		右边的分母 $Q(x)Q(-x)$ 是 $x^2$ 的多项式，于是按 $n$ 的奇偶性抽取分子的
+		奇/偶次项，问题规模从 $n$ 降到 $n/2$，共 $O(\log n)$ 轮。
+
+		\begin{minted}{cpp}
+// ===== Bostan-Mori：求 [x^n] P(x)/Q(x)，O(k log k log n) =====
+Z bostanMori(Poly p, Poly q, ll n) {
+    while (n) {
+        Poly qm = q;                          // Q(-x)
+        for (int i = 1; i < (int)qm.size(); i += 2) qm[i] = -qm[i];
+        Poly u = p * qm, v = q * qm;          // V(x^2) = Q(x)Q(-x)，只剩偶次项
+        Poly np(u.size() / 2 + 1), nq(v.size() / 2 + 1);
+        for (int i = (int)(n & 1); i < (int)u.size(); i += 2) np[i >> 1] = u[i];
+        for (int i = 0; i < (int)v.size(); i += 2) nq[i >> 1] = v[i];
+        p = np, q = nq, n >>= 1;
+    }
+    return p.get(0) / q[0];
+}
+
+// 常系数齐次线性递推：给出前 k 项 a[0..k-1] 与系数 c（BM 的输出可直接喂进来），
+// 求 a[n]。模板题 https://www.luogu.com.cn/problem/P4723
+Z linearRecurrence(const vector<Z> &a, const vector<Z> &c, ll n) {
+    int k = c.size();
+    if (n < (ll)a.size()) return a[n];
+    Poly q(k + 1);
+    q[0] = 1;
+    for (int i = 0; i < k; i++) q[i + 1] = -c[i];
+    Poly p = (Poly(a) * q).trunc(k);
+    return bostanMori(p, q, n);
+}
+		\end{minted}
+
+		\textbf{典型用法}：矩阵快速幂只能做到 $O(k^3\log n)$，$k$ 一大就没救；
+		这套是 $O(k\log k\log n)$，$k = 10^4$、$n = 10^{18}$ 也能秒。
+
+		\begin{minted}{cpp}
+vector<Z> s = {1, 1, 2, 3, 5, 8, 13, 21};   // 打表出来的前几项
+vector<Z> c = berlekampMassey(s);           // c = {1, 1}，即 f[i]=f[i-1]+f[i-2]
+Z ans = linearRecurrence(s, c, 1000000000000000000LL);
+		\end{minted}
+
+		\subsection{拉格朗日插值}
+
+		\href{https://www.luogu.com.cn/problem/P4781}{洛谷 P4781 拉格朗日插值} \\
+
+		已知 $n$ 个点值求 $n-1$ 次多项式在某点的取值：
+		$$f(k) = \sum_{i} y_i \prod_{j \neq i} \frac{k - x_j}{x_i - x_j}.$$
+
+		\begin{minted}{cpp}
+// ===== 拉格朗日插值 =====
+// 任意 n 个点值求 f(k)，O(n^2)  模板题 https://www.luogu.com.cn/problem/P4781
+Z lagrange(const vector<Z> &x, const vector<Z> &y, Z k) {
+    int n = x.size();
+    Z ans = 0;
+    for (int i = 0; i < n; i++) {
+        Z num = y[i], den = 1;
+        for (int j = 0; j < n; j++)
+            if (j != i) num *= k - x[j], den *= x[i] - x[j];
+        ans += num / den;
+    }
+    return ans;
+}
+		\end{minted}
+
+		\textbf{横坐标取连续整数 $0,1,\dots,n-1$ 时能降到 $O(n)$}：分母是
+		$i!\,(n-1-i)!$ 带个符号，分子 $\prod_{j\neq i}(k-j)$ 用前后缀积。
+		这是竞赛里最常用的形态：
+
+		\begin{minted}{cpp}
+// 横坐标是 0,1,...,n-1 时可以做到 O(n)：前后缀积 + 阶乘逆元
+// 典型用途：自然数幂和 sum_{i=1..m} i^t 是 t+1 次多项式，取 t+2 个点值即可
+Z lagrangeConsecutive(const vector<Z> &y, ll k) {
+    int n = y.size();
+    if (k < n) return y[k];
+    vector<Z> pre(n + 1), suf(n + 1), fac(n), ifac(n);
+    pre[0] = suf[n] = 1;
+    for (int i = 0; i < n; i++) pre[i + 1] = pre[i] * (Z(k) - Z(i));
+    for (int i = n - 1; i >= 0; i--) suf[i] = suf[i + 1] * (Z(k) - Z(i));
+    fac[0] = 1;
+    for (int i = 1; i < n; i++) fac[i] = fac[i - 1] * Z(i);
+    ifac[n - 1] = Z::inv(fac[n - 1]);
+    for (int i = n - 1; i >= 1; i--) ifac[i - 1] = ifac[i] * Z(i);
+    Z ans = 0;
+    for (int i = 0; i < n; i++) {
+        Z t = y[i] * pre[i] * suf[i + 1] * ifac[i] * ifac[n - 1 - i];
+        ans += ((n - 1 - i) & 1) ? -t : t;
+    }
+    return ans;
+}
+		\end{minted}
+
+		\textbf{最典型的应用是自然数幂和}。$\sum_{i=1}^{m} i^t$ 关于 $m$ 是一个
+		$t+1$ 次多项式（可由伯努利数或差分法证），所以\textbf{只要暴力算出前 $t+2$ 个点值，
+		插值就能得到任意 $m$ 处的答案}，$m$ 可以大到 $10^{18}$：
+
+		\begin{minted}{cpp}
+// 求 sum_{i=1..m} i^t （t 很小，m 很大）
+vector<Z> y(t + 2);
+for (int i = 1; i <= t + 1; i++) y[i] = y[i - 1] + Z::powmod(Z(i), t);
+Z ans = lagrangeConsecutive(y, m);
+		\end{minted}
+
+		\subsection{FWT 与子集卷积}
+
+		\href{https://www.luogu.com.cn/problem/P4717}{洛谷 P4717 FWT} ·
+		\href{https://www.luogu.com.cn/problem/P6097}{洛谷 P6097 子集卷积} \\
+
+		FFT 处理的是\textbf{加法卷积} $c_k = \sum_{i+j=k} a_i b_j$；
+		把「$i+j$」换成位运算就是 FWT 的地盘：
+		$$c_k = \sum_{i \,\mathrm{op}\, j = k} a_i b_j, \qquad
+		  \mathrm{op} \in \{\,\mathrm{or},\ \mathrm{and},\ \mathrm{xor}\,\}.$$
+		三者的变换矩阵不同，但骨架完全一样：按位分治，每层把
+		$(a_j,\ a_{j+len})$ 换成两个线性组合。或卷积做的是子集和（高维前缀和），
+		与卷积是超集和，异或卷积则是每一位上的 $\pm$ 组合。
+
+		\begin{minted}{cpp}
+// ===== FWT：位运算卷积 =====
+// 模板题 https://www.luogu.com.cn/problem/P4717
+// type: 0 = 或(OR)  1 = 与(AND)  2 = 异或(XOR)；数组长度必须是 2 的幂
+void fwt(vector<Z> &a, int type, bool inv) {
+    int n = a.size();
+    for (int len = 1; len < n; len <<= 1)
+        for (int i = 0; i < n; i += len << 1)
+            for (int j = i; j < i + len; j++) {
+                Z u = a[j], v = a[j + len];
+                if (type == 0) a[j + len] = inv ? v - u : v + u;
+                else if (type == 1) a[j] = inv ? u - v : u + v;
+                else a[j] = u + v, a[j + len] = u - v;
+            }
+    if (type == 2 && inv) {
+        Z iv = Z::inv(Z(n));
+        for (auto &x : a) x *= iv;
+    }
+}
+
+vector<Z> bitwiseConv(vector<Z> a, vector<Z> b, int type) {
+    fwt(a, type, false), fwt(b, type, false);
+    for (size_t i = 0; i < a.size(); i++) a[i] *= b[i];
+    fwt(a, type, true);
+    return a;
+}
+		\end{minted}
+
+		\textbf{子集卷积}要求的是\textbf{不交并}：$c_S = \sum_{T \subseteq S} a_T\, b_{S\setminus T}$。
+		直接用或卷积会把 $T$ 与 $S\setminus T$ 有交的情况一起算进去。
+		经典的修补办法是\textbf{占位多项式}：给每个集合额外记一维 $\mathrm{popcount}$，
+		只有当 $|T| + |S \setminus T| = |S|$ 时才是真正的不交并，
+		于是在「或卷积」的基础上让这一维做加法卷积即可，复杂度 $O(n^2 2^n)$。
+
+		\begin{minted}{cpp}
+// ===== 子集卷积：c[S] = sum_{T subset S} a[T] * b[S\T]，O(n^2 2^n) =====
+// 模板题 https://www.luogu.com.cn/problem/P6097
+// 做法：给或卷积补一维「popcount」，占位后维度相加才是真正的不交并
+vector<Z> subsetConv(const vector<Z> &a, const vector<Z> &b, int n) {
+    int N = 1 << n;
+    vector<vector<Z>> fa(n + 1, vector<Z>(N)), fb(n + 1, vector<Z>(N));
+    vector<vector<Z>> fc(n + 1, vector<Z>(N));
+    for (int s = 0; s < N; s++) {
+        fa[__builtin_popcount(s)][s] = a[s];
+        fb[__builtin_popcount(s)][s] = b[s];
+    }
+    for (int i = 0; i <= n; i++) fwt(fa[i], 0, false), fwt(fb[i], 0, false);
+    for (int i = 0; i <= n; i++)
+        for (int j = 0; i + j <= n; j++)
+            for (int s = 0; s < N; s++) fc[i + j][s] += fa[i][s] * fb[j][s];
+    for (int i = 0; i <= n; i++) fwt(fc[i], 0, true);
+    vector<Z> c(N);
+    for (int s = 0; s < N; s++) c[s] = fc[__builtin_popcount(s)][s];
+    return c;
+}
+		\end{minted}
+
+		\subsection{生成函数常用结论}
+
+		代码只解决「算得快」，真正卡人的是\textbf{把计数问题翻译成幂级数}这一步。
+		这一节是给赛场上现查的对照表。
+
+		\textbf{两种生成函数}。普通型（OGF）与指数型（EGF）：
+		$$F(x) = \sum_{n \ge 0} a_n x^n, \qquad
+		  \hat F(x) = \sum_{n \ge 0} a_n \frac{x^n}{n!} .$$
+		选哪个取决于\textbf{对象之间有没有编号}：组合出来的结构\textbf{无标号}
+		（如整数拆分、括号串）用 OGF，因为两个 OGF 相乘正好是「左边取一部分、右边取一部分」；
+		\textbf{有标号}（如排列、带编号的图）用 EGF，因为
+		$$\hat F \hat G = \sum_n \left(\sum_{k} \binom{n}{k} f_k\, g_{n-k}\right)\frac{x^n}{n!}$$
+		里的 $\binom{n}{k}$ 恰好完成了「把 $n$ 个编号分给两边」这件事。
+
+		\textbf{OGF 常见封闭形式}：
+
+		\begin{itemize}
+			\item $\displaystyle \sum_{n\ge 0} x^n = \frac{1}{1-x}$，
+			      更一般地 $\displaystyle \sum_{n\ge 0} x^{kn} = \frac{1}{1-x^k}$
+			      （每种物品可取任意多个）；
+			\item $\displaystyle 1 + x + \cdots + x^{m-1} = \frac{1-x^m}{1-x}$
+			      （每种物品最多取 $m-1$ 个）；
+			\item $\displaystyle \sum_{n\ge 0}(n+1)x^n = \frac{1}{(1-x)^2}$，
+			      一般地 $\displaystyle \sum_{n \ge 0}\binom{n+m}{m}x^n = \frac{1}{(1-x)^{m+1}}$；
+			\item $\displaystyle \sum_{n\ge 0}\binom{m}{n}x^n = (1+x)^m$（二项式定理）；
+			\item \textbf{广义二项式定理}：对任意实数 $\alpha$，
+			      $\displaystyle (1+x)^{\alpha} = \sum_{n \ge 0}\binom{\alpha}{n}x^n$，
+			      其中 $\binom{\alpha}{n} = \dfrac{\alpha(\alpha-1)\cdots(\alpha-n+1)}{n!}$；
+			\item $\displaystyle \sum_{n \ge 1}\frac{x^n}{n} = -\ln(1-x)$；
+			\item \textbf{斐波那契}：$\displaystyle \sum_{n\ge0}F_n x^n
+			      = \frac{(F_1-F_0)x + F_0}{1-x-x^2}$
+			      （由 $G = xG + x^2G + (F_1-F_0)x + F_0$ 解出）；
+			\item \textbf{卡特兰数}：$\displaystyle \sum_{n\ge0}C_n x^n
+			      = \frac{1-\sqrt{1-4x}}{2x}$（由 $C = xC^2 + 1$ 解出）；
+			\item \textbf{前缀和算子}：若 $s_n = \sum_{i\le n} a_i$，则
+			      $\displaystyle S(x) = \frac{F(x)}{1-x}$；乘 $1-x$ 就是差分；
+			\item \textbf{五边形数定理}：$\displaystyle \prod_{i\ge1}(1-x^i)
+			      = \sum_{k\in\mathbb{Z}}(-1)^k x^{k(3k-1)/2}$。
+			      分拆数 $p(n)$ 的 OGF 是它的倒数 $\prod (1-x^i)^{-1}$，
+			      于是 $p(n)$ 可以用这个只有 $O(\sqrt n)$ 项的稀疏级数
+			      在 $O(n\sqrt n)$ 内递推，不需要多项式求逆。
+		\end{itemize}
+
+		\textbf{EGF 与 $\exp$ 的组合意义}。这是 EGF 最有威力的地方：
+		$$\hat F = \exp \hat P \iff
+		  \text{「}F\text{ 是若干个无序的 }P\text{ 拼起来」}.$$
+		直观理解是 $\exp \hat P = \sum_k \hat P^k / k!$：取 $k$ 个 $P$ 结构，
+		除以 $k!$ 消掉它们之间的顺序。反过来取 $\ln$ 就是「从任意结构里剥出连通结构」。
+		由此可得一串对偶：
+
+		\begin{itemize}
+			\item $\displaystyle \sum_{n\ge0}\frac{x^n}{n!} = e^x$（每个元素只有一种选择）；
+			\item 长度为 $n$ 的\textbf{轮换}有 $(n-1)!$ 种，
+			      $\displaystyle \hat P = \sum_{n\ge1}\frac{x^n}{n} = -\ln(1-x)$；
+			      而排列是若干轮换的无序拼接，故排列数的 EGF
+			      $\displaystyle \exp\hat P = \frac{1}{1-x}$，即 $n!$，自洽；
+			\item 限定轮换长度 $\ge 2$（即无不动点）得 \textbf{错排}：
+			      $\hat P = -\ln(1-x) - x$，错排数的 EGF 为
+			      $\displaystyle \exp\hat P = \frac{e^{-x}}{1-x}$；
+			\item $n$ 个点的\textbf{有标号无向图}有 $2^{\binom n2}$ 个，其 EGF 记为 $\hat G$；
+			      \textbf{连通图}的 EGF 就是 $\ln \hat G$——
+			      这是「连通图计数」标准做法的全部内容；
+			\item $n$ 个点的\textbf{有标号树}有 $n^{n-2}$ 个（Cayley 公式），
+			      森林的 EGF 即 $\exp$ 掉它。
+		\end{itemize}
+
+		\textbf{单位根反演}。要从卷积结果里只取下标为 $k$ 倍数的项：
+		$$[k \mid n] = \frac{1}{k}\sum_{j=0}^{k-1}\omega_k^{jn},
+		  \qquad \omega_k = e^{2\pi i/k}\ \ (\text{模意义下取 } g^{(p-1)/k}).$$
+		于是 $\displaystyle \sum_{k \mid n} a_n = \frac1k \sum_{j=0}^{k-1} F(\omega_k^j)$。
+		$k$ 很小（$2$、$3$、$4$）时这招最好使，常见于「计数模 $k$ 余 $r$ 的方案」。
+
+		\textbf{解题套路}：把「每个物品能选多少个」写成一个多项式，
+		所有物品的多项式\textbf{相乘}就是总方案的生成函数；
+		若干个同类物品用 $\exp$（EGF，无序）或 $\frac{1}{1-x^k}$（OGF）合并；
+		最后要么化成封闭形式直接展开，要么用本章的多项式全家桶把它算出来。
 
 		\subsection{线性规划（两阶段单纯形 Simplex）}
 
