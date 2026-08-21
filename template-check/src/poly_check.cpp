@@ -617,6 +617,20 @@ vector<Z> subsetConv(const vector<Z> &a, const vector<Z> &b, int n) {
     return c;
 }
 
+// ===== 拉格朗日反演：由 F 直接取出它复合逆 G 的某一项系数 =====
+// F(G(x)) = x，要求 F[0] = 0 且 F[1] != 0
+// 模板题 https://www.luogu.com.cn/problem/P5825 （常用于 GF 只写得出方程的场合）
+// [x^n] G = (1/n) [x^{n-1}] (x / F(x))^n
+Z lagrangeInversion(const Poly &f, int n) {
+    Poly t = f.shift(-1).inv(n);            // t = x / F(x)
+    return t.pow(n, n).get(n - 1) / Z(n);
+}
+// 扩展形式：[x^n] H(G(x)) = (1/n) [x^{n-1}] H'(x) (x / F(x))^n
+Z lagrangeInversion(const Poly &f, const Poly &h, int n) {
+    Poly t = f.shift(-1).inv(n);
+    return (h.deriv() * t.pow(n, n)).get(n - 1) / Z(n);
+}
+
 // ======== 以下是测试代码，不属于模板正文 ========
 mt19937_64 rng(20260821);
 Z rnd() { return Z((ll)(rng() % P)); }
@@ -849,7 +863,24 @@ void testMisc() {
             if (got[i] != want[i]) { puts("FAIL subsetConv"); exit(1); }
     }
     
-    puts("  [ok] 任意模数卷积 / 分治 FFT / BM + Bostan-Mori / 拉插 / FWT / 子集卷积");
+    // 拉格朗日反演：F = x - x^2 的复合逆是 sum Catalan(n-1) x^n
+    {
+        Poly f{Z(0), Z(1), Z(-1)};
+        vector<Z> cat(60);
+        cat[0] = 1;
+        for (int i = 1; i < 60; i++)
+            for (int j = 0; j < i; j++) cat[i] += cat[j] * cat[i - 1 - j];
+        for (int n = 1; n <= 40; n++) {
+            if (lagrangeInversion(f, n) != cat[n - 1]) {
+                printf("FAIL lagrangeInversion n=%d\n", n); exit(1);
+            }
+            // 扩展形式取 H(x) = x 应退化成上式
+            if (lagrangeInversion(f, Poly{Z(0), Z(1)}, n) != cat[n - 1]) {
+                printf("FAIL lagrangeInversion-ext n=%d\n", n); exit(1);
+            }
+        }
+    }
+    puts("  [ok] 任意模数卷积 / 分治 FFT / BM + Bostan-Mori / 拉插 / FWT / 子集卷积 / 拉格朗日反演");
 }
 
 int main() {

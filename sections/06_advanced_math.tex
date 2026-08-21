@@ -949,6 +949,47 @@ vector<Z> subsetConv(const vector<Z> &a, const vector<Z> &b, int n) {
 }
 		\end{minted}
 
+		\subsection{拉格朗日反演}
+
+		\href{https://www.luogu.com.cn/problem/P5825}{洛谷 P5825 排列计数}（典型应用） \\
+
+		生成函数题里经常出现这种局面：\textbf{$G$ 只满足一个方程、写不出封闭形式}，
+		但它的\textbf{复合逆} $F$（即 $F(G(x)) = x$）反而形式简单。
+		拉格朗日反演说，这时候不必真的把 $G$ 解出来：
+		\[
+			[x^n]\,G(x) = \frac1n\,[x^{n-1}]\left(\frac{x}{F(x)}\right)^{n},
+		\]
+		更常用的是带一个外层函数的扩展形式
+		\[
+			[x^n]\,H(G(x)) = \frac1n\,[x^{n-1}]\,H'(x)\left(\frac{x}{F(x)}\right)^{n}.
+		\]
+		成立条件是 $F_0 = 0$ 且 $F_1 \neq 0$（这正是复合逆存在的条件）。
+
+		\begin{minted}{cpp}
+// ===== 拉格朗日反演：由 F 直接取出它复合逆 G 的某一项系数 =====
+// F(G(x)) = x，要求 F[0] = 0 且 F[1] != 0
+// 模板题 https://www.luogu.com.cn/problem/P5825 （常用于 GF 只写得出方程的场合）
+// [x^n] G = (1/n) [x^{n-1}] (x / F(x))^n
+Z lagrangeInversion(const Poly &f, int n) {
+    Poly t = f.shift(-1).inv(n);            // t = x / F(x)
+    return t.pow(n, n).get(n - 1) / Z(n);
+}
+// 扩展形式：[x^n] H(G(x)) = (1/n) [x^{n-1}] H'(x) (x / F(x))^n
+Z lagrangeInversion(const Poly &f, const Poly &h, int n) {
+    Poly t = f.shift(-1).inv(n);
+    return (h.deriv() * t.pow(n, n)).get(n - 1) / Z(n);
+}
+		\end{minted}
+
+		\textbf{怎么用}：设未知的计数序列是 $G$，从组合意义列出它满足的方程
+		（常见形如 $G = x\,\Phi(G)$），把它改写成 $F(G) = x$ 的样子读出 $F$，
+		再套上面的式子。例如卡特兰数：由 $G = x + G^2$ 得 $F(x) = x - x^2$，于是
+		\[
+			[x^n]G = \frac1n [x^{n-1}](1-x)^{-n} = \frac1n\binom{2n-2}{n-1},
+		\]
+		正是 $C_{n-1}$。这条路子的价值在于：\textbf{哪怕 $\Phi$ 复杂到 $G$ 根本解不出来，
+		只要能写出 $F$，单点系数依然是 $O(n\log n)$ 可算的}。
+
 		\subsection{生成函数常用结论}
 
 		代码只解决「算得快」，真正卡人的是\textbf{把计数问题翻译成幂级数}这一步。
