@@ -387,5 +387,327 @@ void Solve(){
 
 		\textbf{用法}：说白了，从``最少链覆盖''翻到``最长子序列''，只是同时拨两个开关——\textcolor{blue}{\textbf{严格}}$\leftrightarrow$\textcolor{blue}{\textbf{非严格}}、\textcolor{blue}{\textbf{上升}}$\leftrightarrow$\textcolor{blue}{\textbf{下降}}，再套上面那个 \texttt{LIS} 即可。
 
+
+		\subsection{高精度大整数类}
+
+		\textbf{什么时候才用它}：答案必须\emph{精确}且超出 \texttt{\_\_int128} 的 $\approx 1.7 \times 10^{38}$。先按这个顺序排除——题目允许取模就取模、$10^{38}$ 以内直接上 \texttt{\_\_int128}（§14.1 有它的读写重载）、只是本地算个常数就用 Python（§18）。都不行，再搬这个类。
+
+		\textbf{实现}：$10^9$ 压位存进 \texttt{vector<int>}（低位在前），零的唯一表示是空 \texttt{vector} 且 \texttt{sign = 1}，\texttt{trim()} 负责维持这个不变量。加减 $O(n)$；乘法先把位宽拆到 $10^6$ 再跑 Karatsuba，$O(n^{\log_2 3}) = O(n^{1.585})$——\textcolor{blue}{\textbf{拆到 $10^6$}} 是因为 Karatsuba 内层是 \texttt{res[i+j] += x[i] * y[j]} 的裸累加，位宽 $10^9$ 时几步就爆 \texttt{long long}；除法是 Knuth 归一化后逐位试商，$O(n(n-m+1))$。符号语义与内建整数完全一致：\textbf{除法向零取整，余数符号跟随被除数}。
+
+		实测（\texttt{-O2}，本机）：$6$ 万位 $\times$ $6$ 万位 $5$ ms，$12$ 万位 $\div$ $6$ 万位 $350$ ms。
+
+		\textbf{六个坑}（本版都已经处理掉，抄的时候别改回去）：
+
+		\begin{itemize}
+			\item \texttt{divmod} 的\textbf{除数不能为 $0$}——它上来就读 \texttt{y.a.back()}，除数为零时那是空 \texttt{vector}，直接 UB。调用方自己保证；\texttt{gcd} 内部已经回避了。
+			\item \texttt{bigint(int)} 那条构造\textbf{不能删}。字面量 \texttt{0} 同时是空指针常量，少了它，\texttt{b < 0} 会在 \texttt{bigint(long long)} 与 \texttt{bigint(const char *)} 之间二义，直接 CE。
+			\item 和 \texttt{long long} 的乘除只在 $|v| \le 9 \times 10^9$ 时走 $O(n)$ 快路径，再大会\emph{自动退化}成大整数乘除——不会算错，但心里要有数。
+			\item 输出走 \texttt{str()}，\textbf{不要}改回流传版本的 \texttt{setw + setfill('0')}：那个写法不还原 fill 字符，打完一个大整数之后，同一个流里后面所有 \texttt{setw} 的填充都变成 \texttt{0}。
+			\item 流传版本把「乘负数时翻符号」抽成了 \texttt{void check(int v)}，\textbf{传值}——函数里的 \texttt{v = -v} 出不去，于是 \texttt{x *= -3} 静默算错。本版直接写在 \texttt{operator*=} 里。
+			\item Karatsuba 合并结果时的进位\textbf{必须是 \texttt{long long}}：\texttt{c[i]} 量级可达 $n \cdot 10^{12}$，一万位往上进位就爆 \texttt{int}。
+		\end{itemize}
+
+		随机对拍自测入口：\texttt{template-check/src/\allowbreak bigint\_check.cpp}（与 \texttt{\_\_int128} 逐点比对 $+$ 与竖式乘法比对 $+$ 代数恒等式，改这一节的代码后跑一遍）。
+
+		\begin{minted}{cpp}
+// 高精度大整数 bigint：1e9 压位 + Karatsuba 乘法 + 试商长除法
+//   加减 O(n)，乘 O(n^1.585)，divmod O(n(n-m+1))，n/m 为压位后的位数（1 位 = 9 个十进制位）
+//   语义与 C++ 内建整数一致：除法向零取整，余数符号跟随被除数
+//   零的唯一表示是 a 为空且 sign = 1（trim() 维持这个不变量）
+struct bigint {
+    static constexpr int BASE = 1000000000, W = 9;  // 压 9 位十进制
+    // 与小整数运算的 O(n) 快路径上界：a[i] * v 不能爆 long long（9e9 * 1e9 < 9.22e18）
+    static constexpr long long SMALL = 9000000000LL;
+    vector<int> a;  // 低位在前，每位取值 [0, BASE)
+    int sign = 1;   // +1 / -1
+
+    bigint() {}
+    bigint(long long v) { *this = v; }
+    // 这条 int 重载不能删：字面量 0 同时是空指针常量，
+    // 少了它，b < 0 这种写法会在 bigint(long long) 与 bigint(const char*) 之间二义
+    bigint(int v) : bigint((long long)v) {}
+    bigint(const string &s) { read(s); }
+    bigint(const char *s) { read(s); }
+
+    void operator=(long long v) {
+        a.clear();
+        sign = v < 0 ? -1 : 1;
+        // 先转 unsigned 再取反，否则 v = LLONG_MIN 时 -v 溢出（UB）
+        unsigned long long u =
+            v < 0 ? -(unsigned long long)v : (unsigned long long)v;
+        for (; u; u /= BASE) a.push_back(int(u % BASE));
+        if (a.empty()) sign = 1;
+    }
+    void trim() {  // 去前导零，顺手把 -0 归一成 +0
+        while (!a.empty() && a.back() == 0) a.pop_back();
+        if (a.empty()) sign = 1;
+    }
+    bool isZero() const { return a.empty(); }
+    bigint abs() const { bigint r = *this; r.sign = 1; return r; }
+    bigint operator+() const { return *this; }
+    bigint operator-() const {
+        bigint r = *this;
+        if (!r.isZero()) r.sign = -sign;
+        return r;
+    }
+
+    // ---------- 比较 ----------
+    static int cmpAbs(const bigint &x, const bigint &y) {  // 只比绝对值
+        if (x.a.size() != y.a.size()) return x.a.size() < y.a.size() ? -1 : 1;
+        for (int i = int(x.a.size()) - 1; i >= 0; --i)
+            if (x.a[i] != y.a[i]) return x.a[i] < y.a[i] ? -1 : 1;
+        return 0;
+    }
+    static int cmp(const bigint &x, const bigint &y) {
+        if (x.sign != y.sign) return x.sign < y.sign ? -1 : 1;
+        return cmpAbs(x, y) * x.sign;
+    }
+    // 六个比较运算符。写成 friend 是为了让两侧都能吃隐式转换，
+    // b < 0 和 0 < b 都合法（写成成员函数就只有左侧能转）
+    #define BIG_CMP(op) friend bool operator op( \
+        const bigint &x, const bigint &y) { return cmp(x, y) op 0; }
+    BIG_CMP(<) BIG_CMP(>) BIG_CMP(<=)
+    BIG_CMP(>=) BIG_CMP(==) BIG_CMP(!=)
+    #undef BIG_CMP
+
+    // ---------- 加减 ----------
+    static bigint addAbs(const bigint &x, const bigint &y) {  // |x| + |y|
+        bigint r;
+        r.a = x.a;
+        for (int i = 0, carry = 0; i < int(y.a.size()) || carry; ++i) {
+            if (i == int(r.a.size())) r.a.push_back(0);
+            r.a[i] += carry + (i < int(y.a.size()) ? y.a[i] : 0);
+            carry = r.a[i] >= BASE;
+            if (carry) r.a[i] -= BASE;
+        }
+        return r;
+    }
+    static bigint subAbs(const bigint &x, const bigint &y) {  // |x| - |y|，要求 |x| >= |y|
+        bigint r;
+        r.a = x.a;
+        for (int i = 0, borrow = 0; i < int(y.a.size()) || borrow; ++i) {
+            r.a[i] -= borrow + (i < int(y.a.size()) ? y.a[i] : 0);
+            borrow = r.a[i] < 0;
+            if (borrow) r.a[i] += BASE;
+        }
+        r.trim();
+        return r;
+    }
+    friend bigint operator+(const bigint &x, const bigint &y) {
+        bigint r;
+        if (x.sign == y.sign) r = addAbs(x, y), r.sign = x.sign;
+        else if (cmpAbs(x, y) >= 0) r = subAbs(x, y), r.sign = x.sign;
+        else r = subAbs(y, x), r.sign = y.sign;
+        r.trim();
+        return r;
+    }
+    friend bigint operator-(const bigint &x, const bigint &y) { return x + (-y); }
+
+    // ---------- 与小整数运算（O(n) 快路径，divmod 内部靠它） ----------
+    bigint &operator*=(long long v) {
+        if (v > SMALL || v < -SMALL) return *this = *this * bigint(v);  // 超出快路径就退化成大整数乘
+        if (v < 0) sign = -sign, v = -v;
+        long long carry = 0;
+        for (int i = 0; i < int(a.size()) || carry; ++i) {
+            if (i == int(a.size())) a.push_back(0);
+            long long cur = a[i] * v + carry;
+            a[i] = int(cur % BASE);
+            carry = cur / BASE;
+        }
+        trim();
+        return *this;
+    }
+    bigint &operator/=(long long v) {  // 向零取整
+        if (v > SMALL || v < -SMALL) return *this = *this / bigint(v);
+        if (v < 0) sign = -sign, v = -v;
+        long long rem = 0;
+        for (int i = int(a.size()) - 1; i >= 0; --i) {
+            long long cur = a[i] + rem * BASE;
+            a[i] = int(cur / v);
+            rem = cur % v;
+        }
+        trim();
+        return *this;
+    }
+    int operator%(int v) const {  // 余数符号跟随被除数；v 取任意 int（含 INT_MIN）
+        long long d = v < 0 ? -(long long)v : v, m = 0;
+        for (int i = int(a.size()) - 1; i >= 0; --i) m = (a[i] + m * BASE) % d;
+        return int(m) * sign;
+    }
+    friend bigint operator*(bigint x, long long v) { return x *= v; }
+    friend bigint operator*(long long v, bigint x) { return x *= v; }
+    friend bigint operator/(bigint x, long long v) { return x /= v; }
+
+    // ---------- 大整数乘：拆成 1e6 压位后跑 Karatsuba ----------
+    // 拆到 1e6 是为了让 karatsuba 内层 res[i+j] += a[i]*b[j] 累加不爆 long long
+    static vector<int> convertBase(const vector<int> &v, int oldW, int newW) {
+        vector<long long> p(max(oldW, newW) + 1);
+        p[0] = 1;
+        for (int i = 1; i < int(p.size()); ++i) p[i] = p[i - 1] * 10;
+        vector<int> res;
+        long long cur = 0;
+        int curW = 0;
+        for (int x : v) {
+            cur += x * p[curW];
+            curW += oldW;
+            while (curW >= newW) {
+                res.push_back(int(cur % p[newW]));
+                cur /= p[newW];
+                curW -= newW;
+            }
+        }
+        res.push_back(int(cur));
+        while (!res.empty() && res.back() == 0) res.pop_back();
+        return res;
+    }
+    static vector<long long> karatsuba(const vector<long long> &x,
+                                       const vector<long long> &y) {
+        int n = int(x.size());
+        vector<long long> res(n + n);
+        if (n <= 32) {  // 小规模直接暴力，常数远小于递归
+            for (int i = 0; i < n; ++i)
+                for (int j = 0; j < n; ++j) res[i + j] += x[i] * y[j];
+            return res;
+        }
+        int k = n >> 1;
+        vector<long long> x1(x.begin(), x.begin() + k),
+            x2(x.begin() + k, x.end()),
+            y1(y.begin(), y.begin() + k),
+            y2(y.begin() + k, y.end());
+        vector<long long> x1y1 = karatsuba(x1, y1);
+        vector<long long> x2y2 = karatsuba(x2, y2);
+        for (int i = 0; i < k; ++i) x2[i] += x1[i], y2[i] += y1[i];
+        vector<long long> r = karatsuba(x2, y2);  // (x1+x2)(y1+y2) - x1y1 - x2y2
+        for (int i = 0; i < int(x1y1.size()); ++i) r[i] -= x1y1[i];
+        for (int i = 0; i < int(x2y2.size()); ++i) r[i] -= x2y2[i];
+        for (int i = 0; i < int(r.size()); ++i) res[i + k] += r[i];
+        for (int i = 0; i < int(x1y1.size()); ++i) res[i] += x1y1[i];
+        for (int i = 0; i < int(x2y2.size()); ++i) res[i + n] += x2y2[i];
+        return res;
+    }
+    friend bigint operator*(const bigint &x, const bigint &y) {
+        vector<int> x6 = convertBase(x.a, W, 6), y6 = convertBase(y.a, W, 6);
+        vector<long long> p(x6.begin(), x6.end()), q(y6.begin(), y6.end());
+        while (p.size() < q.size()) p.push_back(0);
+        while (q.size() < p.size()) q.push_back(0);
+        while (p.size() & (p.size() - 1)) p.push_back(0), q.push_back(0);  // 补到 2 的幂
+        vector<long long> c = karatsuba(p, q);
+        bigint r;
+        r.sign = x.sign * y.sign;
+        long long carry = 0;  // 必须 long long：c[i] 量级可达 n*1e12，进位早就爆 int
+        for (int i = 0; i < int(c.size()); ++i) {
+            long long cur = c[i] + carry;
+            r.a.push_back(int(cur % 1000000));
+            carry = cur / 1000000;
+        }
+        for (; carry; carry /= 1000000) r.a.push_back(int(carry % 1000000));
+        r.a = convertBase(r.a, 6, W);
+        r.trim();
+        return r;
+    }
+
+    // ---------- 大整数除：Knuth 归一化 + 逐位试商 ----------
+    // 返回 {商, 余数}；商向零取整，余数符号跟随被除数。除数为 0 是 UB，调用方自己保证
+    friend pair<bigint, bigint> divmod(const bigint &x, const bigint &y) {
+        int norm = BASE / (y.a.back() + 1);  // 归一化让最高位 >= BASE/2，试商误差 <= 2
+        bigint u = x.abs() * norm, v = y.abs() * norm, q, r;
+        q.a.assign(u.a.size(), 0);
+        for (int i = int(u.a.size()) - 1; i >= 0; --i) {
+            // r = r * BASE + u[i]：把被除数的下一位拽下来。
+            // 直接在低位插一格是 O(n) 的 memmove，写成 r = r * BASE + u.a[i] 会慢一个数量级
+            r.a.insert(r.a.begin(), u.a[i]);
+            r.trim();
+            int m = int(v.a.size());
+            int s1 = int(r.a.size()) <= m ? 0 : r.a[m];
+            int s2 = int(r.a.size()) <= m - 1 ? 0 : r.a[m - 1];
+            int d = int((1LL * BASE * s1 + s2) / v.a.back());  // 试商，至多偏大 2
+            r = r - v * d;
+            for (; r < 0; --d) r += v;
+            q.a[i] = d;
+        }
+        q.sign = x.sign * y.sign;
+        r.sign = x.sign;
+        q.trim();
+        r.trim();
+        return {q, r / norm};
+    }
+    friend bigint operator/(const bigint &x, const bigint &y) {
+        return divmod(x, y).first;
+    }
+    friend bigint operator%(const bigint &x, const bigint &y) {
+        return divmod(x, y).second;
+    }
+
+    bigint &operator+=(const bigint &v) { return *this = *this + v; }
+    bigint &operator-=(const bigint &v) { return *this = *this - v; }
+    bigint &operator*=(const bigint &v) { return *this = *this * v; }
+    bigint &operator/=(const bigint &v) { return *this = *this / v; }
+    bigint &operator%=(const bigint &v) { return *this = *this % v; }
+
+    friend bigint gcd(bigint x, bigint y) {  // 写成迭代，避免大数递归爆栈
+        x = x.abs(), y = y.abs();
+        while (!y.isZero()) { bigint t = x % y; x = y, y = t; }
+        return x;
+    }
+    friend bigint lcm(const bigint &x, const bigint &y) {
+        return (x / gcd(x, y) * y).abs();
+    }
+
+    // ---------- 读写 ----------
+    void read(const string &s) {
+        sign = 1;
+        a.clear();
+        int pos = 0;
+        while (pos < int(s.size()) && (s[pos] == '-' || s[pos] == '+')) {
+            if (s[pos] == '-') sign = -sign;
+            ++pos;
+        }
+        for (int i = int(s.size()) - 1; i >= pos; i -= W) {  // 从低位往高位每 W 个十进制位打一包
+            int x = 0;
+            for (int j = max(pos, i - W + 1); j <= i; ++j) x = x * 10 + (s[j] - '0');
+            a.push_back(x);
+        }
+        trim();
+    }
+    string str() const {  // 不用 setw/setfill：那会把 cout 的 fill 字符永久改成 '0'
+        string s = sign < 0 ? "-" : "";
+        s += a.empty() ? "0" : to_string(a.back());
+        for (int i = int(a.size()) - 2; i >= 0; --i) {
+            string t = to_string(a[i]);
+            s += string(W - t.size(), '0') + t;
+        }
+        return s;
+    }
+    friend istream &operator>>(istream &is, bigint &v) {
+        string s;
+        is >> s;
+        v.read(s);
+        return is;
+    }
+    friend ostream &operator<<(ostream &os, const bigint &v) {
+        return os << v.str();
+    }
+};
+		\end{minted}
+
+		用法：
+
+		\begin{minted}{cpp}
+void Solve() {
+    bigint a, b;
+    cin >> a >> b;                 // 支持前导零与正负号
+    cout << a + b << "\n";
+    cout << a * b << "\n";
+    if (!b.isZero()) {
+        auto [q, r] = divmod(a, b);  // 一次拿到商和余数
+        cout << q << " " << r << "\n";
+        cout << gcd(a, b) << " " << lcm(a, b) << "\n";
+    }
+    bigint f = 1;
+    for (int i = 2; i <= 100; ++i) f *= i;
+    cout << f.str().size() << "\n";  // 100! 有 158 位
+}
+		\end{minted}
+
 	\end{multicols*}
 
