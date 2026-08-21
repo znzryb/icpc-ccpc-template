@@ -248,6 +248,162 @@ inline ll CC(ll n, ll k) {
 
 		\textbf{应用}：当需要对连续上指标的组合数求和时（如 $\sum_{k=r}^{n}C_k^r$），可直接用朱世杰恒等式化为单个组合数 $C_{n+1}^{r+1}$，将 $O(n)$ 的求和降为 $O(1)$。
 
+		\subsection{二项式反演}
+
+		两种最常用的形式（下标形式与上标形式）：
+		\[
+			f_n = \sum_{i=0}^{n}\binom{n}{i} g_i
+			\iff
+			g_n = \sum_{i=0}^{n}(-1)^{n-i}\binom{n}{i} f_i,
+		\]
+		\[
+			f_k = \sum_{i=k}^{n}\binom{i}{k} g_i
+			\iff
+			g_k = \sum_{i=k}^{n}(-1)^{i-k}\binom{i}{k} f_i.
+		\]
+
+		\textbf{什么时候想到它}：题目要「\textbf{恰好} $k$ 个」，而「\textbf{至多}/\textbf{至少} $k$ 个」好算的时候。
+		「至多」对应第一式（$f$ 是至多、$g$ 是恰好），「至少」对应第二式。
+
+		\textbf{例：错排数} $D_n$。设 $g_i$ 为恰好 $i$ 个不动点的方案数，那么
+		「钦定 $i$ 个位置不动、其余随意」的方案数是 $\binom{n}{i}(n-i)!$，
+		它恰好等于 $\sum_{j \ge i}\binom{j}{i} g_j$，套第二式得
+		\[
+			D_n = g_0 = \sum_{i=0}^{n}(-1)^{i}\binom{n}{i}(n-i)!
+			= n!\sum_{i=0}^{n}\frac{(-1)^i}{i!}.
+		\]
+		这也解释了为什么 $D_n / n! \to e^{-1}$。
+
+		\subsection{范德蒙德卷积}
+
+		\[
+			\sum_{i}\binom{m}{i}\binom{n}{k-i} = \binom{m+n}{k}.
+		\]
+		组合意义：从 $m$ 男 $n$ 女里选 $k$ 人，按选了几个男的分类。两个常用变体：
+		\[
+			\sum_{i}\binom{m}{i}\binom{n}{i} = \binom{m+n}{m},
+			\qquad
+			\sum_{i}\binom{n}{i}^{2} = \binom{2n}{n}.
+		\]
+		（第一式把 $\binom{n}{i}$ 换成 $\binom{n}{n-i}$ 即可。）
+		见到「两个组合数相乘再对下标求和」就应该先试着往这里凑。
+
+		\subsection{斯特林数与球盒模型}
+
+		\textbf{第二类斯特林数} $S(n,k)$（也写作 $\left\{{n\atop k}\right\}$）：把 $n$ 个\textbf{不同}的球放进 $k$ 个\textbf{相同}的盒子、每盒非空的方案数。
+		\[
+			S(n,k)
+			= k\,S(n-1,k) + S(n-1,k-1)
+		\]
+		（第 $n$ 个球：放进已有的 $k$ 个盒子之一，或自己开一个新盒子。）通项是一个卷积：
+		\[
+			S(n,k)
+			= \sum_{i=0}^{k}\frac{(-1)^i}{i!}\cdot\frac{(k-i)^n}{(k-i)!},
+		\]
+		所以\textbf{一整行}可以用一次 NTT 在 $O(n\log n)$ 内求出（进阶数学一章）。
+
+		\textbf{第一类斯特林数（无符号）} $c(n,k)$（也写作 $\left[{n\atop k}\right]$）：把 $n$ 个元素排成 $k$ 个\textbf{非空轮换}的方案数。
+		\[
+			c(n,k)
+			= (n-1)c(n-1,k) + c(n-1,k-1)
+		\]
+		（第 $n$ 个元素：插到已有排列里 $n-1$ 个位置之一，或自成一个轮换。）
+
+		\textbf{两组连接普通幂与阶乘幂的公式}（做「$k$ 次幂求和」类题目的核心工具）：
+		\[
+			x^{n} = \sum_{k}S(n,k) x^{\underline{k}},
+			\qquad
+			x^{\overline{n}} = \sum_{k}c(n,k) x^{k},
+		\]
+		其中 $x^{\underline k} = x(x-1)\cdots(x-k+1)$ 是下降幂。
+		把 $i^k$ 拆成下降幂之后，$\binom{i}{k}$ 型求和就能用朱世杰恒等式一步合并。
+
+		\textbf{球盒模型十二路}（$n$ 球放 $k$ 盒）：
+
+		\begin{center}
+		\begin{tabular}{@{}llll@{}}
+			\hline
+			球 & 盒 & 限制 & 方案数 \\
+			\hline
+			异 & 异 & 无 & $k^n$ \\
+			异 & 异 & 每盒 $\le 1$ & $k^{\underline{n}}$ \\
+			异 & 异 & 每盒 $\ge 1$ & $k!\,S(n,k)$ \\
+			异 & 同 & 无 & $\sum_{i\le k}S(n,i)$ \\
+			异 & 同 & 每盒 $\le 1$ & $[n\le k]$ \\
+			异 & 同 & 每盒 $\ge 1$ & $S(n,k)$ \\
+			同 & 异 & 无 & $\binom{n+k-1}{k-1}$ \\
+			同 & 异 & 每盒 $\le 1$ & $\binom{k}{n}$ \\
+			同 & 异 & 每盒 $\ge 1$ & $\binom{n-1}{k-1}$ \\
+			同 & 同 & 无 & $\sum_{i \le k} p_i(n)$ \\
+			同 & 同 & 每盒 $\le 1$ & $[n\le k]$ \\
+			同 & 同 & 每盒 $\ge 1$ & $p_k(n)$ \\
+			\hline
+		\end{tabular}
+		\end{center}
+
+		最后两行的 $p_k(n)$ 是「把 $n$ 拆成恰好 $k$ 个正整数之和」的方案数，见下一节；
+		「同球异盒」三行就是插板法。
+
+		\subsection{整数分拆}
+
+		$p(n)$ 表示把 $n$ 拆成若干个正整数之和（不计顺序）的方案数，其生成函数是
+		\[
+			\sum_{n\ge0}p(n)x^n = \prod_{i\ge1}\frac{1}{1-x^i}.
+		\]
+		直接对它做多项式求逆是 $O(n\log n)$，但\textbf{完全没必要}——
+		由五边形数定理
+		\[
+			\prod_{i\ge1}(1-x^i) = \sum_{k\in\mathbb{Z}}(-1)^k x^{k(3k-1)/2},
+		\]
+		右边只有 $O(\sqrt n)$ 项非零，两边同乘 $\sum p(n)x^n$ 后比较系数，
+		得到一个每项只需 $O(\sqrt n)$ 次加减的递推：
+		\[
+			p(n) = \sum_{k \ge 1}(-1)^{k-1}\Bigl(p\bigl(n - \tfrac{k(3k-1)}{2}\bigr)
+			     + p\bigl(n - \tfrac{k(3k+1)}{2}\bigr)\Bigr),
+		\]
+		总复杂度 $O(n\sqrt n)$，常数极小，$n \le 10^5$ 时比多项式求逆快得多。
+
+		\textbf{恰好 $k$ 份}的分拆数 $p_k(n)$ 用二维递推：
+		$p_k(n) = p_{k-1}(n-1) + p_k(n-k)$
+		（分类讨论「最小的那一份是不是 $1$」；不是的话每份都减 $1$）。
+
+		\subsection{伯努利数与自然数幂和}
+
+		伯努利数 $B_i$ 的指数生成函数是 $\dfrac{x}{e^x-1}$，实用的定义是递推
+		\[
+			\sum_{j=0}^{n}\binom{n+1}{j}B_j = 0 \quad (n \ge 1),\qquad B_0 = 1,
+		\]
+		于是 $B_1 = -\tfrac12,\ B_2 = \tfrac16,\ B_4 = -\tfrac1{30}$，
+		且\textbf{所有奇数下标（$\ge 3$）的伯努利数都是 $0$}。它的用处是幂和的封闭式：
+		\[
+			\sum_{i=0}^{n-1} i^{k}
+			= \frac{1}{k+1}\sum_{j=0}^{k}\binom{k+1}{j}B_j\, n^{\,k+1-j}.
+		\]
+
+		\textbf{和拉格朗日插值怎么选}：这个式子的复杂度是 $O(k^2)$（递推 $B$）或
+		$O(k\log k)$（多项式求逆，因为 $B$ 的 EGF 就是 $\frac{x}{e^x-1}$ 的系数），
+		\textbf{与 $n$ 无关}，适合「$k$ 很大、要对很多个 $n$ 求值」的场合；
+		若只求单个 $n$、且 $k$ 不大，直接用拉格朗日插值取 $k+2$ 个点值更省事，
+		代码也短得多（见进阶数学一章）。
+
+		\subsection{常用组合恒等式}
+
+		\begin{itemize}
+			\item 对称：$\binom{n}{k} = \binom{n}{n-k}$；
+			\item 吸收：$k\binom{n}{k} = n\binom{n-1}{k-1}$
+			      ——见到组合数前面乘着下指标就用它；
+			\item 二项式定理的两个特例：
+			      $\sum_{i}\binom{n}{i} = 2^n$，
+			      $\sum_{i}(-1)^i\binom{n}{i} = [n = 0]$；
+			\item 带权和（都由吸收恒等式导出）：
+			      \[
+			        \sum_{i}i\binom{n}{i} = n2^{n-1},\quad
+			        \sum_{i}i^{2}\binom{n}{i} = n(n+1)2^{n-2};
+			      \]
+			\item 上指标求和即朱世杰恒等式（见上文）；
+			\item 平方和即范德蒙德卷积：$\sum_i\binom{n}{i}^2 = \binom{2n}{n}$。
+		\end{itemize}
+
 		\subsection{Hook-length 公式（树版本）：递增标号计数}
 
 		有根树 $T$（$n$ 节点）上把 $1, \dots, n$ 填到节点、要求\textbf{每个非根节点标号 $>$ 父节点标号}（即整体是 min-heap / 递增树），合法方案数
