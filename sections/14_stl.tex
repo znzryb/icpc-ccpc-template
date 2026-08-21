@@ -4,7 +4,7 @@
 
 	\begin{multicols*}{2}
 
-		\subsection{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}
+		\subsection[\tochl{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}]{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}
 
 		开放寻址哈希表，比 \verb|std::unordered_map| 快 $2$--$5$ 倍。默认 \verb|hash<int>| 是恒等映射会被卡成 $O(n)$ 单次，\textbf{哈希函数 \texttt{H} 自己写}（不给默认值，强制显式传；现成写法见\textbf{数据结构}节 \texttt{chash}）。默认 resize policy 锁死了 \verb|resize|，用下面的 \verb|HashMap| 别名把第 7 个模板参数换成 \verb|external_size_access = true| 才能预留桶（\verb|mp.resize(1 << 20)|，插入提速约 $3.8\times$）。
 
