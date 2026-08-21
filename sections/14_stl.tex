@@ -6,7 +6,7 @@
 
 		\subsection[\tochl{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}]{\texttt{gp\_hash\_table}（pb\_ds 哈希表，替 \texttt{unordered\_map}）}
 
-		开放寻址哈希表，比 \verb|std::unordered_map| 快 $2$--$5$ 倍。默认 \verb|hash<int>| 是恒等映射会被卡成 $O(n)$ 单次，\textbf{哈希函数 \texttt{H} 自己写}（不给默认值，强制显式传；现成写法见\textbf{数据结构}节 \texttt{chash}）。默认 resize policy 锁死了 \verb|resize|，用下面的 \verb|HashMap| 别名把第 7 个模板参数换成 \verb|external_size_access = true| 才能预留桶（\verb|mp.resize(1 << 20)|，插入提速约 $3.8\times$）。
+		开放寻址哈希表，比 \verb|std::unordered_map| 快 $2$--$5$ 倍（本机实测 $N = 5 \times 10^6$ 下 \verb|gp + resize| 比 \verb|unordered_map| 快约 $4.85\times$，见 \href{https://gist.github.com/znzryb/b620166d705579fcecb02649ed5da03d}{gist: gp\_cc\_hash 速度测试}）。默认 \verb|hash<int>| 是恒等映射会被卡成 $O(n)$ 单次（参考 \href{https://codeforces.com/blog/entry/60737}{Codeforces blog/60737 \enquote{Anti-hash test}}），\textbf{哈希函数 \texttt{H} 自己写}（不给默认值，强制显式传；现成写法见本章 \textbf{\texttt{unordered\_map} 自定义 hash} 一节的 \texttt{custom\_hash}）。默认 resize policy 锁死了 \verb|resize|，用下面的 \verb|HashMap| 别名把第 7 个模板参数换成 \verb|external_size_access = true| 才能预留桶（\verb|mp.resize(1 << 20)|，插入提速约 $3.8\times$）。
 
 		\begin{minted}{cpp}
 #include <ext/pb_ds/assoc_container.hpp>
@@ -23,6 +23,156 @@ using HashMap = gp_hash_table<K, V, H,
         hash_exponential_size_policy<>,
         hash_load_check_resize_trigger<true>,
         true>>;
+		\end{minted}
+
+		\subsection[\tochl{\texttt{pb\_ds} 红黑树（\texttt{tree})}]{\texttt{pb\_ds} 红黑树（\texttt{tree})}
+
+		\verb|__gnu_pbds::tree| 是 GCC 自带的策略式 BST（默认红黑树），加上 \verb|tree_order_statistics_node_update| 之后可在 $O(\log n)$ 内做\textbf{第 $k$ 小}（\verb|find_by_order|）和\textbf{排名}（\verb|order_of_key|），等于 \verb|std::set| + 内置 order statistics。
+
+		\begin{minted}{cpp}
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
+using namespace __gnu_pbds;
+using ordered_set = tree<int, null_type, less<>,
+    rb_tree_tag,
+    tree_order_statistics_node_update>;
+		\end{minted}
+
+		\textbf{\texttt{find\_by\_order(k)}（迭代器，0-based）}：
+
+		\begin{itemize}
+			\item \verb|find_by_order(0)|：最小元素。
+			\item \verb|find_by_order(n - 1)|：最大元素（共 $n$ 个时）。
+			\item 越界（$k \ge n$）返回 \verb|s.end()|。
+		\end{itemize}
+
+		\textbf{\texttt{order\_of\_key(x)}}：返回\textbf{严格小于} \verb|x| 的元素个数，即 \verb|x| 插入后排序序列中的 0-based 索引。例：集合 $\{2,5,8,10,15\}$，\verb|order_of_key(8) = 2|（小于 8 的有 2 个），\verb|order_of_key(12) = 4|，\verb|order_of_key(20) = 5|。
+
+		\textbf{自带去重 → 想要可重时改 pair}：\verb|tree| 同 \verb|set| 一样去重。要存可重值时把 key 包成 \verb|pair<value, id>|，\verb|id| 取插入序号即可：
+
+		\begin{minted}{cpp}
+using ordered_multiset =
+    tree<pair<int, int>, null_type,
+         less<pair<int, int>>,
+         rb_tree_tag,
+         tree_order_statistics_node_update>;
+		\end{minted}
+
+		查询\textbf{值落在区间 $[l, r]$ 内有几个}（多重集）：
+
+		\begin{minted}{cpp}
+// 用 (l - 1, INF) 排除 = l - 1 的等价类
+// 用 (r + 1, 0)   排除 > r 的全部
+ll cnt = s.order_of_key({r + 1, 0})
+       - s.order_of_key({l - 1, INF});
+		\end{minted}
+
+		\textbf{应用 1：树上 dfs + 启发式合并 + 区间第 $k$ 小}（\href{https://leetcode.cn/problems/kth-smallest-path-xor-sum/}{LeetCode kthSmallest}）：每个节点维护一个 \verb|ordered_set|，子树合并时把小集合并进大集合，在 dfs 离开节点前用 \verb|find_by_order(k - 1)| 取答案。
+
+		\begin{minted}{cpp}
+#include <ext/pb_ds/assoc_container.hpp>
+using namespace __gnu_pbds;
+using ordered_set = tree<int, null_type, less<>,
+    rb_tree_tag,
+    tree_order_statistics_node_update>;
+
+class Solution {
+public:
+    vector<int> kthSmallest(vector<int>& par,
+        vector<int>& vals,
+        vector<vector<int>>& queries) {
+        vector<vector<int> > g(par.size() + 5);
+        vector<vector<array<int, 2> > >
+            que(par.size() + 5);
+        for (int i = 1; i < par.size(); ++i) {
+            g[par[i]].push_back(i);
+        }
+        for (int i = 0; i < queries.size(); ++i) {
+            que[queries[i][0]].push_back(
+                {queries[i][1], i});
+        }
+        vector<int> ans(queries.size());
+        auto dfs = [&](auto&& self, int u, int val)
+            -> ordered_set* {
+            val ^= vals[u];
+            ordered_set* st = new ordered_set();
+            st->insert(val);
+            for (auto v : g[u]) {
+                ordered_set* t = self(self, v, val);
+                // 启发式合并：小集合并入大集合
+                if (t->size() > st->size())
+                    swap(st, t);
+                for (int k : *t) st->insert(k);
+                delete t;
+            }
+            for (auto& t : que[u]) {
+                int k = t[0], idx = t[1];
+                if (k > st->size()) {
+                    ans[idx] = -1; continue;
+                }
+                ans[idx] = *st->find_by_order(k - 1);
+            }
+            return st;
+        };
+        dfs(dfs, 0, 0);
+        return ans;
+    }
+};
+		\end{minted}
+
+		\textbf{应用 2：按某个 key 维护时间序列、查 $[l, r]$ 计数}（上师校赛 Problem F. 统计数据）：用 \verb|priority_queue| 拿全局最早的事件，\verb|map<ll, ordered_set<time_id>>| 按 \verb|type| 分桶；查询 \verb|type=t| 在时间窗 $[l, r]$ 内的件数 $=$ \verb|order_of_key({r+1, 0}) - order_of_key({l-1, INF})|。
+
+		\begin{minted}{cpp}
+struct type_time {
+    ll type, time, id;
+    bool operator<(const type_time& o) const {
+        if (time != o.time) return time > o.time;
+        return id > o.id;
+    }
+};
+struct time_id {
+    ll time, id;
+    bool operator<(const time_id& o) const {
+        if (time != o.time) return time < o.time;
+        return id < o.id;
+    }
+};
+#include <ext/pb_ds/assoc_container.hpp>
+using namespace __gnu_pbds;
+using ordered_set = tree<time_id, null_type, less<>,
+    rb_tree_tag,
+    tree_order_statistics_node_update>;
+
+void Solve() {
+    ll Q; cin >> Q;
+    priority_queue<type_time> pq;
+    map<ll, ordered_set> type_setOfTime;
+    auto pop = [&]() {
+        if (pq.empty()) return;
+        auto [type, time, id] = pq.top();
+        pq.pop();
+        type_setOfTime[type].erase({time, id});
+    };
+    FOR(i, 1, Q) {
+        ll opt; cin >> opt;
+        if (opt == 1) {
+            ll type, time; cin >> type >> time;
+            pq.push({type, time, i});
+            type_setOfTime[type].insert({time, i});
+        } else if (opt == 2) {
+            pop();
+        } else {
+            ll type, l, r;
+            cin >> type >> l >> r;
+            ll ans
+                = type_setOfTime[type].order_of_key(
+                      {r + 1, 0})
+                - type_setOfTime[type].order_of_key(
+                      {l - 1, INF});
+            cout << ans << "\n";
+        }
+    }
+}
 		\end{minted}
 
 		\subsection{\texttt{string::find} 的起始位置参数与 \texttt{string\_view}}
