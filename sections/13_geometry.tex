@@ -530,6 +530,10 @@ DB regular_polygon_area(ll n, DB l) {
 
 		\textbf{角度约定}：入参 \texttt{theta} 是弦所对的\textbf{圆心角}，单位\textbf{弧度}，约束 $\theta \in [0, 2\pi]$。$\theta < \pi$ 是 minor 弓形（小的那块），$\theta > \pi$ 是 major 弓形（大的那块），公式同一个，\textbf{不做内部 deg $\leftrightarrow$ rad 转换}（调用方自己 \texttt{deg * PI / 180}）。\texttt{point\_at} 接受任意 \texttt{theta}（含负值 / 超 $2\pi$），不抛 assert——绕圆走多圈合法。
 
+		\textbf{\texttt{theta\_at}：\texttt{point\_at} 的逆}：给定圆上一点 $p$，返回它相对圆心的极角。\texttt{atan2l} 出来的是 $(-\pi, \pi]$，加一次 $2\pi$ 归一化到 $[0, 2\pi)$，于是 $\texttt{point\_at}(\texttt{theta\_at}(p)) = p$（$p$ 在圆上时）。\texttt{LOCAL} 下 \texttt{check\_on\_circle} 断言 $p$ 真在圆上——比的是\textbf{平方距离}（\texttt{distancePPNorm} vs \texttt{squared(r)}）配 \texttt{sgn}，不开方也不裸等号。典型用法：把圆上若干交点转成极角后排序，扫出相邻弧段。
+
+		\textbf{\texttt{\_\_builtin\_sincosl} 一次算俩}：$\sin$ 与 $\cos$ 共用同一次幅角规约，一次调用同时吐两个结果，比分开调 \texttt{sinl} + \texttt{cosl} 快近一倍（GCC / Clang 都有）。\textcolor{red}{\textbf{后缀必须跟 \texttt{DB} 对齐}}：本板子 \texttt{DB = long double} 用 \texttt{\_\_builtin\_sincosl}；若把 \texttt{DB} 换成 \texttt{double}，必须改成 \texttt{\_\_builtin\_sincos}（把 \texttt{long double*} 传给 \texttt{double*} 形参直接 CE）。代码里保留了注释掉的 \texttt{cosl} / \texttt{sinl} 版本，换类型嫌麻烦时直接换回那两行。
+
 		\textbf{弓形面积公式}：弓形 = 扇形 $-$ 三角形，化简得
 		$$S_{\text{seg}}(\theta) = \tfrac{1}{2} r^2 (\theta - \sin \theta).$$
 		AC 实战：\href{https://vjudge.net/problem/Gym-105161B}{Gym 105161B Area of the Devil}（圆 $-$ 五块 segment $-$ 五块三角形）。
@@ -538,7 +542,7 @@ DB regular_polygon_area(ll n, DB l) {
 
 		\begin{minted}{cpp}
 // 依赖：
-//   struct Point, DB = long double, PI, eps
+//   struct Point, DB = long double, PI, eps, sgn, squared, distancePPNorm
 template<class T>
 struct Circle {
 	Point<T> c;
@@ -554,8 +558,14 @@ struct Circle {
 	// 圆上极角 theta 处的点 c + (r cos theta, r sin theta)
 	// theta 不限范围（允许负值 / > 2 PI），始终走 cos/sin 不抛 assert
 	Point<DB> point_at(DB theta) const {
-		return Point<DB>((DB) c.x + (DB) r * cosl(theta),
-		                 (DB) c.y + (DB) r * sinl(theta));
+		DB s, co;
+		// 一次算俩, 比分开 sin + cos 再快一倍
+		// 本板子 DB = long double 故用 l 后缀版; DB = double 时改 __builtin_sincos
+		__builtin_sincosl(theta, &s, &co);
+		return Point<DB>((DB) c.x + (DB) r * co,
+		                 (DB) c.y + (DB) r * s);
+		// return Point<DB>((DB) c.x + (DB) r * cosl(theta),
+		//                  (DB) c.y + (DB) r * sinl(theta));
 	}
 
 	void check_theta(DB theta) const {
@@ -563,6 +573,24 @@ struct Circle {
 		assert(theta >= -eps && theta <= 2 * PI + eps);
 #endif
 		(void) theta;
+	}
+
+	// point_at 的逆: 点 p 相对圆心的极角, 归一化到 [0, 2 PI)
+	// 满足 point_at(theta_at(p)) == p (p 在圆上时)
+	template<class U>
+	DB theta_at(const Point<U> &p) const {
+		check_on_circle(p);
+		DB t = atan2l((DB) p.y - (DB) c.y, (DB) p.x - (DB) c.x);
+		if (t < 0) t += 2 * PI;
+		return t;
+	}
+
+	template<class U>
+	void check_on_circle(const Point<U> &p) const {
+#ifdef LOCAL
+		assert(sgn(distancePPNorm(p, c) - squared(r)) == 0);
+#endif
+		(void) p;
 	}
 
 	// 弧长 = r theta
