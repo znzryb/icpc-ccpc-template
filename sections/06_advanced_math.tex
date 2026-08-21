@@ -148,6 +148,9 @@ vector<ll> c = multiply(a, b);
 
 		\href{https://www.luogu.com.cn/problem/P3803}{洛谷 P3803 多项式乘法} \\
 
+		本节到「FWT 与子集卷积」为止的\textbf{全部代码}，都在 \texttt{template-check/src/poly\_check.cpp} 里
+		与朴素实现随机对拍过（装了 ac-library 时还会与官方 NTT 逐点比对）；改动其中任何一段后请重跑它。
+
 		上一节的复数 FFT 只能算整数卷积，一旦要在模 $998244353$ 意义下做多项式运算就得换成
 		NTT。本节直接移植 \href{https://github.com/atcoder/ac-library}{ac-library} 的
 		\texttt{convolution.hpp}，它是目前公开实现里常数最小的一档，理由有三：
