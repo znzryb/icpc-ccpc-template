@@ -3328,11 +3328,14 @@ int ans = ver[k][i];                     // 查询版本 k 的下标 i
 	\begin{minted}{cpp}
 // AC 洛谷 P3369【模板】普通平衡树
 // 依赖竞赛模板头的 ll / SZ(a) / INF
-// 已展开过 :mt19937 的话，下面 rng/splitmix64/rnd 三段删掉别重复定义
+// 已展开过 :mt19937 的话，
+// 下面 rng/splitmix64/rnd 三段删掉别重复定义
 std::mt19937_64 rng(
-    std::chrono::steady_clock::now().time_since_epoch().count());
+    std::chrono::steady_clock::now()
+        .time_since_epoch().count());
 
-// 把 rng() 输出再过一层非线性混合，挡住 F2 上的 Berlekamp-Massey 攻击
+// 把 rng() 输出再过一层非线性混合，
+// 挡住 F2 上的 Berlekamp-Massey 攻击
 uint64_t splitmix64(uint64_t x) {
     x ^= x >> 30;
     x *= 0xbf58476d1ce4e5b9ULL;
@@ -3417,8 +3420,10 @@ struct FHQ {
 
     void erase(T k) {
         auto [a, b] = splitVal(rt, k);
-        auto [a_lt_k, a_eq_k] = splitVal(a, k - 1);
-        a_eq_k = merge(ch[a_eq_k][0], ch[a_eq_k][1]);
+        auto [a_lt_k, a_eq_k]
+            = splitVal(a, k - 1);
+        a_eq_k = merge(ch[a_eq_k][0],
+                       ch[a_eq_k][1]);
         rt = merge(merge(a_lt_k, a_eq_k), b);
     }
 
