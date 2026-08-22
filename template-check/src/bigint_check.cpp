@@ -43,8 +43,7 @@ struct bigint {
         a.clear();
         sign = v < 0 ? -1 : 1;
         // 先转 unsigned 再取反，否则 v = LLONG_MIN 时 -v 溢出（UB）
-        unsigned long long u =
-            v < 0 ? -(unsigned long long)v : (unsigned long long)v;
+        unsigned long long u = v < 0 ? -(unsigned long long)v : (unsigned long long)v;
         for (; u; u /= BASE) a.push_back(int(u % BASE));
         if (a.empty()) sign = 1;
     }
@@ -55,11 +54,7 @@ struct bigint {
     bool isZero() const { return a.empty(); }
     bigint abs() const { bigint r = *this; r.sign = 1; return r; }
     bigint operator+() const { return *this; }
-    bigint operator-() const {
-        bigint r = *this;
-        if (!r.isZero()) r.sign = -sign;
-        return r;
-    }
+    bigint operator-() const { bigint r = *this; if (!r.isZero()) r.sign = -sign; return r; }
 
     // ---------- 比较 ----------
     static int cmpAbs(const bigint &x, const bigint &y) {  // 只比绝对值
@@ -74,11 +69,12 @@ struct bigint {
     }
     // 六个比较运算符。写成 friend 是为了让两侧都能吃隐式转换，
     // b < 0 和 0 < b 都合法（写成成员函数就只有左侧能转）
-    #define BIG_CMP(op) friend bool operator op( \
-        const bigint &x, const bigint &y) { return cmp(x, y) op 0; }
-    BIG_CMP(<) BIG_CMP(>) BIG_CMP(<=)
-    BIG_CMP(>=) BIG_CMP(==) BIG_CMP(!=)
-    #undef BIG_CMP
+    friend bool operator<(const bigint &x, const bigint &y) { return cmp(x, y) < 0; }
+    friend bool operator>(const bigint &x, const bigint &y) { return cmp(x, y) > 0; }
+    friend bool operator<=(const bigint &x, const bigint &y) { return cmp(x, y) <= 0; }
+    friend bool operator>=(const bigint &x, const bigint &y) { return cmp(x, y) >= 0; }
+    friend bool operator==(const bigint &x, const bigint &y) { return cmp(x, y) == 0; }
+    friend bool operator!=(const bigint &x, const bigint &y) { return cmp(x, y) != 0; }
 
     // ---------- 加减 ----------
     static bigint addAbs(const bigint &x, const bigint &y) {  // |x| + |y|
@@ -170,8 +166,7 @@ struct bigint {
         while (!res.empty() && res.back() == 0) res.pop_back();
         return res;
     }
-    static vector<long long> karatsuba(const vector<long long> &x,
-                                       const vector<long long> &y) {
+    static vector<long long> karatsuba(const vector<long long> &x, const vector<long long> &y) {
         int n = int(x.size());
         vector<long long> res(n + n);
         if (n <= 32) {  // 小规模直接暴力，常数远小于递归
@@ -180,12 +175,9 @@ struct bigint {
             return res;
         }
         int k = n >> 1;
-        vector<long long> x1(x.begin(), x.begin() + k),
-            x2(x.begin() + k, x.end()),
-            y1(y.begin(), y.begin() + k),
-            y2(y.begin() + k, y.end());
-        vector<long long> x1y1 = karatsuba(x1, y1);
-        vector<long long> x2y2 = karatsuba(x2, y2);
+        vector<long long> x1(x.begin(), x.begin() + k), x2(x.begin() + k, x.end());
+        vector<long long> y1(y.begin(), y.begin() + k), y2(y.begin() + k, y.end());
+        vector<long long> x1y1 = karatsuba(x1, y1), x2y2 = karatsuba(x2, y2);
         for (int i = 0; i < k; ++i) x2[i] += x1[i], y2[i] += y1[i];
         vector<long long> r = karatsuba(x2, y2);  // (x1+x2)(y1+y2) - x1y1 - x2y2
         for (int i = 0; i < int(x1y1.size()); ++i) r[i] -= x1y1[i];
@@ -241,12 +233,8 @@ struct bigint {
         r.trim();
         return {q, r / norm};
     }
-    friend bigint operator/(const bigint &x, const bigint &y) {
-        return divmod(x, y).first;
-    }
-    friend bigint operator%(const bigint &x, const bigint &y) {
-        return divmod(x, y).second;
-    }
+    friend bigint operator/(const bigint &x, const bigint &y) { return divmod(x, y).first; }
+    friend bigint operator%(const bigint &x, const bigint &y) { return divmod(x, y).second; }
 
     bigint &operator+=(const bigint &v) { return *this = *this + v; }
     bigint &operator-=(const bigint &v) { return *this = *this - v; }
@@ -259,9 +247,7 @@ struct bigint {
         while (!y.isZero()) { bigint t = x % y; x = y, y = t; }
         return x;
     }
-    friend bigint lcm(const bigint &x, const bigint &y) {
-        return (x / gcd(x, y) * y).abs();
-    }
+    friend bigint lcm(const bigint &x, const bigint &y) { return (x / gcd(x, y) * y).abs(); }
 
     // ---------- 读写 ----------
     void read(const string &s) {
@@ -288,15 +274,8 @@ struct bigint {
         }
         return s;
     }
-    friend istream &operator>>(istream &is, bigint &v) {
-        string s;
-        is >> s;
-        v.read(s);
-        return is;
-    }
-    friend ostream &operator<<(ostream &os, const bigint &v) {
-        return os << v.str();
-    }
+    friend istream &operator>>(istream &is, bigint &v) { string s; is >> s; v.read(s); return is; }
+    friend ostream &operator<<(ostream &os, const bigint &v) { return os << v.str(); }
 };
 // ======== 模板代码到此为止，下面是对拍脚手架 ========
 
