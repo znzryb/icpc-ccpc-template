@@ -3319,338 +3319,159 @@ int ans = ver[k][i];                     // 查询版本 k 的下标 i
 
 	\subsection{FHQ-treap（无旋 Treap）}
 
-	无旋 Treap 用 \verb|split| / \verb|merge| 两个 $O(\log n)$ 操作做底，实现 \verb|insert| / \verb|del| / \verb|getrank| / \verb|kth| / \verb|prex| / \verb|sufx| 全套\textbf{平衡树标准接口}。下方实现\textbf{用 \texttt{namespace} 而非 struct}：既起到打包作用，又避免实例化时的默认值开销。
+	无旋 Treap 用 \verb|splitVal| / \verb|merge| 两个 $O(\log n)$ 操作做底，实现 \verb|insert| / \verb|erase| / \verb|rank_of_key| / \verb|find_by_order| / \verb|pre| / \verb|nxt| 全套\textbf{平衡树标准接口}。下方实现\textbf{用 \texttt{struct} + \texttt{vector} 存点}：可以\textbf{同时开多棵}（多组数据、按颜色分裂合并等场景直接开一个 \verb|vector<FHQ>|），节点按需增长而\textbf{不吃 \texttt{maxn} 静态数组的固定内存}；已知规模先调 \verb|reserve| 把扩容开销省掉。
+
+	节点优先级取自 \verb|rnd()|——\verb|mt19937_64| 的输出再过一层 splitmix64 非线性混合，比裸 \verb|rng()| 更抗针对性构造。\verb|merge| \textbf{只看优先级不看权值}，所以合并前必须保证左树权值全部小于右树；\verb|splitVal(x, k)| 则按权值把子树切成「$\le k$」和「$> k$」两半，全部接口都是这两个操作的组合。
+
+	\textbf{边界约定}：\verb|find_by_order| 越界返回 \verb|-INF|；但 \verb|pre| / \verb|nxt| 无解时返回的是 \verb|val[0]| 即 $0$，\textbf{不是} \verb|-INF|——需要哨兵语义的题先 \verb|insert| 一对 $\pm\text{INF}$ 兜底。
 
 	\begin{minted}{cpp}
-// 使用时简化可以这样：namespace F = FHQ;
-// AC https://loj.ac/s/2331639
-// AC https://www.luogu.com.cn/record/219062740
-namespace FHQ {
-    const int maxn
-        = static_cast<ll>(1.1e6) + 10;
-    using KEY = int;
-    KEY key[maxn];
-    int pri[maxn], ls[maxn], rs[maxn], size[maxn];
-    int root = 0, cnt = 0;
-    // pri 超 int 范围问题不大，正负无所谓
-    mt19937 rng(chrono::steady_clock::now()
-                    .time_since_epoch().count());
+// AC 洛谷 P3369【模板】普通平衡树
+// 依赖竞赛模板头的 ll / SZ(a) / INF
+// 已展开过 :mt19937 的话，下面 rng/splitmix64/rnd 三段删掉别重复定义
+std::mt19937_64 rng(
+    std::chrono::steady_clock::now().time_since_epoch().count());
 
-    inline void makeN(KEY val) {
-        ++cnt; pri[cnt] = rng(); key[cnt] = val;
-        ls[cnt] = 0; rs[cnt] = 0; size[cnt] = 1;
-    }
-    inline void pushup(int node) {
-        size[node] = size[ls[node]]
-                   + size[rs[node]] + 1;
-    }
-    // 把树 node 按值 val 分裂为两棵：x（<=val）+ y(>val)
-    void split(int node, KEY val, int& x, int& y) {
-        if (!node) { x = 0; y = 0; return; }
-        if (key[node] <= val) {
-            x = node;
-            split(rs[node], val, rs[node], y);
-        } else {
-            y = node;
-            split(ls[node], val, x, ls[node]);
-        }
-        pushup(node);
-    }
-    // 按 pri 合并，pri 小的在上面（小根堆性质）
-    int merge(int x, int y) {
-        if (!x || !y) return x + y;
-        if (pri[x] < pri[y]) {
-            rs[x] = merge(rs[x], y);
-            pushup(x); return x;
-        } else {
-            ls[y] = merge(x, ls[y]);
-            pushup(y); return y;
-        }
-    }
-    inline void insert(KEY val) {
-        int x, y;
-        split(root, val, x, y);
-        makeN(val);
-        root = merge(x, cnt);
-        root = merge(root, y);
-    }
-    inline void del(KEY val) {
-        int x, y, z;
-        split(root, val, x, y);
-        split(x, val - 1, x, z);
-        z = merge(ls[z], rs[z]);
-        root = merge(x, z);
-        root = merge(root, y);
-    }
-    inline int getrank(KEY val) {
-        int x, y;
-        split(root, val - 1, x, y);
-        int ret = size[x] + 1;
-        root = merge(x, y);
-        return ret;
-    }
-    KEY _kth(int node, int rank) {
-        if (size[ls[node]] >= rank)
-            return _kth(ls[node], rank);
-        if (size[ls[node]] + 1 >= rank)
-            return key[node];
-        return _kth(rs[node],
-                    rank - size[ls[node]] - 1);
-    }
-    inline KEY kth(int rank) {
-        return _kth(root, rank);
-    }
-    // 前驱：< val 的最大值；后继：> val 的最小值
-    inline KEY prex(KEY val) {
-        return kth(getrank(val) - 1);
-    }
-    inline KEY sufx(KEY val) {
-        return kth(getrank(val + 1));
-    }
+// 把 rng() 输出再过一层非线性混合，挡住 F2 上的 Berlekamp-Massey 攻击
+uint64_t splitmix64(uint64_t x) {
+    x ^= x >> 30;
+    x *= 0xbf58476d1ce4e5b9ULL;
+    x ^= x >> 27;
+    x *= 0x94d049bb133111ebULL;
+    return x ^ (x >> 31);
 }
-	\end{minted}
+// XOR hashing 等场景也用这个，别用裸 rng()
+uint64_t rnd() { return splitmix64(rng()); }
 
-	\subsection{替罪羊树（Scapegoat Tree）}
+struct FHQ {
+    using T = ll;
+    vector<array<int, 2> > ch;
+    vector<int> sz;
+    vector<T> val;
+    vector<ll> pri;
+    int rt = 0;
+    int n;
 
-	替罪羊树通过\textbf{部分重建}保持 $\alpha = 0.7$ 平衡，每次 \verb|insert| 后若发现某子树的「最大孩子规模 / 子树规模」超过 $\alpha$，就把整棵子树拍平 → 中序收集存活节点 → 对半重建。下方实现\textbf{支持惰性删除}（\verb|isdel|），\textbf{鲁棒性比较强}：不要求 \verb|del| / \verb|prex| / \verb|sufx| 操作合法，\verb|getrank| 也不要求 \verb|x| 曾经出现过。
-
-	\begin{minted}{cpp}
-// 代码具有一定的鲁棒性，不要求 del 操作合法
-// prex / sufx 也不要求合法
-// getrank 操作不要求 x 曾经出现过
-class ScapeGoatTree {
-private:
-    typedef int KEY;  // key 较大时改为 ll
-    // 空间约 30MB，maxn=1.1e6+7
-    static const int
-        maxn = static_cast<int>(1.1e6) + 7,
-        inf = static_cast<KEY>(2e9) + 7;
-    static constexpr DB alpha = 0.7;
-    // diff 为节点总数（用于调整）
-    // size 为数字总数（用于询问）
-    int ls[maxn], rs[maxn], count[maxn],
-        diff[maxn], size[maxn];
-    bool isdel[maxn];
-    KEY key[maxn];
-    int collect[maxn], ci = 0;
-    // 最上方不平衡节点 top，其父 father
-    // side: 1=left, 0=right
-    int top = 0, father = 0;
-    bool side = false;
-    // 0 是超级源点
-    // 1 是辅助节点（key=-inf），从不进入 0
-    int head = 1, cnt = 1;
-    bool neebal = false;
-
-    inline void makeN(int node, KEY val) {
-        ls[node] = 0; rs[node] = 0;
-        count[node] = 1; diff[node] = 1;
-        size[node] = 1; key[node] = val;
+    FHQ() {
+        ch.resize(1);
+        sz.resize(1);
+        val.resize(1);
+        pri.resize(1);
     }
-    inline void initN(int node) {
-        if (node != 1 && node != 0) {
-            ls[node] = 0; rs[node] = 0;
-            size[node] = count[node];
-            diff[node] = 1;
-        } else {
-            ls[node] = 0; rs[node] = 0;
-            size[node] = count[node];
-            diff[node] = 0;
+
+    int newNode(T v) {
+        ch.push_back({0, 0});
+        // 不要不小心 push_back 0 了
+        sz.push_back(1);
+        val.push_back(v);
+        pri.push_back(rnd());
+        n = SZ(sz) - 1;
+        return n;
+    }
+
+    // 已知规模先 reserve，省掉 vector 反复扩容
+    void reserve(int _n) {
+        ch.reserve(_n + 2);
+        sz.reserve(_n + 2);
+        val.reserve(_n + 2);
+        pri.reserve(_n + 2);
+    }
+
+    void pushup(int x) {
+        sz[x] = sz[ch[x][0]] + sz[ch[x][1]] + 1;
+    }
+
+    // 按值切：返回 (<= k 的那棵, > k 的那棵)
+    array<int, 2> splitVal(int x, T k) {
+        if (x == 0) return {0, 0};
+        if (val[x] <= k) {
+            auto [l, r] = splitVal(ch[x][1], k);
+            ch[x][1] = l;
+            pushup(x);
+            return {x, r};
         }
+        auto [l, r] = splitVal(ch[x][0], k);
+        ch[x][0] = r;
+        pushup(x);
+        return {l, x};
     }
-    inline bool isbal(int node) {
-        if (node == 1 || node == 0) return true;
-        int mxDiff = max(diff[ls[node]],
-                         diff[rs[node]]);
-        if (mxDiff > diff[node] * alpha)
-            return false;
-        return true;
+
+    // a 中的权值必须全部小于 b 的权值
+    // merge 的时候只考虑优先级，不考虑权值
+    int merge(int a, int b) {
+        if (!a || !b) return a | b;
+        if (pri[a] >= pri[b]) {
+            ch[a][1] = merge(ch[a][1], b);
+            pushup(a);
+            return a;
+        }
+        ch[b][0] = merge(a, ch[b][0]);
+        pushup(b);
+        return b;
     }
-    bool insert(int node, KEY val,
-                int fa, bool isLeft) {
-        if (key[node] == val) {
-            ++count[node]; ++size[node];
-            isdel[node] = false;
-            return false;
-        } else if (val > key[node]) {
-            ++size[node];
-            if (rs[node] == 0) {
-                rs[node] = ++cnt;
-                makeN(cnt, val);
-                return true;
-            } else {
-                bool ret = insert(rs[node], val,
-                                  node, false);
-                if (ret) {
-                    ++diff[node];
-                    if (!isbal(node)) {
-                        top = node; father = fa;
-                        side = isLeft;
-                        neebal = true;
-                    }
-                }
-                return ret;
+
+    void insert(T k) {
+        auto [a, b] = splitVal(rt, k);
+        rt = merge(a, merge(newNode(k), b));
+    }
+
+    void erase(T k) {
+        auto [a, b] = splitVal(rt, k);
+        auto [a_lt_k, a_eq_k] = splitVal(a, k - 1);
+        a_eq_k = merge(ch[a_eq_k][0], ch[a_eq_k][1]);
+        rt = merge(merge(a_lt_k, a_eq_k), b);
+    }
+
+    // 比 k 小的数有几个？再加 1
+    int rank_of_key(T k) {
+        auto [a, b] = splitVal(rt, k - 1);
+        int res = sz[a] + 1;
+        rt = merge(a, b);
+        return res;
+    }
+
+    // 返回 1-base 下第 k 小的数；越界返回 -INF
+    T find_by_order(int k) const {
+        int x = rt;
+        while (true) {
+            if (x == 0) return -INF;
+            int l_sz = sz[ch[x][0]];
+            if (l_sz + 1 == k) {
+                return val[x];
             }
-        } else {
-            ++size[node];
-            if (ls[node] == 0) {
-                ls[node] = ++cnt;
-                makeN(cnt, val);
-                return true;
+            if (l_sz >= k) {
+                x = ch[x][0];
             } else {
-                bool ret = insert(ls[node], val,
-                                  node, true);
-                if (ret) {
-                    ++diff[node];
-                    if (!isbal(node)) {
-                        top = node; father = fa;
-                        side = isLeft;
-                        neebal = true;
-                    }
-                }
-                return ret;
+                k -= (l_sz + 1);
+                x = ch[x][1];
             }
         }
     }
-    void inorder(int node) {
-        if (ls[node] != 0) inorder(ls[node]);
-        if (!isdel[node]) collect[++ci] = node;
-        if (rs[node] != 0) inorder(rs[node]);
-    }
-    void rebuild(int l, int r) {
-        int mid = l + r >> 1;
-        int node = collect[mid];
-        initN(node);
-        if (l >= r) return;
-        if (l <= mid - 1) {
-            rebuild(l, mid - 1);
-            int n1 = collect[(l + mid - 1) >> 1];
-            ls[node] = n1;
-            size[node] += size[n1];
-            diff[node] += diff[n1];
+
+    // 返回 k 的前驱（第一个比 k 小的数）
+    T pre(T k) {
+        auto [a, b] = splitVal(rt, k - 1);
+        int x = a;
+        T res = val[x];
+        while (x != 0) {
+            res = max(res, val[x]);
+            x = ch[x][1];
         }
-        if (r >= mid + 1) {
-            rebuild(mid + 1, r);
-            int n2 = collect[(r + mid + 1) >> 1];
-            rs[node] = n2;
-            size[node] += size[n2];
-            diff[node] += diff[n2];
+        merge(a, b);
+        return res;
+    }
+
+    // 返回 k 的后继（第一个比 k 大的数）
+    T nxt(T k) {
+        auto [a, b] = splitVal(rt, k);
+        int x = b;
+        T res = val[x];
+        while (x != 0) {
+            res = min(res, val[x]);
+            x = ch[x][0];
         }
-    }
-    inline void balan() {
-        ci = 0;
-        inorder(top);
-        if (ci > 0) {
-            int lhead = collect[(1 + ci) / 2];
-            if (top == head) head = lhead;
-            if (side) ls[father] = lhead;
-            else rs[father] = lhead;
-            rebuild(1, ci);
-        }
-        ci = 0; top = 0; neebal = false;
-        father = 0; side = false;
-    }
-    // 1: count>1 减完即可；2: 彻底删除；0: 没有
-    int del(int node, KEY val) {
-        if (key[node] == val) {
-            if (count[node] > 1) {
-                --count[node]; --size[node];
-                return 1;
-            } else {
-                count[node] = 0;
-                --diff[node]; --size[node];
-                isdel[node] = true;
-                return 2;
-            }
-        } else if (val > key[node]) {
-            int ret = 0;
-            if (rs[node] != 0)
-                ret = del(rs[node], val);
-            if (ret != 0) --size[node];
-            if (ret == 2) --diff[node];
-            return ret;
-        } else {
-            int ret = 0;
-            if (ls[node] != 0)
-                ret = del(ls[node], val);
-            if (ret != 0) --size[node];
-            if (ret == 2) --diff[node];
-            return ret;
-        }
-    }
-    int getrank(int node, KEY val, int k) {
-        if (key[node] == val) {
-            k += size[ls[node]];
-            k += 1;
-            return k;
-        } else if (val > key[node]) {
-            k += size[ls[node]];
-            k += count[node];
-            if (rs[node] != 0)
-                return getrank(rs[node], val, k);
-            return k + 1;
-        } else {
-            if (ls[node] != 0)
-                return getrank(ls[node], val, k);
-            return k + 1;
-        }
-    }
-    KEY kth(int node, int k) {
-        if (size[ls[node]] >= k) {
-            if (ls[node] != 0)
-                return kth(ls[node], k);
-            return -inf;
-        } else {
-            if (size[ls[node]]
-                + count[node] >= k)
-                return key[node];
-            if (rs[node] != 0)
-                return kth(rs[node],
-                    k - (size[ls[node]]
-                         + count[node]));
-            return -inf;
-        }
-    }
-public:
-    inline void insert(KEY val) {
-        // 0 当 fa 防止 fa 指向自己造成的问题
-        insert(head, val, 0, false);
-        if (neebal) balan();
-    }
-    inline void del(KEY val) {
-        del(head, val);
-    }
-    inline int getrank(KEY val) {
-        return getrank(head, val, 0);
-    }
-    inline KEY kth(int k) {
-        return kth(head, k);
-    }
-    // 前驱：< val 且最大
-    inline KEY prex(KEY val) {
-        return kth(getrank(val) - 1);
-    }
-    // 后继：> val 且最小
-    inline KEY sufx(KEY val) {
-        return kth(getrank(val + 1));
-    }
-    ScapeGoatTree() {
-        // 由于可能有 0，设置 key[1]=-inf
-        key[1] = -inf;
-        // 异常时输出节点 0 的值即 -inf 显眼
-        key[0] = -inf;
-    }
-    inline void clear() {
-        memset(key, 0, sizeof(key));
-        memset(count, 0, sizeof(count));
-        memset(isdel, 0, sizeof(isdel));
-        memset(ls, 0, sizeof(ls));
-        memset(rs, 0, sizeof(rs));
-        memset(size, 0, sizeof(size));
-        memset(diff, 0, sizeof(diff));
-        memset(collect, 0, sizeof(collect));
-        ci = 0; cnt = 1; head = 1;
-        key[1] = -inf; key[0] = -inf;
+        merge(a, b);
+        return res;
     }
 };
 	\end{minted}
