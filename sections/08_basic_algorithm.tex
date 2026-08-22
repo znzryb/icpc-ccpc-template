@@ -388,7 +388,7 @@ void Solve(){
 		\textbf{用法}：说白了，从``最少链覆盖''翻到``最长子序列''，只是同时拨两个开关——\textcolor{blue}{\textbf{严格}}$\leftrightarrow$\textcolor{blue}{\textbf{非严格}}、\textcolor{blue}{\textbf{上升}}$\leftrightarrow$\textcolor{blue}{\textbf{下降}}，再套上面那个 \texttt{LIS} 即可。
 
 
-		\subsection{高精度大整数类}
+		\subsection[\tochl{高精度大整数类}]{高精度大整数类}
 
 		\textbf{什么时候才用它}：答案必须\emph{精确}且超出 \texttt{\_\_int128} 的 $\approx 1.7 \times 10^{38}$。先按这个顺序排除——题目允许取模就取模、$10^{38}$ 以内直接上 \texttt{\_\_int128}（§14.1 有它的读写重载）、只是本地算个常数就用 Python（§18）。都不行，再搬这个类。
 
