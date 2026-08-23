@@ -1710,7 +1710,7 @@ ParenTree build_tree(const string &s) {
 
 		\textbf{常见踩坑}：很多题\textbf{不需要显式建树}，只要"配对数组 \texttt{match[]} + 深度数组"就足够做区间 $\to$ 子树的翻译；显式建树往往只在需要跨子树合并信息（例如儿子之间按下标有序 DP）时才值得做。
 
-		\subsection{网络流（Dinic）：最大流 / 最小割容量及割边集合}
+		\subsection[\tochl{网络流（Dinic）：最大流 / 最小割容量及割边集合}]{网络流（Dinic）：最大流 / 最小割容量及割边集合}
 
 		Dinic 求最大流 $O(V^2 E)$，二分图匹配 $O(E\sqrt{V})$。核心思路：BFS 在残量网络上分层，DFS 只沿层数 $+1$ 的边增广；\texttt{cur[u]} 当前弧优化保证每条边在一轮里只被无效访问一次。
 
