@@ -158,29 +158,29 @@ int bsearch_2(int l, int r)
 }
 		\end{minted}
 
-		也可以用「两端哨兵」写法，核心是先固定不变量：一个端点始终可行，另一个端点始终不可行。这样最后返回哪边不会混。
+		另一种更常见、也更不容易记混的写法是\textbf{闭区间 + \texttt{ans} 记录}：循环条件写 \texttt{l <= r}，每次 \texttt{check(mid)} 通过就把 \texttt{mid} 抄进 \texttt{ans}，再按「答案还想更大 / 更小」挪端点。答案不依赖「最后返回 \texttt{l} 还是 \texttt{r}」，也不用为了防死循环去记 \texttt{mid = l + r + 1 >> 1} 这套上取整；最大化与最小化只差循环体里两行的方向。
 
 		\begin{minted}{cpp}
-// 最大化答案：check(x) 为 T,T,T,F,F
-// invariant: check(lo) == true, check(hi) == false
-int lo = L - 1, hi = R + 1;
-while (hi - lo > 1) {
-    int mid = (lo + hi) / 2;
-    if (check(mid)) lo = mid;
-    else hi = mid;
+// 最大化：check 为 T,T,T,F,F，求最后一个 T
+int l = L, r = R, ans = -1;  // -1 = 无解
+while (l <= r) {
+    int mid = l + (r - l) / 2;
+    if (check(mid)) ans = mid, l = mid + 1;
+    else r = mid - 1;
 }
-return lo;
+return ans;
 
-// 最小化答案：check(x) 为 F,F,F,T,T
-// invariant: check(lo) == false, check(hi) == true
-int lo = L - 1, hi = R + 1;
-while (hi - lo > 1) {
-    int mid = (lo + hi) / 2;
-    if (check(mid)) hi = mid;
-    else lo = mid;
-}
-return hi;
+// 最小化：check 为 F,F,F,T,T，求第一个 T
+// 循环体只需把上面两行反向：
+    if (check(mid)) ans = mid, r = mid - 1;
+    else l = mid + 1;
 		\end{minted}
+
+		\begin{itemize}
+			\item \texttt{ans} 初值取一个不可能的值（\texttt{-1} / \texttt{L - 1} / \texttt{INF}），循环跑完仍是初值就说明整个区间无解，不必额外判断。
+			\item 用 \texttt{mid = l + (r - l) / 2} 而不是 \texttt{(l + r) / 2}，避免 \texttt{l + r} 溢出。
+			\item 循环结束时必有 \texttt{r + 1 == l}，两端各自停在分界线两侧；但答案已经落在 \texttt{ans} 里，不需要再去分辨该返回哪个端点。
+		\end{itemize}
 
 		\subsubsection{partition\_point 实现二分答案（C++20）}
 
