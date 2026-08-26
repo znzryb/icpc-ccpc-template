@@ -1898,7 +1898,7 @@ public:
 			\item \textbf{原始边费用可能为负}：传 \texttt{useSPFA=true}，先用 SPFA 跑出从 $s$ 到每点的初始势能再走 Dijkstra。注意是\emph{原始}边出现负费用；反向边一开始 \texttt{cap=0} 不参与最短路。
 		\end{itemize}
 
-		\textbf{建图约定}：点编号 1-based，反向边随 \texttt{addEdge} 自动加（容量 $0$、费用 $-cost$）。返回 \texttt{\{最大流, 最小费用\}} 的二元组。
+		\textbf{建图约定}：点编号 1-based，反向边随 \texttt{addEdge} 自动加（容量 $0$、费用 $-cost$）。返回 \texttt{\{最大流, 最小费用\}} 的二元组。多测用 \texttt{mcmf.init(n)} 重置。
 
 		\begin{minted}{cpp}
 class MinCostMaxFlow {
@@ -1945,7 +1945,15 @@ private:
     }
 
 public:
-    MinCostMaxFlow(int n) : n(n), g(n + 1) {}
+    // 建立一个 1-base 流图，可用点编号 1..n，0 号点空着不用。
+    MinCostMaxFlow(int n = 0) { init(n); }
+
+    // 多测时用 mcmf.init(n) 清空旧图。
+    void init(int n_) {
+        n = n_;
+        edges.clear();
+        g.assign(n + 1, {});
+    }
 
     // 加一条 u -> v 的边，容量为 cap，费用为 cost
     // 同时加反向边 v -> u，容量为 0，费用为 -cost，用于撤销流量
