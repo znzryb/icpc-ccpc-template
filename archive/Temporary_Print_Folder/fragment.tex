@@ -1,0 +1,220 @@
+\subsection{最小费用最大流（SPFA 势能 + Dijkstra 增广）}
+
+在最大流的基础上，每条边带单位流量费用，要求在所有最大流方案中费用最小的那个。核心思路：每次沿\emph{费用最短的}增广路推流。直接 SPFA 找最短路也对，但残量网络可能出现负边权（反向边费用为 $-cost$），所以引入\textbf{势能}（Johnson 思想）做边权修正，让 Dijkstra 可用：把边 $u\to v$ 的权由 $cost$ 改成 $cost + h_u - h_v$，正确势能下这个修正后的权一定非负，每次 Dijkstra 跑完用 $h_v \mathrel{+}= dist_v$ 同步即可。
+
+\textbf{复杂度}：$O(\text{SPFA} + A \cdot m \log n)$，$A$ 为增广次数（每条增广路至少一条边饱和）。
+
+\textbf{典型用法}：
+
+\begin{itemize}
+	\item \textbf{原始边费用非负}：直接 \texttt{minCostMaxFlow(s, t)}，$h$ 初始化为 $0$，第一次 Dijkstra 等价于在原图上跑费用最短路，势能自然生效。
+	\item \textbf{原始边费用可能为负}：传 \texttt{useSPFA=true}，先用 SPFA 跑出从 $s$ 到每点的初始势能再走 Dijkstra。注意是\emph{原始}边出现负费用；反向边一开始 \texttt{cap=0} 不参与最短路。前提是原图\textbf{没有负费用环}——有负环时势能不存在，这套 SSP 会死循环，得改用消圈法。
+	\item \textbf{某条边实际流量}：\texttt{getFlow(id)} 返回 \texttt{originCap - cap}，前提是 \texttt{addEdge} 时传过 \texttt{id}。费用流最常见的收尾就是还原方案——哪条边被选、谁配了谁。
+	\item \textbf{最小割}：费用流跑到底同样是最大流，所以 \texttt{minCutSide(s)} / \texttt{minCutEdges(s)} / \texttt{minCutCost(s)} 与 Dinic 那节完全同义（割只看容量，跟费用无关）。
+\end{itemize}
+
+\textbf{建图约定}：点编号 1-based，反向边随 \texttt{addEdge} 自动加（容量 $0$、费用 $-cost$）。\texttt{addEdge} 的第五个参数 \texttt{id} 是输入边编号，可选，只在要 \texttt{getFlow} / \texttt{minCutEdges} 时才需要传。返回 \texttt{\{最大流, 最小费用\}} 的二元组。多测用 \texttt{mcmf.init(n)} 重置。
+
+\begin{minted}{cpp}
+class MinCostMaxFlow {
+private:
+    struct Edge {
+        int from, to;                         // 边的起点和终点
+        ll cap;                               // 当前残余容量
+        ll originCap;                         // 原始容量，用于求割边代价 / 查询流量
+        ll cost;                              // 单位流量费用
+        int id;                               // 输入边编号，不需要查流量 / 输出割边可以不管
+    };
+
+    int n;
+    vector<Edge> edges;
+    vector<vector<int>> g;
+    vector<int> edgeIdToIndex;
+
+    // SPFA 初始化势能 h
+    // 作用：当原始费用可能为负时，先算出从 s 到每个点的最短路势能
+    void initPotentialBySPFA(int s, vector<ll> &h) {
+        vector<int> inq(n + 1, 0);
+        queue<int> q;
+        fill(all(h), INF);
+        h[s] = 0;
+        q.push(s);
+        inq[s] = 1;
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            inq[u] = 0;
+            for (int edgeIndex : g[u]) {
+                Edge &e = edges[edgeIndex];
+                if (e.cap <= 0) continue;
+                int v = e.to;
+                if (h[v] > h[u] + e.cost) {
+                    h[v] = h[u] + e.cost;
+                    if (!inq[v]) {
+                        inq[v] = 1;
+                        q.push(v);
+                    }
+                }
+            }
+        }
+        // 不可达点的势能设为 0，避免后续计算 INF 参与运算
+        for (int i = 1; i <= n; i++) {
+            if (h[i] == INF) h[i] = 0;
+        }
+    }
+
+public:
+    // 建立一个 1-base 流图，可用点编号 1..n，0 号点空着不用。
+    MinCostMaxFlow(int n = 0) { init(n); }
+
+    // 多测时用 mcmf.init(n) 清空旧图。
+    void init(int n_) {
+        n = n_;
+        edges.clear();
+        g.assign(n + 1, {});
+        edgeIdToIndex.clear();
+    }
+
+    // 加一条 u -> v 的边，容量 cap，单位费用 cost。
+    // 同时加反向边 v -> u，容量 0，费用 -cost，用于撤销流量。
+    // 只求费用流不需要传 id；要查单边流量 / 输出最小割边就把输入编号 i 传进来。
+    void addEdge(int u, int v, ll cap, ll cost, int id = -1) {
+        if (id >= 0) {
+            if ((int)edgeIdToIndex.size() <= id) {
+                edgeIdToIndex.resize(id + 1, -1);
+            }
+            edgeIdToIndex[id] = (int)edges.size();
+        }
+        int edgeIndex = (int)edges.size();
+        edges.push_back({u, v, cap, cap, cost, id});
+        edges.push_back({v, u, 0, 0, -cost, -1});
+        g[u].push_back(edgeIndex);
+        g[v].push_back(edgeIndex ^ 1);
+    }
+
+    // 返回 {最大流, 最小费用}
+    // useSPFA 表示是否使用 SPFA 初始化势能
+    pair<ll, ll> minCostMaxFlow(int s, int t, bool useSPFA = false) {
+        ll maxFlow = 0;
+        ll minCost = 0;
+        vector<ll> h(n + 1, 0);               // 势能，让 Dijkstra 可处理残量网络中的负边
+        vector<ll> dist(n + 1);               // 最短路距离
+        vector<int> pre(n + 1);               // pre[v] = 最短路上到达 v 的边下标
+
+        if (useSPFA) {
+            initPotentialBySPFA(s, h);
+        }
+
+        while (true) {
+            fill(all(dist), INF);
+            fill(all(pre), -1);
+            priority_queue<pair<ll, int>, vector<pair<ll, int>>, greater<pair<ll, int>>> pq;
+            dist[s] = 0;
+            pq.push({0, s});
+
+            // 在残量网络上跑 Dijkstra，找费用最短的增广路
+            while (!pq.empty()) {
+                auto [d, u] = pq.top(); pq.pop();
+                if (d != dist[u]) continue;
+                for (int edgeIndex : g[u]) {
+                    Edge &e = edges[edgeIndex];
+                    if (e.cap <= 0) continue;
+                    int v = e.to;
+                    // 势能修正后的边权，正确势能下一定 >= 0
+                    ll newCost = e.cost + h[u] - h[v];
+                    if (dist[v] > dist[u] + newCost) {
+                        dist[v] = dist[u] + newCost;
+                        pre[v] = edgeIndex;
+                        pq.push({dist[v], v});
+                    }
+                }
+            }
+
+            // t 不可达，说明已经没有增广路
+            if (pre[t] == -1) break;
+
+            // 更新势能
+            for (int i = 1; i <= n; i++) {
+                if (dist[i] < INF) {
+                    h[i] += dist[i];
+                }
+            }
+
+            // 找这条增广路上的瓶颈容量
+            ll addFlow = INF;
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                addFlow = min(addFlow, edges[pre[cur]].cap);
+            }
+
+            // 沿着最短费用路增广
+            for (int cur = t; cur != s; cur = edges[pre[cur]].from) {
+                int edgeIndex = pre[cur];
+                edges[edgeIndex].cap -= addFlow;
+                edges[edgeIndex ^ 1].cap += addFlow;
+                minCost += addFlow * edges[edgeIndex].cost;
+            }
+
+            maxFlow += addFlow;
+        }
+
+        return {maxFlow, minCost};
+    }
+
+    // 跑完 minCostMaxFlow(s, t) 后调用。费用流跑到底同样是最大流，
+    // 所以下面三个割接口和 Dinic 完全同义：割只看容量，跟费用无关。
+    // vis[u] = 1 表示 u 在最小割 S 侧；vis[u] = 0 表示在 T 侧。
+    // 原理：残量网络里从 s 沿剩余容量 > 0 的边能到的点。
+    vector<int> minCutSide(int s) {
+        vector<int> vis(n + 1, 0);
+        queue<int> q;
+        vis[s] = 1;
+        q.push(s);
+        while (!q.empty()) {
+            int u = q.front(); q.pop();
+            for (int edgeIndex : g[u]) {
+                Edge &e = edges[edgeIndex];
+                if (e.cap > 0 && !vis[e.to]) {
+                    vis[e.to] = 1;
+                    q.push(e.to);
+                }
+            }
+        }
+        return vis;
+    }
+
+    // 跑完 minCostMaxFlow(s, t) 后调用，返回一组最小割边的输入编号。
+    // 一条原图边 u -> v 属于最小割 <=> u 在 S 侧且 v 在 T 侧。
+    // 使用前提：addEdge 时传过 id。
+    vector<int> minCutEdges(int s) {
+        vector<int> vis = minCutSide(s);
+        vector<int> cutEdges;
+        for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2) {
+            Edge &e = edges[edgeIndex];
+            if (e.id != -1 && vis[e.from] && !vis[e.to]) {
+                cutEdges.push_back(e.id);
+            }
+        }
+        return cutEdges;
+    }
+
+    // 跑完 minCostMaxFlow(s, t) 后调用，返回这组最小割边的原始容量之和。
+    // 正常情况下 mcmf.minCutCost(s) == mcmf.minCostMaxFlow(s, t).first。
+    ll minCutCost(int s) {
+        vector<int> vis = minCutSide(s);
+        ll cost = 0;
+        for (int edgeIndex = 0; edgeIndex < (int)edges.size(); edgeIndex += 2) {
+            Edge &e = edges[edgeIndex];
+            if (vis[e.from] && !vis[e.to]) {
+                cost += e.originCap;
+            }
+        }
+        return cost;
+    }
+
+    // 查询某条输入边实际流了多少；前提是 addEdge 时传过 id。
+    // 费用流最常用的收尾动作：还原方案（哪条边被选、谁配了谁）。
+    ll getFlow(int id) {
+        int edgeIndex = edgeIdToIndex[id];
+        return edges[edgeIndex].originCap - edges[edgeIndex].cap;
+    }
+};
+\end{minted}

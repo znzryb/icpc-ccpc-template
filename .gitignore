@@ -5,6 +5,7 @@ TemplateDetailedExplain/out/*
 !TemplateDetailedExplain/out/*.pdf
 atcoder-template/out/*
 !atcoder-template/out/*.pdf
+archive/Temporary_Print_Folder/out/
 auxil/
 _minted-*/
 *.synctex.gz

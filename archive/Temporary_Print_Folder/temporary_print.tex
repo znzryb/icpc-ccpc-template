@@ -1,0 +1,58 @@
+% 临时打印页：只把板子里的某一小块单独排成两三页的 PDF，方便单模块补印，
+% 不用为了改一个类就把近 200 页的 template-main.pdf 整本重打。
+%
+% 用法：把要印的片段贴进 fragment.tex（一个 subsection 就够），编译命令见同目录 README.md。
+% 产物是 out/temporary_print.pdf。
+%
+% 这是一次性工位，fragment.tex 的内容随时会被下一个模块覆盖，别当归档用。
+% preamble 是从 template-main.tex 裁出来的最小可用子集（只留这类代码页真正用到的宏包），
+% 排版参数（字体 / 页边距 / minted 设置 / 双栏）与正式板子保持一致，
+% 这样代码块的折行位置跟印在书里时完全一样。
+
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{csquotes}
+
+\usepackage{xeCJK}
+\setCJKmainfont[BoldFont={Noto Serif CJK SC Bold}, ItalicFont={Kaiti SC}]{Noto Serif CJK SC}
+\setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans CJK SC}
+
+\usepackage{multicol}
+\usepackage[table]{xcolor}
+% cachedir 与主文档分开，避免两边的 minted 缓存互相打架
+\usepackage[cachedir=_minted-temporary-print]{minted}
+\usepackage[a4paper, left=2cm, right=2cm, top=2.5cm, bottom=2.5cm]{geometry}
+
+% 与 template-main.tex 逐字一致的 minted 设置
+\setminted{
+	breaklines=true,
+	breakanywhere=true,
+	fontsize=\small,
+	frame=single,
+	bgcolor=gray!5,
+	tabsize=2,
+}
+\setmintedinline{breakanywhere=false}
+
+\usepackage[colorlinks=true, linkcolor=black, anchorcolor=black, citecolor=black, filecolor=black, menucolor=black, runcolor=black, urlcolor=blue]{hyperref}
+
+% 单块补印不要 "0.1" 这种脱离全书的孤零零编号
+\setcounter{secnumdepth}{-1}
+
+\begin{document}
+
+	\begin{center}
+		{\Large \textbf{临时打印页：图论 · 最小费用最大流（MCMF）}} \\[4pt]
+		{\small 补印自 \texttt{sections/10\_graph.tex}\quad·\quad 2026-08-29}
+	\end{center}
+
+	\vspace{0.5em}
+
+	\begin{multicols*}{2}
+		\input{fragment.tex}
+	\end{multicols*}
+
+\end{document}
