@@ -6,8 +6,8 @@
 %
 % 这是一次性工位，fragment.tex 的内容随时会被下一个模块覆盖，别当归档用。
 % preamble 是从 template-main.tex 裁出来的最小可用子集（只留这类代码页真正用到的宏包），
-% 排版参数（字体 / 页边距 / minted 设置 / 双栏）与正式板子保持一致，
-% 这样代码块的折行位置跟印在书里时完全一样。
+% 字体 / 页边距 / minted 设置与正式板子一致，但**排成单栏**：
+% 补印页只是拿来看一个模块，单栏行更长、代码不用挤，比照搬书里的双栏好读。
 
 \documentclass{article}
 
@@ -20,7 +20,6 @@
 \setCJKsansfont[BoldFont={Noto Sans CJK SC Bold}]{Noto Sans CJK SC}
 \setCJKmonofont{Noto Sans CJK SC}
 
-\usepackage{multicol}
 \usepackage[table]{xcolor}
 % cachedir 与主文档分开，避免两边的 minted 缓存互相打架
 \usepackage[cachedir=_minted-temporary-print]{minted}
@@ -51,8 +50,6 @@
 
 	\vspace{0.5em}
 
-	\begin{multicols*}{2}
-		\input{fragment.tex}
-	\end{multicols*}
+	\input{fragment.tex}
 
 \end{document}

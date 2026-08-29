@@ -7,7 +7,7 @@
 
 1. 把要印的片段贴进 `fragment.tex`（通常就是 `sections/*.tex` 里的一个 `\subsection`，
    连说明文字和 `minted` 代码块一起复制，**不要**带 `\section{...}`、也不要带 `multicols*`
-   环境——双栏由 `temporary_print.tex` 统一包）。
+   环境——补印页是**单栏**排版，双栏留给正式板子）。
 2. 顺手把 `temporary_print.tex` 里居中标题那两行的模块名 / 日期改掉。
 3. 在本目录编译（`claude-latex-compile` 规范的标准命令，跑两遍 + 扫四类 log 问题）：
 
@@ -35,7 +35,8 @@
 - **一次性工位**：`fragment.tex` 的内容随时会被下一个模块覆盖，不要当归档用；
   想留档请另存到 `archive/` 下带日期的文件里。
 - `temporary_print.tex` 的 preamble 是 `template-main.tex` 的最小可用子集，
-  页边距 / 字体 / `minted` 设置 / 双栏都对齐正式板子，所以折行位置跟印在书里时一致。
+  页边距 / 字体 / `minted` 设置都对齐正式板子，但**排成单栏**——补印页只是拿来看一个模块，
+  单栏行更长、代码不用挤着折，比照搬书里的双栏好读。
   如果贴进来的片段用到了 tikz / forest / tcolorbox，需要自己按主文档补对应宏包。
 - minted 的 cachedir 是 `_minted-temporary-print`，与主文档分开，互不影响。
 - `out/` 与 `_minted-*/` 都不进版本库。
