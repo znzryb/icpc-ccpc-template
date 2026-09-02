@@ -1,144 +1,35 @@
-		\subsection{\texttt{segtree}：单点改 + 区间查（非递归）}
+		维护满足\textbf{结合律}的二元运算 \texttt{op} 与其\textbf{单位元} \texttt{e}（即幺半群 monoid）上的序列，支持单点赋值、区间求积与线段树上二分，单次操作均为 $O(\log n)$。
 
-		维护满足\textbf{结合律}的二元运算 \texttt{op} 与其\textbf{单位元} \texttt{e}（即幺半群 monoid）上的序列，支持单点赋值 $O(\log n)$、区间求积 $O(\log n)$、以及在线段树上二分 $O(\log n)$。
-
-		\textbf{接口一览}（区间一律 $[l, r]$ \textbf{左闭右闭}；\texttt{seg(n)} 的合法位置是 $0 \dots n$，共 $n+1$ 个叶子，所以 0-based 与 1-based \textbf{都能直接用}，多出来的那一格恒为 \texttt{e()} 不影响结果）：
+		\textbf{接口一览}（区间一律 $[l,r]$ 左闭右闭；\texttt{seg(n)} 的合法位置是 $0\dots n$，共 $n+1$ 个叶子）：
 
 		\begin{itemize}
-			\item \texttt{segtree<S, op, e> seg(n)}：合法位置 $0 \dots n$，全部初始化为 \texttt{e()}。
-			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S> v} 建树，$O(n)$；\texttt{v[i]} 就是位置 $i$，长度自己定（1-based 用法写 \texttt{vector<S> a(n + 1, e())} 再填 \texttt{a[1..n]}）。
-			\item \texttt{seg.set(p, x)}：令 $a_p \leftarrow x$。
-			\item \texttt{seg.get(p)}：返回 $a_p$。
-			\item \texttt{seg.prod(l, r)}：返回 $op(a_l, \dots, a_r)$（闭区间）；$r = l - 1$ 表示空区间，返回 \texttt{e()}。
-			\item \texttt{seg.all\_prod()}：返回全区间积，$O(1)$。
-			\item \texttt{seg.max\_right(l, f)}：返回最大的 $r$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $l - 1$ 表示一个都取不到）。要求 \texttt{f} 单调（真在前假在后）且 \texttt{f(e())} 为真。
-			\item \texttt{seg.min\_left(r, f)}：返回最小的 $l$，使 $f(op(a_l, \dots, a_r))$ 为真（返回 $r + 1$ 表示空）。同样要求 \texttt{f} 单调且 \texttt{f(e())} 为真。
+			\item \texttt{segtree<S, op, e> seg(n)}：全部初始化为 \texttt{e()}。
+			\item \texttt{segtree<S, op, e> seg(v)}：由 \texttt{vector<S>} 在 $O(n)$ 内建树。
+			\item \texttt{set(p,x)} / \texttt{get(p)}：单点赋值 / 单点读取。
+			\item \texttt{prod(l,r)} / \texttt{all\_prod()}：闭区间 / 全区间求积；$r=l-1$ 表示空区间。
+			\item \texttt{max\_right(l,f)}：返回最大的 $r$，使 $f(op(a_l,\dots,a_r))$ 为真；取不到时返回 $l-1$。
+			\item \texttt{min\_left(r,f)}：返回最小的 $l$，使 $f(op(a_l,\dots,a_r))$ 为真；取不到时返回 $r+1$。
 		\end{itemize}
 
-		\textbf{三个易错点}：
+		\textbf{注意}：\texttt{op} 与 \texttt{e} 必须是自由函数或函数指针；\texttt{e()} 必须是真单位元。\texttt{max\_right}/\texttt{min\_left} 的谓词必须满足 \texttt{f(e()) == true}，且沿扩展方向只能从真变假一次。
 
-		\begin{enumerate}
-			\item \texttt{op} 与 \texttt{e} 必须是\textbf{自由函数}（或函数指针 / 无捕获 lambda 转成的函数指针），\textbf{不能}是带捕获的 lambda——它们是模板参数，编译期就要定死。
-			\item \texttt{e()} 必须是真单位元：求最大值时用足够小的哨兵（如 \texttt{-4e18}）而非 $0$，否则负数序列查询结果错。
-			\item 从 \texttt{vector} 建树时\textbf{长度不再自动 $+1$}：想 1-based 用就得自己开 \texttt{a(n + 1)}，直接传 \texttt{a(n)} 的话位置 $n$ 不合法。另外 $n$ 恰为 $2$ 的幂时多开的那格会让 \texttt{bit\_ceil} 翻倍（$n = 2^{20} \Rightarrow$ \texttt{d} 数组 $2^{22}$），卡空间的题留意。
-		\end{enumerate}
-
-		\textbf{示例一：区间最大值}（单点赋值 + 区间查最大，完整可提交骨架）
-
-		\begin{minted}{cpp}
-/* 题意: n 个数, q 次操作
- *   1 p v -> 把第 p 个数改成 v  (1-based)
- *   2 l r -> 输出 [l, r] 里的最大值 (闭区间)
- */
-using S = ll;   // 每个结点存什么: 这里就是值本身
-
-// op: 两段的答案怎么合并成一段的答案
-// 必须满足结合律 —— max 满足:
-//   max(max(a,b),c) == max(a,max(b,c))
-S op_max(S a, S b) { return max(a, b); }
-
-// e: op 的单位元, 要求 op(e(), x) == x 恒成立
-// 所以取「不可能出现的极小值」当哨兵。
-// 千万别写 0: 全是负数时查询会错答成 0
-S e_max() { return -4e18; }
-
-int main() {
-    int n, q;
-    cin >> n >> q;
-
-    // 想 1-based 用就自己开 n+1 格, a[i] 就是位置 i
-    vector<S> a(n + 1, e_max());
-    for (int i = 1; i <= n; i++) cin >> a[i];
-
-    // 用 vector 一次性建树是 O(n);
-    // 先 segtree(n) 再逐个 set 是 O(n log n),
-    // 能一次建好就不要循环 set
-    segtree<S, op_max, e_max> seg(a);
-
-    while (q--) {
-        int t;
-        cin >> t;
-        if (t == 1) {          // 单点赋值
-            int p;
-            ll v;
-            cin >> p >> v;
-            seg.set(p, v);     // 1-based, 题面给什么用什么
-        } else {               // 区间查最大
-            int l, r;
-            cin >> l >> r;
-            // prod 就是闭区间 [l, r], 不用换算
-            cout << seg.prod(l, r) << "\n";
-        }
-    }
-}
-		\end{minted}
-
-		\textbf{示例二：区间和 + 线段树上二分}。求「从 $l$ 出发最长的前缀，使区间和不超过 $x$」——这是 \texttt{max\_right} 的典型用途，把「外层二分 + 内层查询」的 $O(\log^2 n)$ 压到 $O(\log n)$：
-
-		\begin{minted}{cpp}
-using S = ll;
-// 求和版三件套: 加法结合, 单位元是 0
-S op_sum(S a, S b) { return a + b; }
-S e_sum() { return 0; }
-
-int main() {
-    int n;
-    ll x;
-    cin >> n >> x;
-    vector<S> a(n + 1, e_sum());   // 1-based
-    for (int i = 1; i <= n; i++) cin >> a[i];
-    segtree<S, op_sum, e_sum> seg(a);
-
-    int l = 1;   // 从位置 l 出发
-
-    // 谓词 f 可以是「带捕获的 lambda」——
-    // 它是普通函数参数, 不是模板参数,
-    // 这点跟 op / e 的限制不同。
-    // 要求 f 单调: 真在前、假在后, 且 f(e()) 真。
-    // 这里 sum <= x 单调的前提是元素非负
-    // (有负数时前缀和会上下摆, 谓词不单调,
-    //  max_right 的返回值就没有意义了)
-    int r = seg.max_right(l, [&](S sum) {
-        return sum <= x;
-    });
-
-    // r 是「最大的位置」, 使闭区间和
-    //   a[l] + a[l+1] + ... + a[r] <= x
-    // 取不到任何元素时 r == l-1
-    // 所以能取的元素个数 = r - l + 1
-    cout << r - l + 1 << "\n";
-
-    // 对称接口: min_left(r, f) 从右往左找
-    // 最小的 l 使闭区间 a[l..r] 满足 f
-    int l2 = seg.min_left(n, [&](S sum) {
-        return sum <= x;
-    });
-    cout << n - l2 + 1 << "\n";  // 后缀能取几个
-}
-		\end{minted}
-
-		\textbf{模板本体}：
+		\subsubsection{模板本体}
 
 		\begin{minted}{cpp}
 /* AtCoder Library v1.6 atcoder/segtree 自包含移植 + 闭区间
- * 用法: segtree(n) 合法位置 0..n (开 n+1 个叶子), 区间 [l, r] 左闭右闭
- *      1-based 就只碰 1..n, 0-based 就只碰 0..n-1,
- *      多出来的那个位置恒为 e(), 不影响任何查询
- *      从 vector 建: v[i] 对应位置 i, 长度自己定
- *        1-based -> vector<S> a(n + 1, e()); a[1..n] 填数据; segtree seg(a);
- *      空区间写 r == l - 1 (prod 返回 e())
- * 注意: n 恰为 2 的幂时多开的那个叶子会让 bit_ceil 翻倍, 卡空间的题留意
+ * segtree(n) 合法位置 0..n; 区间 [l, r] 左闭右闭
+ * 1-based 只碰 1..n; 0-based 只碰 0..n-1
+ * 从 vector 建树时 v[i] 对应位置 i, 长度由 vector 决定
+ * 空区间写 r == l - 1, prod 返回 e()
  */
 template<class S, S (*op)(S, S), S (*e)()>
 struct segtree {
 public:
     segtree() : segtree(0) {}
 
-    // 合法位置 0..n, 内部开 n+1 个叶子
     explicit segtree(int n)
         : segtree(vector<S>(n + 1, e())) {}
 
-    // v[i] 对应位置 i, 合法位置 0..v.size()-1
     explicit segtree(const vector<S> &v)
         : _n(int(v.size())) {
         size = (int) bit_ceil((unsigned) _n);
@@ -150,7 +41,6 @@ public:
             update(i);
     }
 
-    // a[p] = x   (0 <= p <= n)
     void set(int p, S x) {
         assert(0 <= p && p < _n);
         p += size;
@@ -159,13 +49,11 @@ public:
             update(p >> i);
     }
 
-    // 返回 a[p]   (0 <= p <= n)
     S get(int p) const {
         assert(0 <= p && p < _n);
         return d[p + size];
     }
 
-    // 返回 op(a[l], ..., a[r])   闭区间
     S prod(int l, int r) const {
         r++;
         assert(0 <= l && l <= r && r <= _n);
@@ -181,8 +69,6 @@ public:
 
     S all_prod() const { return d[1]; }
 
-    // 最大的 r 使 f(op(a[l..r])) 为真 (闭区间); 取不到时返回 l-1
-    // 内部返回的是半开右端, 所以返回值统一 -1
     template<class F>
     int max_right(int l, F f) const {
         assert(0 <= l && l <= _n);
@@ -208,8 +94,6 @@ public:
         return _n - 1;
     }
 
-    // 最小的 l 使 f(op(a[l..r])) 为真 (闭区间); 取不到时返回 r+1
-    // 入参 r++ 成半开右端即可, 返回值本身就是闭区间左端
     template<class F>
     int min_left(int r, F f) const {
         r++;
@@ -240,14 +124,12 @@ private:
     int _n, size, log;
     vector<S> d;
 
-    // 原 atcoder::internal::bit_ceil
     static unsigned bit_ceil(unsigned n) {
         unsigned x = 1;
         while (x < n) x *= 2;
         return x;
     }
 
-    // 原 atcoder::internal::countr_zero
     static int countr_zero(unsigned n) {
         return __builtin_ctz(n);
     }
@@ -258,4 +140,125 @@ private:
 };
 		\end{minted}
 
-		\textbf{与本模板其它线段树的取舍}：ACL 版是非递归实现，常数小、代码短，但\textbf{只支持单点修改}；要区间修改（区间加 / 区间赋值）请用下一小节的 \texttt{lazy\_segtree}，或主板子数据结构章的递归式懒标记线段树。ACL 版另一个优势是 \texttt{max\_right} / \texttt{min\_left} 这对树上二分接口，主板子的线段树模板没有等价物。
+		\begin{multicols*}{2}
+
+			\subsubsection{示例：单点赋值 + 区间最大值}
+
+			负数序列中，最大值的单位元必须是足够小的数，不能写成 $0$。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: seg_point_max
+using S = ll;
+
+S op_max(S a, S b) { return max(a, b); }
+S e_max() { return -4e18; }
+
+using SegMax = segtree<S, op_max, e_max>;
+
+// vector<S> a(n + 1, e_max()); // 1-based
+// SegMax seg(a);
+// seg.set(p, x);
+// ll ans = seg.prod(l, r);
+			\end{minted}
+
+			\subsubsection{示例：单点修改 + 最大子段和}
+
+			节点保存总和、最大前缀、最大后缀和最大子段和。额外的 \texttt{empty} 让空区间成为真正单位元，也避免用哨兵参与加法。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: seg_max_subarray
+struct S {
+    ll sum, pre, suf, best;
+    bool empty;
+};
+
+S op(S a, S b) {
+    if (a.empty) return b;
+    if (b.empty) return a;
+    return {
+        a.sum + b.sum,
+        max(a.pre, a.sum + b.pre),
+        max(b.suf, b.sum + a.suf),
+        max({a.best, b.best, a.suf + b.pre}),
+        false
+    };
+}
+
+S e() { return {0, 0, 0, 0, true}; }
+S make_leaf(ll x) { return {x, x, x, x, false}; }
+
+using SegMaxSubarray = segtree<S, op, e>;
+
+// vector<S> a(n + 1, e());
+// FOR(i, 1, n) a[i] = make_leaf(x[i]);
+// SegMaxSubarray seg(a);
+// seg.set(p, make_leaf(x));
+// ll ans = seg.prod(l, r).best;
+			\end{minted}
+
+			\subsubsection{示例：第 $k$ 个 1 与左右边界}
+
+			当叶子只有 $0/1$ 时，前缀计数具有单调性。\texttt{max\_right} 找到“计数仍小于 $k$”的最后位置，再加一就是第 $k$ 个 1。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: seg_kth_boundary
+using S = ll;
+S op(S a, S b) { return a + b; }
+S e() { return 0; }
+using SegCount = segtree<S, op, e>;
+
+int kth_one(const SegCount &seg, ll k) {
+    if (k <= 0 || seg.all_prod() < k) return -1;
+    return seg.max_right(1, [&](S cnt) {
+        return cnt < k;
+    }) + 1;
+}
+
+int farthest_right(const SegCount &seg, int l, ll x) {
+    // 元素非负时，区间和 <= x 才沿右扩单调。
+    return seg.max_right(l, [&](S sum) {
+        return sum <= x;
+    });
+}
+
+int farthest_left(const SegCount &seg, int r, ll x) {
+    int l = seg.min_left(r, [&](S sum) {
+        return sum <= x;
+    });
+    return max(1, l); // 1-based 时排除额外的 0 号单位元
+}
+			\end{minted}
+
+			\subsubsection{示例：含负数时找首个前缀和 $\ge x$}
+
+			有负数时不能拿区间和判定单调性；节点必须维护“这段能达到的最大前缀和” \texttt{pre}。若累计信息的 \texttt{pre < x}，说明还没遇到答案。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: seg_negative_prefix
+struct S {
+    ll sum, pre;
+    bool empty;
+};
+
+S op(S a, S b) {
+    if (a.empty) return b;
+    if (b.empty) return a;
+    return {a.sum + b.sum,
+            max(a.pre, a.sum + b.pre), false};
+}
+
+S e() { return {0, 0, true}; }
+S make_leaf(ll x) { return {x, x, false}; }
+using SegPrefix = segtree<S, op, e>;
+
+int first_prefix_at_least(
+        const SegPrefix &seg, int l, int n, ll x) {
+    if (seg.prod(l, n).pre < x) return -1;
+    int last_bad = seg.max_right(l, [&](S cur) {
+        return cur.empty || cur.pre < x;
+    });
+    return last_bad + 1;
+}
+			\end{minted}
+
+		\end{multicols*}

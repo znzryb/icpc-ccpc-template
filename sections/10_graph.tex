@@ -1295,108 +1295,72 @@ private:
 		\end{minted}
 
 
-		\subsection{重链剖分（HLD + 线段树）}
+		\subsection{重链剖分（ACL \texttt{lazy\_segtree}）}
 
-		参考实现：\href{https://www.codechef.com/viewsolution/1209757778}{CodeChef Beautiful Sum (XPS)} 的提交。把树拆成若干条重链，每条链在线段树上变成一段连续区间；路径修改/查询 $O(\log^2 n)$，子树修改/查询 $O(\log n)$（一段连续区间 \texttt{[dfn[u], dfn[u] + siz[u] - 1]}）。下面这套含奇偶深度分开的异或 Tag、按位拆分的 Info、ZKW 线段树、HLD 的路径 / 子树双接口，以及对边权题"边挂儿子 + 子树边接口排除自身"的处理。
+		参考实现：\href{https://www.codechef.com/viewsolution/1209757778}{CodeChef Beautiful Sum (XPS)} 的提交。把树拆成若干条重链，每条链在线段树上变成一段连续区间；路径修改/查询 $O(\log^2 n)$，子树修改/查询 $O(\log n)$（一段连续区间 \texttt{[dfn[u], dfn[u] + siz[u] - 1]}）。下面这套含奇偶深度分开的异或 Tag、按位拆分的 Info、ACL \texttt{lazy\_segtree}、HLD 的路径 / 子树双接口，以及对边权题"边挂儿子 + 子树边接口排除自身"的处理。线段树本体直接使用数据结构章的共享 ACL 模板。
 
 		\begin{minted}{cpp}
 static constexpr int LOG = 21;
 
-// --- 核心数据结构 ---
+// --- ACL lazy_segtree 的 S / F 五件套 ---
 struct Tag {
     ll xor_val[2];      // [0]: 偶深, [1]: 奇深
-    explicit Tag(ll e = 0, ll o = 0) { xor_val[0] = e; xor_val[1] = o; }
-    void apply(const Tag &t) { xor_val[0] ^= t.xor_val[0]; xor_val[1] ^= t.xor_val[1]; }
-    bool empty() const { return xor_val[0] == 0 && xor_val[1] == 0; }
+    explicit Tag(ll e = 0, ll o = 0) {
+        xor_val[0] = e;
+        xor_val[1] = o;
+    }
 };
 
 struct Info {
-    int cnt[2];                    // 偶深 / 奇深 节点数
-    int bit_num[2][LOG];           // bit_num[p][i]: p 奇偶性中第 i 位为 1 的个数
+    int cnt[2];                    // 偶深 / 奇深节点数
+    int bit_num[2][LOG];           // 对应奇偶性中每一位为 1 的个数
 
-    Info() { memset(cnt, 0, sizeof(cnt)); memset(bit_num, 0, sizeof(bit_num)); }
+    Info() {
+        memset(cnt, 0, sizeof(cnt));
+        memset(bit_num, 0, sizeof(bit_num));
+    }
 
     static Info make_structure(int depth) {
         Info res;
         res.cnt[depth & 1] = 1;
         return res;
     }
-    static Info merge(const Info &l, const Info &r) {
-        Info res;
-        FOR(p, 0, 1) {
-            res.cnt[p] = l.cnt[p] + r.cnt[p];
-            FOR(i, 0, LOG-1) res.bit_num[p][i] = l.bit_num[p][i] + r.bit_num[p][i];
-        }
-        return res;
-    }
-    void apply(const Tag &t) {
-        FOR(p, 0, 1) {
-            if (t.xor_val[p] == 0) continue;
-            FOR(i, 0, LOG-1) {
-                if ((t.xor_val[p] >> i) & 1)
-                    bit_num[p][i] = cnt[p] - bit_num[p][i];
-            }
-        }
-    }
-    static Info zero() { return Info(); }
 };
 
-// --- ZKW 线段树（懒标记） ---
-struct SEG {
-    int n, sz, dep;
-    vector<Info> info;
-    vector<Tag> tag;
+Info op(Info l, Info r) {
+    Info res;
+    FOR(p, 0, 1) {
+        res.cnt[p] = l.cnt[p] + r.cnt[p];
+        FOR(i, 0, LOG - 1)
+            res.bit_num[p][i] =
+                l.bit_num[p][i] + r.bit_num[p][i];
+    }
+    return res;
+}
 
-    SEG(int n_) {
-        n = n_ + 2;
-        dep = __lg(n) + 1;
-        sz = 1 << dep;
-        info.assign(sz * 2 + 5, Info());
-        tag.assign(sz * 2 + 5, Tag());
-    }
-    static void pull(Info &fa, const Info &lc, const Info &rc) { fa = Info::merge(lc, rc); }
-    void apply_one(int o, const Tag &t) { info[o].apply(t); tag[o].apply(t); }
-    void pushdown(int o) {
-        if (tag[o].empty()) return;
-        int l = o << 1, r = l | 1;
-        apply_one(l, tag[o]); apply_one(r, tag[o]);
-        tag[o] = Tag();
-    }
-    void assign_raw(int i, const Info &v) { info[i + sz] = v; }
-    void build() {
-        for (int o = sz - 1; o >= 1; --o)
-            pull(info[o], info[o << 1], info[o << 1 | 1]);
-    }
-    void push_path(int l, int r) {
-        l = l - 1 + sz; r = r + 1 + sz;
-        int i = dep, j = __lg(l ^ r);
-        while (i > j) pushdown(l >> i--);
-        while (i) { pushdown(l >> i); pushdown(r >> i); --i; }
-    }
-    Info query(int L, int R) {
-        if (L > R) return Info::zero();
-        push_path(L, R);
-        int l = L - 1 + sz, r = R + 1 + sz;
-        Info left = Info::zero(), right = Info::zero();
-        for (; l ^ r ^ 1; l >>= 1, r >>= 1) {
-            if (~l & 1) left = Info::merge(left, info[l ^ 1]);
-            if (r & 1)  right = Info::merge(info[r ^ 1], right);
+Info e() { return Info(); }
+
+Info mapping(Tag f, Info x) {
+    FOR(p, 0, 1) {
+        FOR(i, 0, LOG - 1) {
+            if ((f.xor_val[p] >> i) & 1)
+                x.bit_num[p][i] =
+                    x.cnt[p] - x.bit_num[p][i];
         }
-        return Info::merge(left, right);
     }
-    void range_apply(int L, int R, const Tag &t) {
-        if (L > R) return;
-        push_path(L, R);
-        int l = L - 1 + sz, r = R + 1 + sz;
-        int L0 = l, R0 = r;
-        for (; l ^ r ^ 1; l >>= 1, r >>= 1) {
-            if (~l & 1) apply_one(l ^ 1, t);
-            if (r & 1)  apply_one(r ^ 1, t);
-        }
-        for (L0 >>= 1; L0; L0 >>= 1) pull(info[L0], info[L0 << 1], info[L0 << 1 | 1]);
-        for (R0 >>= 1; R0; R0 >>= 1) pull(info[R0], info[R0 << 1], info[R0 << 1 | 1]);
-    }
-};
+    return x;
+}
+
+Tag composition(Tag f, Tag g) {
+    // 先 g 后 f；异或可直接合并。
+    return Tag(f.xor_val[0] ^ g.xor_val[0],
+               f.xor_val[1] ^ g.xor_val[1]);
+}
+
+Tag id() { return Tag(); }
+
+using HldSeg = lazy_segtree<Info, op, e, Tag,
+        mapping, composition, id>;
 
 // --- HLD ---
 struct HLD {
@@ -1444,38 +1408,58 @@ struct HLD {
     }
 };
 
-// --- HLD + ZKW 组合：路径/子树修改、路径/子树查询、边接口 ---
-struct HLDZKW {
+// --- HLD + ACL：路径/子树修改、路径/子树查询、边接口 ---
+struct HLDACL {
     HLD hld;
-    SEG seg;
-    HLDZKW(int n) : hld(n), seg(n) {}
+    HldSeg seg;
+
+    HLDACL(int n) : hld(n), seg(n) {}
+
     void addEdge(int u, int v) { hld.addEdge(u, v); }
+
     void build() {
         hld.build(1);
-        FOR(i, 1, hld.n) seg.assign_raw(hld.dfn[i], Info::make_structure(hld.dep[i]));
-        seg.build();
+        vector<Info> a(hld.n + 1, e());
+        FOR(i, 1, hld.n)
+            a[hld.dfn[i]] =
+                Info::make_structure(hld.dep[i]);
+        seg = HldSeg(a);
     }
+
     void applySubtreeNode(int u, const Tag &t) {
-        hld.for_subtree(u, [&](int L, int R) { seg.range_apply(L, R, t); });
+        hld.for_subtree(u, [&](int l, int r) {
+            seg.apply(l, r, t);
+        });
     }
+
     void applyPathNode(int u, int v, const Tag &t) {
-        hld.for_path(u, v, [&](int L, int R) { seg.range_apply(L, R, t); });
+        hld.for_path(u, v, [&](int l, int r) {
+            seg.apply(l, r, t);
+        });
     }
+
     Info querySubtreeNode(int u) {
-        Info res = Info::zero();
-        hld.for_subtree(u, [&](int L, int R) { res = Info::merge(res, seg.query(L, R)); });
+        Info res = e();
+        hld.for_subtree(u, [&](int l, int r) {
+            res = op(res, seg.prod(l, r));
+        });
         return res;
     }
+
     Info queryPathNode(int u, int v) {
-        Info res = Info::zero();
-        hld.for_path(u, v, [&](int L, int R) { res = Info::merge(res, seg.query(L, R)); });
+        Info res = e();
+        hld.for_path(u, v, [&](int l, int r) {
+            res = op(res, seg.prod(l, r));
+        });
         return res;
     }
-    // 边接口：边 (u, fa[u]) 挂在儿子 u 上；子树边集 = 子树点集 \ {u}
+
+    // 边 (u, fa[u]) 挂在儿子 u 上；
+    // 子树边集 = 子树点集去掉 u 自己。
     void applySubtreeEdge(int u, const Tag &t) {
         applySubtreeNode(u, t);
         int pos = hld.dfn[u];
-        seg.range_apply(pos, pos, t);     // 撤销 u 自己（其代表的边不在子树边集中）
+        seg.apply(pos, pos, t); // 异或两次，撤销 u
     }
 };
 		\end{minted}
@@ -2171,4 +2155,3 @@ public:
 
 
 	\end{multicols*}
-

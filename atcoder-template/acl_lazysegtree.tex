@@ -1,263 +1,19 @@
-		\subsection{\texttt{lazy\_segtree}：区间改 + 区间查（懒标记）}
+		在 \texttt{segtree} 的幺半群 $(S,op,e)$ 上再定义作用幺半群 $(F,composition,id)$，即可支持区间修改、区间查询和树上二分，单次操作均为 $O(\log n)$。
 
-		在 \texttt{segtree} 的幺半群 $(S, op, e)$ 之上再挂一个\textbf{作用（映射）幺半群} $(F, composition, id)$，支持区间作用 $O(\log n)$、区间求积 $O(\log n)$、树上二分 $O(\log n)$。
+		\textbf{五件套约束}：\texttt{op} 必须满足结合律；\texttt{e} 是其单位元；\texttt{mapping(f,x)} 表示把作用 $f$ 施加到 $x$；\texttt{composition(f,g)} 表示“先 $g$ 后 $f$”；\texttt{id} 是恒等作用。作用还必须满足对 \texttt{op} 的分配律。
 
-		\textbf{五件套的代数约束}（写错这里就是 WA 的主要来源）：
+		\textbf{最大的坑}：\texttt{mapping} 拿不到区间边界。凡是更新公式需要长度，都要把 \texttt{len} 存进 $S$，让它随 \texttt{op} 一起合并。
 
-		\begin{itemize}
-			\item \texttt{S op(S a, S b)}：结合律，\texttt{S e()} 是它的单位元。
-			\item \texttt{S mapping(F f, S x)}：把作用 \texttt{f} 施加到 \texttt{x} 上。注意参数顺序是「先 \texttt{f} 后 \texttt{x}」。
-			\item \texttt{F composition(F f, F g)}：复合成「\textbf{先 \texttt{g} 再 \texttt{f}}」，即数学上的 $f \circ g$，必须满足
-				\[
-					\begin{aligned}
-						 & mapping(composition(f, g), x)         \\
-						 & \qquad = mapping(f, mapping(g, x)).
-					\end{aligned}
-				\]
-			\item \texttt{F id()}：\texttt{F} 的恒等作用，\texttt{mapping(id(), x) == x}。
-			\item \textbf{分配律}：作用要对 \texttt{op} 分配，即
-				\[
-					\begin{aligned}
-						 & mapping(f, op(x, y))                        \\
-						 & \qquad = op(mapping(f, x), mapping(f, y)).
-					\end{aligned}
-				\]
-				这条不成立就不能用懒标记。
-		\end{itemize}
+		\textbf{接口}：除 \texttt{segtree} 的 \texttt{set/get/prod/all\_prod/max\_right/min\_left} 外，新增 \texttt{apply(p,f)} 与闭区间 \texttt{apply(l,r,f)}。因为查询前可能需要下推标记，\texttt{get/prod} 与两个二分接口不再是 \texttt{const}。
 
-		\textbf{最大的坑：\texttt{mapping} 拿不到区间长度}。做「区间加 + 区间和」时，$mapping(+v, x) = x + v \cdot len$ 需要 $len$，而 \texttt{mapping} 的入参只有 \texttt{f} 和 \texttt{x}——所以\textbf{长度必须存进 \texttt{S} 里}，让它随 \texttt{op} 一起合并。这与主板子数据结构章那种「递归下传时天然知道 \texttt{[l, r]}」的写法不同，是 ACL 版最容易踩空的地方。
-
-		\textbf{接口一览}（比 \texttt{segtree} 多出 \texttt{apply}，且因为要 \texttt{push} 懒标记，\texttt{get} / \texttt{prod} 不再是 \texttt{const}）：
-
-		\begin{itemize}
-			\item \texttt{seg.apply(p, f)}：单点作用 $a_p \leftarrow mapping(f, a_p)$。
-			\item \texttt{seg.apply(l, r, f)}：\textbf{闭区间} $[l, r]$ 上每个元素都作用 \texttt{f}；$r = l - 1$ 表示空，直接返回。
-			\item \texttt{seg.set} / \texttt{get} / \texttt{prod} / \texttt{all\_prod} / \texttt{max\_right} / \texttt{min\_left}：语义同 \texttt{segtree}，同样是\textbf{闭区间、合法位置 $0 \dots n$}。
-		\end{itemize}
-
-		\textbf{示例一：区间加 + 区间和}（洛谷 P3372 那类板子题，完整可提交骨架）
+		\subsubsection{模板本体}
 
 		\begin{minted}{cpp}
-/* 题意: n 个数, q 次操作
- *   1 l r v -> 把 [l, r] 每个数加上 v (闭区间)
- *   2 l r   -> 输出 [l, r] 的区间和
- */
-
-// 结点存什么: 和 + 长度。
-// 为什么要存长度: mapping(f, x) 只拿到 f 和 x,
-// 拿不到「这段有多长」, 而区间加 v 让和增加
-// v * 长度 —— 长度只能自己存进 S 里跟着 op 合并
-struct S {
-    ll sum;   // 这段区间的元素和
-    int len;  // 这段区间的元素个数
-};
-
-using F = ll;  // 懒标记: 这段区间「待加上的数」
-
-// op: 合并两段 —— 和相加, 长度相加
-S op(S a, S b) {
-    return {a.sum + b.sum, a.len + b.len};
-}
-
-// e: op 的单位元 = 空区间 (和 0, 长度 0)
-S e() { return {0, 0}; }
-
-// mapping: 把「每个元素 +f」作用到整段 x 上
-// 和增加 f * 元素个数; 长度不变
-S mapping(F f, S x) {
-    return {x.sum + f * x.len, x.len};
-}
-
-// composition: 复合成「先 g 再 f」
-// 先加 g 再加 f, 等价于一次加 (f + g)
-F composition(F f, F g) { return f + g; }
-
-// id: 恒等作用 = 加 0 (表示「这段没有待下传的加法」)
-F id() { return 0; }
-
-// 七个模板参数顺序: S, op, e, F,
-//                  mapping, composition, id
-using Seg = lazy_segtree<S, op, e, F,
-        mapping, composition, id>;
-
-int main() {
-    int n, q;
-    cin >> n >> q;
-
-    // 想 1-based 用就自己开 n+1 格, a[i] 就是位置 i
-    // a[0] 留 e() = {0, 0}, 长度 0 不影响任何区间和
-    vector<S> a(n + 1, e());
-    for (int i = 1; i <= n; i++) {
-        ll x;
-        cin >> x;
-        a[i] = {x, 1};         // 单点: 和 = x, 长度 = 1
-    }
-    Seg seg(a);                // 建树 O(n)
-
-    while (q--) {
-        int t, l, r;
-        cin >> t >> l >> r;
-        if (t == 1) {          // 区间加
-            ll v;
-            cin >> v;
-            // apply 就是闭区间 [l, r], 不用换算
-            seg.apply(l, r, v);
-        } else {               // 区间求和
-            // prod 返回的是 S, 取 .sum
-            cout << seg.prod(l, r).sum
-                 << "\n";
-        }
-    }
-}
-		\end{minted}
-
-		\textbf{示例二：区间赋值 + 区间最大}。赋值标记要能表达「这段没有被赋值」，用一个数据里不可能出现的值当哨兵：
-
-		\begin{minted}{cpp}
-/* 题意: 1 l r v -> [l, r] 全部赋值为 v
- *      2 l r   -> 输出 [l, r] 的最大值
- */
-using S = ll;   // 结点存这段的最大值
-using F = ll;   // 懒标记: 这段待赋成的值
-
-// 哨兵: 表示「这段没有待下传的赋值」。
-// 必须取一个数据里绝不会出现的值, 否则
-// 「真的赋值成 NONE」会被误判成「没赋值」
-const F NONE = LLONG_MIN;
-
-S op(S a, S b) { return max(a, b); }
-
-// max 的单位元: 足够小的极小值 (不能写 0)
-S e() { return -4e18; }
-
-// mapping: f == NONE 说明没赋值, 原样返回;
-// 否则整段都变成 f, 那么这段的最大值就是 f
-// (注意这里不需要区间长度 —— 换成「赋值 +
-//  区间和」就需要, 那时 S 要存 {sum, len},
-//  返回 {f * x.len, x.len})
-S mapping(F f, S x) {
-    return f == NONE ? x : f;
-}
-
-// composition: 「先 g 再 f」。
-// f 是真赋值 -> 它把 g 覆盖掉, 结果是 f;
-// f 是 NONE (本层没动) -> 才轮到 g 生效
-F composition(F f, F g) {
-    return f == NONE ? g : f;
-}
-
-F id() { return NONE; }   // 恒等 = 不赋值
-
-using Seg = lazy_segtree<S, op, e, F,
-        mapping, composition, id>;
-
-int main() {
-    int n, q;
-    cin >> n >> q;
-    vector<S> a(n + 1, e());       // 1-based
-    for (int i = 1; i <= n; i++) cin >> a[i];
-    Seg seg(a);
-
-    while (q--) {
-        int t, l, r;
-        cin >> t >> l >> r;
-        if (t == 1) {
-            ll v;
-            cin >> v;
-            seg.apply(l, r, v);       // 闭区间 [l, r]
-        } else {
-            cout << seg.prod(l, r) << "\n";
-        }
-    }
-}
-		\end{minted}
-
-		\textbf{示例三：区间加 + 维护「最小值 \& 取到最小值的权值和」}。这是 DP 优化里出现频率最高的一种 \texttt{S}——把\textbf{代价}挂在 $\min$ 上、把 \textbf{DP 值}挂在权值和上，查询时先看区间最小代价是不是目标值（常见是 $0$），是才把对应的 DP 和计入答案，等价于「在所有代价最小的转移点里求 $\sum dp$」。
-
-		关键在于\textbf{区间加不改变「谁是最小值」}：整段每个元素同时 $+f$，最小值跟着平移，但取到最小值的那个集合不变，所以权值和原样不动——分配律因此成立，可以挂懒标记。
-
-		\begin{minted}{cpp}
-/* S = (区间最小值, 取到该最小值的位置的权值之和)
- * F = 区间加
- */
-struct S {
-    ll mn;   // 这段区间的最小值
-    ll sum;  // mn 在这段里出现的那些位置的
-             // 权值之和 (取模)
-};
-
-using F = ll;  // 懒标记: 这段区间「待加上的数」
-
-// op: 谁的 mn 小取谁; 一样大则权值和相加
-S op(S a, S b) {
-    if (a.mn < b.mn) return a;
-    if (b.mn < a.mn) return b;
-    ll s = a.sum + b.sum;
-    if (s >= mod) s -= mod;
-    return {a.mn, s};
-}
-
-// e: 单位元 = 空区间。
-// sum 必须是 0 —— 写 1 会让空区间往答案里灌值。
-// mn 的哨兵有两个约束: (1) 比任何真实值都大;
-// (2) 被区间加累加后仍不溢出 —— 所以不能写
-// LLONG_MAX / 4e18, 取 1e18 这种「够大又加得起」
-// 的值 (若 mn 用 int 存, 对应取 INT32_MAX)
-S e() { return {(ll) 1e18, 0}; }
-
-// mapping: 整段 +f -> mn 平移, sum 不动。
-// sum 不乘长度 (这是与「区间加 + 区间和」最大的
-// 区别): 它是「取到 mn 的位置的权值和」, 区间加
-// 只平移了 mn 的绝对值, 没改变谁是 mn, 也没改变
-// 那些位置的权值
-S mapping(F f, S x) { return {x.mn + f, x.sum}; }
-
-F composition(F f, F g) { return f + g; }
-F id() { return 0; }
-
-using Seg = lazy_segtree<S, op, e, F,
-        mapping, composition, id>;
-		\end{minted}
-
-		\textbf{用法骨架}（以「按代价 $0$ 统计方案数」的线性 DP 为例）：
-
-		\begin{minted}{cpp}
-Seg seg(n);                    // 合法位置 0..n
-
-// 坑: 所有会被查询到的位置必须初始化成
-// {0, 0} 而不是 e()。设成 e() 的话, 哨兵
-// 1e18 被区间加平移后依然是天文数字, 永远
-// 等不到 mn == 0, 这些位置就废了。
-// {0, 0} = 「代价 0, 但还没有 dp 值」
-for (int i = 1; i <= n; i++) seg.set(i, {0, 0});
-seg.set(0, {0, 1});            // dp[0] = 1 (空前缀)
-
-for (int i = 1; i <= n; i++) {
-    // 按题意把某些转移点的代价 +1 / -1
-    // (闭区间, 不用换算)
-    seg.apply(l, r, +1);
-
-    auto q = seg.prod(0, i - 1);   // 闭区间
-    S cur = seg.get(i);
-    if (q.mn == 0) {               // 只有代价最小
-        cur.sum += q.sum;          // = 0 的才合法
-        if (cur.sum >= mod) cur.sum -= mod;
-    }
-    seg.set(i, cur);               // 写回 dp[i]
-}
-cout << seg.get(n).sum << "\n";
-		\end{minted}
-
-		沉淀来源：HDU 2026 杭电多校第 4 场 J. Rare Game（\href{https://acm.hdu.edu.cn/contest/problem?cid=1232&pid=1010}{题目链接}）——那题把「同色相邻超过 3 个」的限制转成惩罚值，用这棵树维护「惩罚为 $0$ 的前缀里 $dp$ 之和」。
-
-		\textbf{模板本体}：
-
-		\begin{minted}{cpp}
-/* ACL atcoder/lazysegtree 自包含移植 + 闭区间, 用法同上一节 segtree
- * lazy_segtree(n) 合法位置 0..n (开 n+1 个叶子), 区间 [l, r] 左闭右闭
- * 1-based 就只碰 1..n, 0-based 就只碰 0..n-1, 多的那格恒为 e()
- * 从 vector 建: v[i] 对应位置 i, 长度自己定
- * 空区间写 r == l - 1 (prod 返回 e(), apply 直接 return)
+/* ACL atcoder/lazysegtree 自包含移植 + 闭区间
+ * lazy_segtree(n) 合法位置 0..n; 区间 [l, r] 左闭右闭
+ * 1-based 只碰 1..n; 0-based 只碰 0..n-1
+ * 从 vector 建树时 v[i] 对应位置 i, 长度由 vector 决定
+ * 空区间写 r == l - 1, prod 返回 e(), apply 直接返回
  */
 template<class S, S (*op)(S, S), S (*e)(),
          class F, S (*mapping)(F, S),
@@ -266,11 +22,9 @@ struct lazy_segtree {
 public:
     lazy_segtree() : lazy_segtree(0) {}
 
-    // 合法位置 0..n, 内部开 n+1 个叶子
     explicit lazy_segtree(int n)
         : lazy_segtree(vector<S>(n + 1, e())) {}
 
-    // v[i] 对应位置 i, 合法位置 0..v.size()-1
     explicit lazy_segtree(const vector<S> &v)
         : _n(int(v.size())) {
         size = (int) bit_ceil((unsigned) _n);
@@ -283,7 +37,6 @@ public:
             update(i);
     }
 
-    // a[p] = x   (0 <= p <= n)
     void set(int p, S x) {
         assert(0 <= p && p < _n);
         p += size;
@@ -292,7 +45,6 @@ public:
         for (int i = 1; i <= log; i++) update(p >> i);
     }
 
-    // 返回 a[p]   (0 <= p <= n)
     S get(int p) {
         assert(0 <= p && p < _n);
         p += size;
@@ -300,7 +52,6 @@ public:
         return d[p];
     }
 
-    // 返回 op(a[l], ..., a[r])   闭区间
     S prod(int l, int r) {
         r++;
         assert(0 <= l && l <= r && r <= _n);
@@ -322,7 +73,6 @@ public:
 
     S all_prod() { return d[1]; }
 
-    // 单点作用 a[p] = mapping(f, a[p])   (0 <= p <= n)
     void apply(int p, F f) {
         assert(0 <= p && p < _n);
         p += size;
@@ -331,7 +81,6 @@ public:
         for (int i = 1; i <= log; i++) update(p >> i);
     }
 
-    // 区间作用, 闭区间 [l, r] 内每个元素都施加 f
     void apply(int l, int r, F f) {
         r++;
         assert(0 <= l && l <= r && r <= _n);
@@ -358,7 +107,6 @@ public:
         }
     }
 
-    // 最大的 r 使 g(op(a[l..r])) 为真 (闭区间); 取不到时返回 l-1
     template<class G>
     int max_right(int l, G g) {
         assert(0 <= l && l <= _n);
@@ -386,7 +134,6 @@ public:
         return _n - 1;
     }
 
-    // 最小的 l 使 g(op(a[l..r])) 为真 (闭区间); 取不到时返回 r+1
     template<class G>
     int min_left(int r, G g) {
         r++;
@@ -421,14 +168,12 @@ private:
     vector<S> d;
     vector<F> lz;
 
-    // 原 atcoder::internal::bit_ceil
     static unsigned bit_ceil(unsigned n) {
         unsigned x = 1;
         while (x < n) x *= 2;
         return x;
     }
 
-    // 原 atcoder::internal::countr_zero
     static int countr_zero(unsigned n) {
         return __builtin_ctz(n);
     }
@@ -451,4 +196,222 @@ private:
 };
 		\end{minted}
 
-		\textbf{再组合下去}：「区间赋值 + 区间和」把两者拼起来——\texttt{S} 存 \texttt{\{sum, len\}}，\texttt{mapping} 里 \texttt{f != NONE} 时返回 \texttt{\{f * x.len, x.len\}}。「区间赋值 + 区间加」的复合标记要写成 \texttt{struct F \{ ll assign, add; \}}，\texttt{composition} 按「先 \texttt{g} 再 \texttt{f}」的顺序把两层压平——这类复合标记的分配律要在纸上验一遍再敲。
+		\begin{multicols*}{2}
+
+			\subsubsection{示例：区间加 + 区间和}
+
+			区间长度必须存进 $S$；空出来的 0 号位置长度为 $0$，因此不会影响 1-based 查询。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: lazy_range_add_sum
+struct S {
+    ll sum;
+    int len;
+};
+using F = ll;
+
+S op(S a, S b) {
+    return {a.sum + b.sum, a.len + b.len};
+}
+S e() { return {0, 0}; }
+S mapping(F f, S x) {
+    return {x.sum + f * x.len, x.len};
+}
+F composition(F f, F g) { return f + g; }
+F id() { return 0; }
+
+using SegAddSum = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// vector<S> a(n + 1, e());
+// FOR(i, 1, n) a[i] = {x[i], 1};
+// SegAddSum seg(a);
+// seg.apply(l, r, add);
+// ll ans = seg.prod(l, r).sum;
+			\end{minted}
+
+			\subsubsection{示例：仿射修改 + 一至三次幂和}
+
+			用 $x\leftarrow ax+b$ 统一表达乘法、加法与赋值：乘 $v$ 是 \texttt{\{v,0\}}，加 $v$ 是 \texttt{\{1,v\}}，赋值 $v$ 是 \texttt{\{0,v\}}。节点同时维护 $\sum x$、$\sum x^2$、$\sum x^3$。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: lazy_affine_moments
+const ll MOD = 998244353;
+
+ll mul_mod(ll a, ll b) {
+    return (ll)((__int128)a * b % MOD);
+}
+
+struct S {
+    ll s1, s2, s3;
+    int len;
+};
+struct F {
+    ll mul, add; // x <- mul * x + add
+};
+
+S op(S x, S y) {
+    return {(x.s1 + y.s1) % MOD,
+            (x.s2 + y.s2) % MOD,
+            (x.s3 + y.s3) % MOD,
+            x.len + y.len};
+}
+S e() { return {0, 0, 0, 0}; }
+
+S mapping(F f, S x) {
+    ll m = f.mul, a = f.add;
+    ll m2 = mul_mod(m, m), m3 = mul_mod(m2, m);
+    ll a2 = mul_mod(a, a), a3 = mul_mod(a2, a);
+    ll old1 = x.s1, old2 = x.s2, old3 = x.s3;
+    ll n = x.len % MOD;
+    ll s1 = (mul_mod(m, old1) + mul_mod(a, n)) % MOD;
+    ll s2 = (mul_mod(m2, old2)
+           + mul_mod(2 * mul_mod(m, a) % MOD, old1)
+           + mul_mod(a2, n)) % MOD;
+    ll s3 = (mul_mod(m3, old3)
+           + mul_mod(3 * mul_mod(m2, a) % MOD, old2)
+           + mul_mod(3 * mul_mod(m, a2) % MOD, old1)
+           + mul_mod(a3, n)) % MOD;
+    return {s1, s2, s3, x.len};
+}
+
+F composition(F f, F g) {
+    // 先 g 后 f
+    return {mul_mod(f.mul, g.mul),
+            (mul_mod(f.mul, g.add) + f.add) % MOD};
+}
+F id() { return {1, 0}; }
+
+using SegMoments = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// add v:    seg.apply(l, r, {1, v});
+// multiply: seg.apply(l, r, {v, 0});
+// assign v: seg.apply(l, r, {0, v});
+			\end{minted}
+
+			\subsubsection{示例：赋值/加 + 和、最值与位置}
+
+			这一份合并“扶苏的问题”和“最大值位置”板子。最大值并列时取最左位置；整段赋值后，最左最大值就是该段左端点。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: lazy_assign_add_stats
+struct S {
+    ll sum, mn, mx;
+    int mx_pos, left, len;
+};
+struct F {
+    bool has_assign;
+    ll assign, add;
+};
+
+S op(S a, S b) {
+    if (a.len == 0) return b;
+    if (b.len == 0) return a;
+    int pos = a.mx >= b.mx ? a.mx_pos : b.mx_pos;
+    return {a.sum + b.sum, min(a.mn, b.mn),
+            max(a.mx, b.mx), pos, a.left,
+            a.len + b.len};
+}
+S e() { return {0, 0, 0, 0, 0, 0}; }
+
+S mapping(F f, S x) {
+    if (x.len == 0) return x;
+    if (f.has_assign) {
+        ll v = f.assign + f.add;
+        return {v * x.len, v, v,
+                x.left, x.left, x.len};
+    }
+    x.sum += f.add * x.len;
+    x.mn += f.add;
+    x.mx += f.add;
+    return x;
+}
+
+F composition(F f, F g) {
+    if (f.has_assign) return f;
+    g.add += f.add;
+    return g;
+}
+F id() { return {false, 0, 0}; }
+
+using SegStats = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// leaf i: {x, x, x, i, i, 1}
+// assign: seg.apply(l, r, {true, v, 0});
+// add:    seg.apply(l, r, {false, 0, v});
+			\end{minted}
+
+			\subsubsection{示例：最小代价位置的权值和}
+
+			区间加只平移最小值，不改变哪些位置达到最小值，因此对应权值和保持不变。常用于只统计“当前代价最小”转移点的 DP。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: lazy_min_weight
+const ll MOD = 998244353;
+
+struct S {
+    ll mn, weight;
+    bool empty;
+};
+using F = ll;
+
+S op(S a, S b) {
+    if (a.empty) return b;
+    if (b.empty) return a;
+    if (a.mn < b.mn) return a;
+    if (b.mn < a.mn) return b;
+    return {a.mn, (a.weight + b.weight) % MOD, false};
+}
+S e() { return {0, 0, true}; }
+S mapping(F f, S x) {
+    if (!x.empty) x.mn += f;
+    return x;
+}
+F composition(F f, F g) { return f + g; }
+F id() { return 0; }
+
+using SegMinWeight = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// 真实叶子必须显式 set 成 {cost, weight, false}
+// seg.apply(l, r, delta);
+// S best = seg.prod(l, r);
+			\end{minted}
+
+			\subsubsection{示例：权值线段树求最小众数}
+
+			离散化后，每个叶子代表一个权值。区间加维护一段权值的出现次数；合并时先取最高频次，频次相同取较小权值。
+
+			\begin{minted}{cpp}
+// ACL_EXAMPLE: lazy_value_mode
+struct S {
+    ll cnt, value;
+    bool empty;
+};
+using F = ll;
+
+S op(S a, S b) {
+    if (a.empty) return b;
+    if (b.empty) return a;
+    if (a.cnt != b.cnt) return a.cnt > b.cnt ? a : b;
+    return a.value < b.value ? a : b;
+}
+S e() { return {0, 0, true}; }
+S mapping(F f, S x) {
+    if (!x.empty) x.cnt += f;
+    return x;
+}
+F composition(F f, F g) { return f + g; }
+F id() { return 0; }
+
+using SegMode = lazy_segtree<S, op, e, F,
+        mapping, composition, id>;
+
+// leaf i: {0, compressed_values[i], false}
+// seg.apply(left_value_id, right_value_id, delta);
+// auto [frequency, value, unused] = seg.all_prod();
+			\end{minted}
+
+		\end{multicols*}

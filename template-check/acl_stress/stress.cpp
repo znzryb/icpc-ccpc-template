@@ -11,6 +11,40 @@ using ll = long long;
 #include "seg.inc"
 #include "z.inc"
 
+namespace ex_seg_point_max {
+#include "example_seg_point_max.inc"
+}
+namespace ex_seg_max_subarray {
+#include "example_seg_max_subarray.inc"
+}
+namespace ex_seg_kth_boundary {
+#include "example_seg_kth_boundary.inc"
+}
+namespace ex_seg_negative_prefix {
+#include "example_seg_negative_prefix.inc"
+}
+namespace ex_lazy_range_add_sum {
+#include "example_lazy_range_add_sum.inc"
+}
+namespace ex_lazy_affine_moments {
+#include "example_lazy_affine_moments.inc"
+}
+namespace ex_lazy_assign_add_stats {
+#include "example_lazy_assign_add_stats.inc"
+}
+namespace ex_lazy_min_weight {
+#include "example_lazy_min_weight.inc"
+}
+namespace ex_lazy_value_mode {
+#include "example_lazy_value_mode.inc"
+}
+
+#define FOR(i, l, r) for (int i = (l); i <= (r); ++i)
+namespace ex_hld {
+#include "hld.inc"
+}
+#undef FOR
+
 // ================= segtree: 区间最大值 =================
 using S1 = ll;
 S1 op1(S1 a, S1 b) { return max(a, b); }
@@ -246,6 +280,332 @@ int main() {
         MineAdd z1(5);
         z1.apply(0, 5, 3);
         CHECK(z1.prod(0, 5).sum == 0, "lazy default e() then apply");
+    }
+
+    // ---------- 打印稿示例: segtree 四种配置 ----------
+    for (int iter = 0; iter < ITER; iter++) {
+        int n = 1 + rng() % 35;
+
+        vector<ll> raw(n + 1);
+        vector<ll> mx_init(n + 1, ex_seg_point_max::e_max());
+        vector<ex_seg_max_subarray::S> sub_init(
+            n + 1, ex_seg_max_subarray::e());
+        vector<ex_seg_negative_prefix::S> pre_init(
+            n + 1, ex_seg_negative_prefix::e());
+        for (int i = 1; i <= n; i++) {
+            raw[i] = (ll)(rng() % 101) - 50;
+            mx_init[i] = raw[i];
+            sub_init[i] = ex_seg_max_subarray::make_leaf(raw[i]);
+            pre_init[i] = ex_seg_negative_prefix::make_leaf(raw[i]);
+        }
+        ex_seg_point_max::SegMax seg_max(mx_init);
+        ex_seg_max_subarray::SegMaxSubarray seg_sub(sub_init);
+        ex_seg_negative_prefix::SegPrefix seg_pre(pre_init);
+
+        vector<ll> bits(n + 1);
+        for (int i = 1; i <= n; i++) bits[i] = rng() & 1;
+        ex_seg_kth_boundary::SegCount seg_bits(bits);
+
+        for (int q = 0; q < 100; q++) {
+            int p = 1 + rng() % n;
+            ll x = (ll)(rng() % 101) - 50;
+            raw[p] = x;
+            seg_max.set(p, x);
+            seg_sub.set(p, ex_seg_max_subarray::make_leaf(x));
+            seg_pre.set(p, ex_seg_negative_prefix::make_leaf(x));
+
+            int l = 1 + rng() % n, r = 1 + rng() % n;
+            if (l > r) swap(l, r);
+            CHECK(seg_max.prod(l, r) ==
+                      *max_element(raw.begin() + l, raw.begin() + r + 1),
+                  "example point max");
+
+            ll want_best = LLONG_MIN;
+            for (int i = l; i <= r; i++) {
+                ll sum = 0;
+                for (int j = i; j <= r; j++) {
+                    sum += raw[j];
+                    want_best = max(want_best, sum);
+                }
+            }
+            CHECK(seg_sub.prod(l, r).best == want_best,
+                  "example max subarray");
+
+            ll target = (ll)(rng() % 101) - 50;
+            int want_prefix = -1;
+            ll sum = 0;
+            for (int i = l; i <= n; i++) {
+                sum += raw[i];
+                if (sum >= target) {
+                    want_prefix = i;
+                    break;
+                }
+            }
+            CHECK(ex_seg_negative_prefix::first_prefix_at_least(
+                      seg_pre, l, n, target) == want_prefix,
+                  "example negative prefix");
+
+            bits[p] ^= 1;
+            seg_bits.set(p, bits[p]);
+            ll k = rng() % (n + 2);
+            int want_k = -1;
+            ll cnt = 0;
+            if (k > 0)
+                for (int i = 1; i <= n; i++)
+                    if ((cnt += bits[i]) >= k) {
+                        want_k = i;
+                        break;
+                    }
+            CHECK(ex_seg_kth_boundary::kth_one(seg_bits, k) == want_k,
+                  "example kth one");
+
+            ll limit = rng() % (n + 1);
+            int want_r = l - 1;
+            sum = 0;
+            while (want_r + 1 <= n &&
+                   sum + bits[want_r + 1] <= limit)
+                sum += bits[++want_r];
+            CHECK(ex_seg_kth_boundary::farthest_right(
+                      seg_bits, l, limit) == want_r,
+                  "example max_right");
+
+            int want_l = r + 1;
+            sum = 0;
+            while (want_l - 1 >= 1 &&
+                   sum + bits[want_l - 1] <= limit)
+                sum += bits[--want_l];
+            CHECK(ex_seg_kth_boundary::farthest_left(
+                      seg_bits, r, limit) == want_l,
+                  "example min_left");
+        }
+    }
+
+    // ---------- 打印稿示例: lazy_segtree 五种配置 ----------
+    for (int iter = 0; iter < ITER; iter++) {
+        int n = 1 + rng() % 30;
+
+        vector<ll> sum_raw(n + 1);
+        vector<ex_lazy_range_add_sum::S> sum_init(
+            n + 1, ex_lazy_range_add_sum::e());
+        for (int i = 1; i <= n; i++) {
+            sum_raw[i] = (ll)(rng() % 101) - 50;
+            sum_init[i] = {sum_raw[i], 1};
+        }
+        ex_lazy_range_add_sum::SegAddSum seg_sum(sum_init);
+
+        const ll mod = ex_lazy_affine_moments::MOD;
+        vector<ll> moment_raw(n + 1);
+        vector<ex_lazy_affine_moments::S> moment_init(
+            n + 1, ex_lazy_affine_moments::e());
+        for (int i = 1; i <= n; i++) {
+            ll x = moment_raw[i] = rng() % 100;
+            moment_init[i] = {x, x * x % mod,
+                              x * x % mod * x % mod, 1};
+        }
+        ex_lazy_affine_moments::SegMoments seg_moment(moment_init);
+
+        vector<ll> stats_raw(n + 1);
+        vector<ex_lazy_assign_add_stats::S> stats_init(
+            n + 1, ex_lazy_assign_add_stats::e());
+        for (int i = 1; i <= n; i++) {
+            ll x = stats_raw[i] = (ll)(rng() % 101) - 50;
+            stats_init[i] = {x, x, x, i, i, 1};
+        }
+        ex_lazy_assign_add_stats::SegStats seg_stats(stats_init);
+
+        vector<ll> costs(n + 1), weights(n + 1);
+        vector<ex_lazy_min_weight::S> weight_init(
+            n + 1, ex_lazy_min_weight::e());
+        for (int i = 1; i <= n; i++) {
+            costs[i] = (ll)(rng() % 101) - 50;
+            weights[i] = rng() % 1000;
+            weight_init[i] = {costs[i], weights[i], false};
+        }
+        ex_lazy_min_weight::SegMinWeight seg_weight(weight_init);
+
+        vector<ll> counts(n + 1);
+        vector<ex_lazy_value_mode::S> mode_init(
+            n + 1, ex_lazy_value_mode::e());
+        for (int i = 1; i <= n; i++)
+            mode_init[i] = {0, 3LL * i + 1, false};
+        ex_lazy_value_mode::SegMode seg_mode(mode_init);
+
+        for (int q = 0; q < 100; q++) {
+            int l = 1 + rng() % n, r = 1 + rng() % n;
+            if (l > r) swap(l, r);
+
+            ll delta = (ll)(rng() % 41) - 20;
+            seg_sum.apply(l, r, delta);
+            for (int i = l; i <= r; i++) sum_raw[i] += delta;
+            ll want_sum = accumulate(
+                sum_raw.begin() + l, sum_raw.begin() + r + 1, 0LL);
+            auto sum_got = seg_sum.prod(l, r);
+            CHECK(sum_got.sum == want_sum &&
+                      sum_got.len == r - l + 1,
+                  "example range add sum");
+
+            int affine_type = rng() % 3;
+            ll affine_x = rng() % 50;
+            ex_lazy_affine_moments::F affine =
+                affine_type == 0
+                    ? ex_lazy_affine_moments::F{1, affine_x}
+                : affine_type == 1
+                    ? ex_lazy_affine_moments::F{affine_x, 0}
+                    : ex_lazy_affine_moments::F{0, affine_x};
+            seg_moment.apply(l, r, affine);
+            for (int i = l; i <= r; i++)
+                moment_raw[i] =
+                    (affine.mul * moment_raw[i] + affine.add) % mod;
+            ll s1 = 0, s2 = 0, s3 = 0;
+            for (int i = l; i <= r; i++) {
+                s1 = (s1 + moment_raw[i]) % mod;
+                s2 = (s2 + moment_raw[i] * moment_raw[i]) % mod;
+                s3 = (s3 + moment_raw[i] * moment_raw[i] % mod *
+                           moment_raw[i]) % mod;
+            }
+            auto moment_got = seg_moment.prod(l, r);
+            CHECK(moment_got.s1 == s1 && moment_got.s2 == s2 &&
+                      moment_got.s3 == s3 &&
+                      moment_got.len == r - l + 1,
+                  "example affine moments");
+
+            bool assign = rng() & 1;
+            ll stats_x = (ll)(rng() % 101) - 50;
+            ex_lazy_assign_add_stats::F stats_f{
+                assign, stats_x, assign ? 0 : stats_x};
+            if (!assign) stats_f.assign = 0;
+            seg_stats.apply(l, r, stats_f);
+            for (int i = l; i <= r; i++)
+                stats_raw[i] = assign ? stats_x : stats_raw[i] + stats_x;
+            ll stats_sum = 0, stats_mn = LLONG_MAX, stats_mx = LLONG_MIN;
+            int stats_pos = -1;
+            for (int i = l; i <= r; i++) {
+                stats_sum += stats_raw[i];
+                stats_mn = min(stats_mn, stats_raw[i]);
+                if (stats_raw[i] > stats_mx)
+                    stats_mx = stats_raw[i], stats_pos = i;
+            }
+            auto stats_got = seg_stats.prod(l, r);
+            CHECK(stats_got.sum == stats_sum &&
+                      stats_got.mn == stats_mn &&
+                      stats_got.mx == stats_mx &&
+                      stats_got.mx_pos == stats_pos &&
+                      stats_got.left == l &&
+                      stats_got.len == r - l + 1,
+                  "example assign add stats");
+
+            seg_weight.apply(l, r, delta);
+            for (int i = l; i <= r; i++) costs[i] += delta;
+            ll min_cost = *min_element(
+                costs.begin() + l, costs.begin() + r + 1);
+            ll weight_sum = 0;
+            for (int i = l; i <= r; i++)
+                if (costs[i] == min_cost)
+                    weight_sum =
+                        (weight_sum + weights[i]) % ex_lazy_min_weight::MOD;
+            auto weight_got = seg_weight.prod(l, r);
+            CHECK(!weight_got.empty && weight_got.mn == min_cost &&
+                      weight_got.weight == weight_sum,
+                  "example min weight");
+
+            ll count_delta = (ll)(rng() % 11) - 5;
+            seg_mode.apply(l, r, count_delta);
+            for (int i = l; i <= r; i++) counts[i] += count_delta;
+            ll best_count = *max_element(counts.begin() + 1, counts.end());
+            int best_pos = 1;
+            while (counts[best_pos] != best_count) best_pos++;
+            auto mode_got = seg_mode.all_prod();
+            CHECK(mode_got.cnt == best_count &&
+                      mode_got.value == 3LL * best_pos + 1,
+                  "example value mode");
+        }
+    }
+
+    // ---------- HLD + ACL: 路径、子树与边接口 ----------
+    for (int iter = 0; iter < ITER; iter++) {
+        int n = 1 + rng() % 30;
+        ex_hld::HLDACL tree(n);
+        for (int v = 2; v <= n; v++)
+            tree.addEdge(v, 1 + rng() % (v - 1));
+        tree.build();
+        vector<ll> value(n + 1);
+
+        auto path_nodes = [&](int u, int v) {
+            vector<int> left, right;
+            while (tree.hld.dep[u] > tree.hld.dep[v]) {
+                left.push_back(u);
+                u = tree.hld.fa[u];
+            }
+            while (tree.hld.dep[v] > tree.hld.dep[u]) {
+                right.push_back(v);
+                v = tree.hld.fa[v];
+            }
+            while (u != v) {
+                left.push_back(u);
+                right.push_back(v);
+                u = tree.hld.fa[u];
+                v = tree.hld.fa[v];
+            }
+            left.push_back(u);
+            reverse(right.begin(), right.end());
+            left.insert(left.end(), right.begin(), right.end());
+            return left;
+        };
+
+        auto check_info = [&](const ex_hld::Info &got,
+                              const vector<int> &nodes) {
+            ex_hld::Info want;
+            for (int u : nodes) {
+                int p = tree.hld.dep[u] & 1;
+                want.cnt[p]++;
+                for (int b = 0; b < ex_hld::LOG; b++)
+                    want.bit_num[p][b] += (value[u] >> b) & 1;
+            }
+            for (int p = 0; p < 2; p++) {
+                if (got.cnt[p] != want.cnt[p]) return false;
+                for (int b = 0; b < ex_hld::LOG; b++)
+                    if (got.bit_num[p][b] != want.bit_num[p][b])
+                        return false;
+            }
+            return true;
+        };
+
+        for (int q = 0; q < 100; q++) {
+            int u = 1 + rng() % n, v = 1 + rng() % n;
+            ex_hld::Tag tag(rng() % (1 << 12), rng() % (1 << 12));
+            int type = rng() % 5;
+            if (type == 0) {
+                auto nodes = path_nodes(u, v);
+                tree.applyPathNode(u, v, tag);
+                for (int x : nodes)
+                    value[x] ^= tag.xor_val[tree.hld.dep[x] & 1];
+            } else {
+                vector<int> nodes;
+                int lo = tree.hld.dfn[u];
+                int hi = lo + tree.hld.siz[u] - 1;
+                for (int x = 1; x <= n; x++)
+                    if (lo <= tree.hld.dfn[x] &&
+                        tree.hld.dfn[x] <= hi)
+                        nodes.push_back(x);
+                if (type == 1) {
+                    tree.applySubtreeNode(u, tag);
+                    for (int x : nodes)
+                        value[x] ^= tag.xor_val[tree.hld.dep[x] & 1];
+                } else if (type == 2) {
+                    tree.applySubtreeEdge(u, tag);
+                    for (int x : nodes)
+                        if (x != u)
+                            value[x] ^= tag.xor_val[tree.hld.dep[x] & 1];
+                } else if (type == 3) {
+                    CHECK(check_info(tree.querySubtreeNode(u), nodes),
+                          "HLD ACL subtree query");
+                } else {
+                    auto path = path_nodes(u, v);
+                    CHECK(check_info(tree.queryPathNode(u, v), path),
+                          "HLD ACL path query");
+                }
+            }
+        }
     }
 
     // ---------- z_algorithm: 移植版 vs 官方 vs 暴力 ----------

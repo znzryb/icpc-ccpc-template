@@ -30,6 +30,18 @@ cd "$HERE"
 "$PY" extract.py "$TEX_DIR/acl_lazysegtree.tex" lazyseg.inc 'struct lazy_segtree {'
 "$PY" extract.py "$TEX_DIR/acl_z_algorithm.tex"  z.inc       'int &k = z[i];'
 
+# 示例也从打印稿原文抽取，保证展示代码与实际对拍代码完全一致。
+for marker in \
+	seg_point_max seg_max_subarray seg_kth_boundary seg_negative_prefix \
+	lazy_range_add_sum lazy_affine_moments lazy_assign_add_stats \
+	lazy_min_weight lazy_value_mode; do
+	src="$TEX_DIR/acl_segtree.tex"
+	[[ "$marker" == lazy_* ]] && src="$TEX_DIR/acl_lazysegtree.tex"
+	"$PY" extract.py "$src" "example_${marker}.inc" "ACL_EXAMPLE: $marker"
+done
+
+"$PY" extract.py "$ROOT/sections/10_graph.tex" hld.inc 'struct HLDACL {'
+
 # macOS clang + libstdc++ 工具链，见
 # ~/Desktop/DoProblemAsMyTaste/.claude/rules/macos-clang-libstdcxx-toolchain.md
 "$CXX" -std=c++20 -O1 -g -Wall -Wextra \

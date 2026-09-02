@@ -2,7 +2,7 @@
 		\section{AtCoder Library（ACL）移植}
 	\end{center}
 
-	\begin{multicols*}{2}
+		\begin{multicols*}{2}
 
 		本文档收录 \href{https://github.com/atcoder/ac-library}{AtCoder Library v1.6} 里值得直接搬进赛场的组件，逐个改成\textbf{自包含可粘贴版}：
 
@@ -18,12 +18,16 @@
 
 		\textbf{这是本移植版对官方 ACL 的语义改动}：官方 \texttt{atcoder/segtree} 用 $[l, r)$ 左闭右开、合法位置 $0 \dots n-1$。本文档在 \texttt{prod} / \texttt{apply} / \texttt{min\_left} 入口处 \texttt{r++} 映射回内部的半开实现，\texttt{max\_right} 取不到时返回 $l - 1$（官方返回 $l$）。所以\textbf{照着官方文档抄调用会差一位}，以本文档的注释为准。
 
-		\textbf{正确性验证}：本文档代码块经 \texttt{template-check/} 下的 \texttt{acl\_stress/run.sh} 与官方 ACL v1.6 及朴素暴力三方对拍（含 ASan / UBSan）通过。该脚本直接从本文档 \texttt{.tex} 抽 \texttt{minted} 块编译，改了代码不重跑就会暴露不一致。
+			\textbf{正确性验证}：本文档代码块经 \texttt{template-check/} 下的 \texttt{acl\_stress/run.sh} 与官方 ACL v1.6 及朴素暴力三方对拍（含 ASan / UBSan）通过。该脚本直接从本文档 \texttt{.tex} 抽 \texttt{minted} 块编译，改了代码不重跑就会暴露不一致。
 
+		\end{multicols*}
+
+		\subsection{ACL \texttt{segtree}（单点修改）}
 		\input{acl_segtree.tex}
 
+		\subsection{ACL \texttt{lazy\_segtree}（区间修改）}
 		\input{acl_lazysegtree.tex}
 
-		\input{acl_z_algorithm.tex}
-
-	\end{multicols*}
+		\begin{multicols*}{2}
+			\input{acl_z_algorithm.tex}
+		\end{multicols*}
