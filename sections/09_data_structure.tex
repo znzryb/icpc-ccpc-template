@@ -1256,6 +1256,75 @@ struct FHQ {
 };
 	\end{minted}
 
+	\end{multicols*}
+
+	\subsection{隐式 FHQ-treap（可区间维护的动态序列）}
+
+	上一节的普通 FHQ-treap 按\textbf{权值}分裂，用来维护有序集合；这一版改为按\textbf{前缀长度}分裂，因此中序遍历顺序就是序列顺序，适合需要插入、删除、翻转和区间修改的动态数组。若当前位置为 $1$-based 闭区间 $[l,r]$，连续两次分裂即可得到三段：先取前 $l-1$ 个，再从余下部分取 $r-l+1$ 个。只对中段打标记，最后按原顺序合并回去。
+
+	\begin{center}
+		\setlength{\tabcolsep}{9pt}
+		\renewcommand{\arraystretch}{1.35}
+		\begin{tabular}{@{}c|ccc|c@{}}
+			\multicolumn{1}{@{}c|}{\color{blue!70!black}\small $A$} &
+			\multicolumn{3}{c|}{\color{orange!80!black}\small $B=[l,r]$} &
+			\multicolumn{1}{c@{}}{\color{teal!70!black}\small $C$} \\
+			\cellcolor{blue!12}\ttfamily 7 &
+			\cellcolor{orange!15}\ttfamily 4 &
+			\cellcolor{orange!15}\ttfamily 9 &
+			\cellcolor{orange!15}\ttfamily 2 &
+			\cellcolor{teal!12}\ttfamily 6 \\
+			\scriptsize 1 & \scriptsize 2 & \scriptsize 3 & \scriptsize 4 & \scriptsize 5
+		\end{tabular}
+
+		\vspace{2pt}
+		{\footnotesize\sffamily\color{gray} 图注：以序列 \texttt{7 4 9 2 6}、$[l,r]=[2,4]$ 为例。第一次按 $l-1=1$ 切出蓝色 $A$；第二次按 $r-l+1=3$ 切出橙色 $B$；青色 $C$ 是剩余后缀。区间操作只改 $B$，随后合并为 $A+B+C$。}
+	\end{center}
+
+	模板本体如下。它自带区间赋值、区间加、区间翻转，以及区间和、最小值、最大值；所有操作期望复杂度均为 $O(\log n)$。代码使用自己的 \verb|ll| 和随机数生成器，整段复制即可。
+
+	\inputminted{cpp}{snippets/implicit_treap.cpp}
+
+	\begin{multicols*}{2}
+
+	\textbf{下标约定}：除 \verb|insert(pos,x)| 的 \verb|pos| 表示“前面已有几个元素”外，其余位置均为 $1$-based；区间均为闭区间。于是 \verb|insert(0,x)| 插到最前，\verb|insert(length(),x)| 插到最后。
+
+	\textbf{最常用的调用方式}：
+
+	\begin{minted}{cpp}
+vector<long long> a{1, 2, 3, 4, 5};
+ImplicitTreap t(a);
+
+t.range_add(2, 4, 10);
+// 1 12 13 14 5
+
+t.range_reverse(2, 5);
+// 1 5 14 13 12
+
+t.insert(1, 99);
+// 在第 1 个元素后插入：
+// 1 99 5 14 13 12
+
+t.erase(3);              // 删除位置 3
+auto info = t.range_info(2, 4);
+cout << info.sum << " "
+     << info.mn << " " << info.mx << "\n";
+t.print();
+	\end{minted}
+
+	\textbf{接口速查}：
+
+	\begin{itemize}
+		\item 建树：\verb|ImplicitTreap t(a)|；已知后续总插入量时可先 \verb|reserve|。
+		\item 插删：\verb|insert|、\verb|push_front|、\verb|push_back|、\verb|erase|。
+		\item 单点：\verb|kth| / \verb|get_value| / \verb|set_value|。
+		\item 区间改：\verb|range_set|、\verb|range_add|、\verb|range_reverse|。
+		\item 区间查：\verb|range_sum|、\verb|range_min|、\verb|range_max|，或一次取全的 \verb|range_info|。
+		\item 调试输出：\verb|to_vector|、\verb|print|。
+	\end{itemize}
+
+	\textbf{两个容易踩的坑}：第一，\verb|split| / \verb|merge| 会改变树根与儿子，自己手动调用时必须接住返回值；日常做题优先使用封装好的公开接口。第二，删除只把节点从序列中摘掉，并不回收空间，所以内存按\textbf{整场程序累计插入次数}估算，而不是按当前序列长度估算。
+
 	\subsection{主席树（可持久化权值线段树）}
 
 	主席树即\textbf{可持久化权值线段树}，每次单点更新只新建 $O(\log n)$ 个节点，多保存一份「版本根」。处理\textbf{静态区间第 $k$ 小}问题时，第 $i$ 个版本对应前 $i$ 个数构成的权值集合，区间 $[l, r]$ 的第 $k$ 小按左子树差量 \verb|tree[ls[v]].sum - tree[ls[u]].sum| 决定向左还是向右走。
