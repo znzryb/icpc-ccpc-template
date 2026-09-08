@@ -456,57 +456,64 @@ struct SufAutomaton {
 
 		\subsection{Trie 树}
 
-		普通 26 叉 Trie，节点上挂 \verb|cnt| 表示有多少串经过该节点；\verb|query(s)| 返回已有集合中所有串与 $s$ 的最长公共前缀长度之和（每个串按其与 $s$ 的 LCP 长度计入一次）。\verb|remove| 用懒计数撤回，不释放节点。
+		支持小写字母、大写字母和数字共 $62$ 种字符。\verb|cnt| 表示经过节点的字符串数量，因此 \verb|query(s)| 返回以 $s$ 为前缀的字符串数量（重复插入会重复计数）。字符映射使用直接寻址数组，不需要 \verb|map|；\verb|Reset()| 只清空 Trie，保留固定字符映射和已经申请的容量，适合多测复用。
 
 		\begin{minted}{cpp}
-/*
- * AC https://codeforces.com/gym/105941/submission/367570263
- * 统计已有集合中所有字符串与 s 的相同前缀长度之和
- */
 class Trie {
-	vector<array<int, 26>> tree;
-	vector<int> cnt;
-	int idx, n;
+	static constexpr int SIGMA = 62;
+	struct Node {
+		array<int, SIGMA> ch{};
+		int cnt = 0;
+	};
+
+	vector<Node> tr;
+	array<int, 256> id;
 
 public:
-	Trie(int N = 2e6 + 1) : n(N), tree(N), cnt(N), idx(0) {}
+	explicit Trie(int max_nodes = 1) {
+		id.fill(-1);
+		int p = 0;
+		for (int c = 'a'; c <= 'z'; ++c) id[c] = p++;
+		for (int c = 'A'; c <= 'Z'; ++c) id[c] = p++;
+		for (int c = '0'; c <= '9'; ++c) id[c] = p++;
+		tr.reserve(max_nodes);
+		Reset();
+	}
 
-	void insert(const string s) {
-		int cur = 0;
-		for (const char ch : s) {
-			int pos = ch - 'a';
-			if (tree[cur][pos] == 0) {
-				tree[cur][pos] = ++idx;
+	void Reset() {
+		tr.clear();
+		tr.emplace_back(); // 根节点编号为 0
+	}
+
+	void insert(const string &s) {
+		int u = 0;
+		++tr[u].cnt; // 让 query("") 也符合前缀计数语义
+		for (unsigned char c : s) {
+			int v = id[c];
+			assert(v != -1); // 字符集仅为 [a-zA-Z0-9]
+			if (!tr[u].ch[v]) {
+				tr[u].ch[v] = (int) tr.size();
+				tr.emplace_back();
 			}
-			cur = tree[cur][pos];
-			cnt[cur]++;
+			u = tr[u].ch[v];
+			++tr[u].cnt;
 		}
 	}
 
-	void remove(const string s) {
-		int cur = 0;
-		for (const char ch : s) {
-			int pos = ch - 'a';
-			if (tree[cur][pos] == 0) {
-				assert(0);
-			}
-			cur = tree[cur][pos];
-			cnt[cur]--;
+	int query(const string &s) const {
+		int u = 0;
+		for (unsigned char c : s) {
+			int v = id[c];
+			assert(v != -1);
+			if (!tr[u].ch[v]) return 0;
+			u = tr[u].ch[v];
 		}
-	}
-
-	ll query(const string &s) {
-		int cur = 0;
-		ll res = 0;
-		for (const char ch : s) {
-			int pos = ch - 'a';
-			if (tree[cur][pos] == 0) break;
-			cur = tree[cur][pos];
-			res += cnt[cur];
-		}
-		return res;
+		return tr[u].cnt;
 	}
 };
+
+// 已知字符串总长度上界时传入，可避免 vector 扩容：
+// Trie trie(MAXN); 每组数据开始前调用 trie.Reset();
 		\end{minted}
 
 		\subsection{01 Trie（XOR Trie）}
@@ -694,4 +701,3 @@ inline void __() {
 		\end{minted}
 
 	\end{multicols*}
-
