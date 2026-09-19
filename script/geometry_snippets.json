@@ -1,0 +1,204 @@
+{
+  "source": "sections/13_geometry.tex",
+  "order": [
+    "point-line",
+    "projection",
+    "reflection",
+    "ccw",
+    "ccw-angle",
+    "orthogonal-parallel",
+    "segment-intersection",
+    "line-intersection",
+    "distances",
+    "polygon-area",
+    "polygon-perimeter",
+    "regular-polygon",
+    "circle",
+    "circle-relation",
+    "triangle-circles",
+    "circle-line",
+    "circle-circle",
+    "point-tangents",
+    "common-tangents",
+    "circle-area",
+    "polygon-circle",
+    "reorder",
+    "is-convex",
+    "point-in-polygon",
+    "polar-sort",
+    "minkowski",
+    "half-planes",
+    "convex-hull",
+    "diameter",
+    "furthest-pair",
+    "rectangle",
+    "closest-pair",
+    "convex-distance",
+    "pick",
+    "generator",
+    "min-circle"
+  ],
+  "snippets": {
+    ":Point": [
+      "point-line",
+      "projection",
+      "reflection",
+      "ccw",
+      "orthogonal-parallel",
+      "segment-intersection",
+      "line-intersection",
+      "distances"
+    ],
+    ":reorderPolygon": [
+      "reorder"
+    ],
+    ":polarAngleSort": [
+      "polar-sort"
+    ],
+    ":isConvex": [
+      "is-convex"
+    ],
+    ":makeConvexHull": [
+      "convex-hull"
+    ],
+    ":minkowski": [
+      "minkowski"
+    ],
+    ":polygonArea": [
+      "polygon-area"
+    ],
+    ":polygonPerimeter": [
+      "polygon-perimeter"
+    ],
+    ":regularPolygonArea": [
+      "regular-polygon"
+    ],
+    ":isInPolygon": [
+      "point-in-polygon"
+    ],
+    ":gen_convex_polygon": [
+      "generator"
+    ],
+    ":convexRotatingCalipers": [
+      "diameter",
+      "furthest-pair",
+      "rectangle"
+    ],
+    ":halfPlaneCut": [
+      "half-planes"
+    ],
+    ":ccwAngle": [
+      "ccw-angle"
+    ],
+    ":Circle": [
+      "circle"
+    ],
+    ":circleRelation": [
+      "circle-relation"
+    ],
+    ":incircleOutTriangleCircle": [
+      "triangle-circles"
+    ],
+    ":getCrossPointsCL": [
+      "circle-line"
+    ],
+    ":getCrossPointsCC": [
+      "circle-circle"
+    ],
+    ":circleTangent": [
+      "point-tangents",
+      "common-tangents"
+    ],
+    ":twoCircleArea": [
+      "circle-area"
+    ],
+    ":polygonCircleArea": [
+      "polygon-circle"
+    ],
+    ":minCircleCover": [
+      "min-circle"
+    ]
+  },
+  "dependencies": {
+    ":reorderPolygon": [
+      ":Point",
+      ":polygonArea"
+    ],
+    ":polarAngleSort": [
+      ":Point"
+    ],
+    ":isConvex": [
+      ":Point",
+      ":reorderPolygon"
+    ],
+    ":makeConvexHull": [
+      ":Point",
+      ":polygonArea"
+    ],
+    ":minkowski": [
+      ":Point",
+      ":reorderPolygon"
+    ],
+    ":polygonArea": [
+      ":Point"
+    ],
+    ":polygonPerimeter": [
+      ":Point"
+    ],
+    ":regularPolygonArea": [
+      ":Point"
+    ],
+    ":isInPolygon": [
+      ":Point"
+    ],
+    ":gen_convex_polygon": [
+      ":Point"
+    ],
+    ":convexRotatingCalipers": [
+      ":Point",
+      ":makeConvexHull"
+    ],
+    ":halfPlaneCut": [
+      ":Point",
+      ":polarAngleSort"
+    ],
+    ":ccwAngle": [
+      ":Point"
+    ],
+    ":Circle": [
+      ":Point"
+    ],
+    ":circleRelation": [
+      ":Point",
+      ":Circle"
+    ],
+    ":incircleOutTriangleCircle": [
+      ":Point",
+      ":Circle"
+    ],
+    ":getCrossPointsCL": [
+      ":Point",
+      ":Circle"
+    ],
+    ":getCrossPointsCC": [
+      ":Point",
+      ":Circle"
+    ],
+    ":circleTangent": [
+      ":Point",
+      ":getCrossPointsCC"
+    ],
+    ":twoCircleArea": [
+      ":Point",
+      ":Circle"
+    ],
+    ":polygonCircleArea": [
+      ":Point",
+      ":Circle"
+    ],
+    ":minCircleCover": [
+      ":Point",
+      ":incircleOutTriangleCircle"
+    ]
+  }
+}
