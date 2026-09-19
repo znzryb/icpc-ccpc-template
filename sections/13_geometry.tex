@@ -6,128 +6,74 @@
 
 		以下是计算几何最底层的几个基础类型：符号判定 \texttt{sgn}、点 / 向量 \texttt{Point}（点和向量同一类型，向量当成「以原点为起点」的点）、叉乘 / 点乘、两点式直线 \texttt{Line}。\textbf{后续所有子节的代码都建立在这些定义之上}，每节顶部会以注释形式列出本节用到的依赖（具体实现见此处）。
 
-		\texttt{Point<T>} / \texttt{Line<T>} 保留整数与浮点泛型，\texttt{Wide<T>} 把整数乘积升为 \texttt{i128}，浮点保留原类型。\texttt{Promote<T,U>} 只允许按公共类型方向隐式转换（例如整数到浮点），\textbf{不代表整数转浮点绝对无损}。点的加减与标量乘除返回公共坐标类型；坐标加减本身、乘积及累计结果仍须在相应类型范围内。\texttt{sqrtL} 保留整数开方修正，最终返回浮点近似值；\texttt{isqrt} 支持非负有符号 \texttt{i128} 范围。排序使用精确字典序，\texttt{eps} 只用于几何判定与近似相等，不能放进排序比较器。拷贝与类型转换保留 \texttt{id}，算术派生点的 \texttt{id=-1}。
+		\textbf{类型约定}：坐标类型 \texttt{T} 只用 \texttt{ll} 或 \texttt{DB}。\texttt{Wide<T>} 把整数乘积（叉积、点积、模长平方）升为 \texttt{i128}，浮点保留原类型；坐标加减本身仍须落在 \texttt{T} 的范围内。\texttt{Promote} 让 \texttt{Point<ll>} 能隐式转成 \texttt{Point<DB>}，反向禁止。\texttt{+ - cross dot} 都只写同类型版本，混合类型表达式（如 \texttt{Point<ll> - Point<DB>}）靠这个隐式转换自动走 \texttt{DB} 版本；标量乘除 \texttt{p * k}、\texttt{p / k} 返回公共类型，所以 \texttt{Point<ll> / DB} 得到 \texttt{Point<DB>}，不会截断。\texttt{sqrtL} 对整数先精确开方再修正，避免 \texttt{i128} 转浮点丢精度。排序使用精确字典序，\texttt{eps} 只用于几何判定与 \texttt{==}，不能放进排序比较器。拷贝与类型转换保留 \texttt{id}，算术派生点的 \texttt{id=-1}。
 
 		\href{https://gist.github.com/znzryb/11d094702ccdb989efb8aed573ab0885}{change log}
 
 		% geometry-code: point-line
 \begin{minted}{cpp}
-// C++17; ll / i128 / DB, eps, PI 由开赛模板定义。
-// Wide 只负责乘积升位；坐标加减仍须落在坐标类型的范围内。
+// C++17；ll / i128 / DB / eps / PI 由开赛模板定义。坐标类型 T 只用 ll 或 DB。
+// Wide：整数乘积升 i128 防溢出；Promote：只允许 Point<ll> -> Point<DB> 这种无损方向的隐式转换。
 template<class T> using Wide = conditional_t<is_floating_point_v<T>, T, i128>;
-template<class T, class U>
-using Promote = enable_if_t<is_same_v<common_type_t<T, U>, T>>;
-
-i128 isqrt(i128 n) {
+template<class T, class U> using Promote = enable_if_t<is_same_v<common_type_t<T, U>, T>>;
+template<class T> int sgn(T x) { return (x > eps) - (x < -eps); }
+template<class T> Wide<T> squared(T x) { return Wide<T>(x) * x; }
+DB sqrtL(DB x) { return sqrtl(x); }
+DB sqrtL(i128 n) { // 整数先精确开方再修正，避免 i128 转浮点丢精度
 	if (n <= 0) return 0;
-	i128 l = 0, r = (i128)1 << 64;
-	while (l < r) {
-		i128 m = (l + r + 1) / 2;
-		if (m <= n / m) l = m;
-		else r = m - 1;
-	}
-	return l;
-}
-template<class T>
-long double sqrtL(T n) {
-	if constexpr (is_floating_point_v<T>) return sqrtl(n);
-	else {
-		if (n <= 0) return 0;
-		i128 s = isqrt(n);
-		return (long double)s + (long double)(n - s * s) / (sqrtl(n) + s);
-	}
-}
-template<class T> auto squared(T x) { return Wide<T>(x) * x; }
-template<class T> int sgn(T x) {
-	if constexpr (is_floating_point_v<T>) return (x >= eps) - (x <= -eps);
-	else return (x > 0) - (x < 0);
+	i128 s = sqrtl((DB)n);
+	while (s * s > n) --s;
+	while ((s + 1) * (s + 1) <= n) ++s;
+	return s + (DB)(n - s * s) / (sqrtl((DB)n) + s);
 }
 
 template<class T>
 struct Point {
 	T x, y;
-	int id = -1; // 拷贝/类型转换保留下标；算术派生点下标为 -1
+	int id = -1; // 拷贝 / 类型转换保留下标，算术派生点为 -1
 	explicit Point(T x = 0, T y = 0) : x(x), y(y) {}
-	template<class U, class = Promote<T, U>>
-	Point(const Point<U> &p) : x(p.x), y(p.y), id(p.id) {}
-
-	Point &operator+=(Point p) & { x += p.x; y += p.y; return *this; }
-	Point &operator-=(Point p) & { x -= p.x; y -= p.y; return *this; }
-	Point &operator*=(T k) & { x *= k; y *= k; return *this; }
-	Point &operator/=(T k) & { x /= k; y /= k; return *this; }
+	template<class U, class = Promote<T, U>> Point(Point<U> p) : x(p.x), y(p.y), id(p.id) {}
+	// 混合类型（ll 与 DB）运算靠隐式转换走 DB 版本；标量乘除返回公共类型，Point<ll> / DB 不会截断
+	friend Point operator+(Point a, Point b) { return Point(a.x + b.x, a.y + b.y); }
+	friend Point operator-(Point a, Point b) { return Point(a.x - b.x, a.y - b.y); }
 	Point operator-() const { return Point(-x, -y); }
-	template<class U> auto operator+(Point<U> p) const {
-		return Point<common_type_t<T, U>>(x + p.x, y + p.y);
-	}
-	template<class U> auto operator-(Point<U> p) const {
-		return Point<common_type_t<T, U>>(x - p.x, y - p.y);
-	}
-	template<class U> auto operator*(U k) const {
-		return Point<common_type_t<T, U>>(x * k, y * k);
-	}
-	template<class U> auto operator/(U k) const {
-		return Point<common_type_t<T, U>>(x / k, y / k);
-	}
-	template<class U> friend auto operator*(U k, Point p) { return p * k; }
-
-	// 排序用精确字典序，不能用 eps 比较破坏 strict weak ordering。
+	template<class U> friend auto operator*(Point a, U k) { return Point<common_type_t<T, U>>(a.x * k, a.y * k); }
+	template<class U> friend auto operator*(U k, Point a) { return a * k; }
+	template<class U> friend auto operator/(Point a, U k) { return Point<common_type_t<T, U>>(a.x / k, a.y / k); }
+	Point &operator+=(Point p) { return *this = *this + p; }
+	Point &operator-=(Point p) { return *this = *this - p; }
+	// 排序用精确字典序（eps 会破坏 strict weak ordering），== 才用 eps
 	friend bool operator<(Point a, Point b) { return tie(a.x, a.y) < tie(b.x, b.y); }
-	friend bool operator>(Point a, Point b) { return b < a; }
-	friend bool operator==(Point a, Point b) { return !sgn(a.x-b.x) && !sgn(a.y-b.y); }
+	friend bool operator==(Point a, Point b) { return !sgn(a.x - b.x) && !sgn(a.y - b.y); }
 	friend bool operator!=(Point a, Point b) { return !(a == b); }
 	friend istream &operator>>(istream &s, Point &p) { return s >> p.x >> p.y; }
-	friend ostream &operator<<(ostream &s, Point p) {
-		return s << "(" << p.x << ", " << p.y << ")";
-	}
-	auto norm() const { return squared(x) + squared(y); }
+	friend ostream &operator<<(ostream &s, Point p) { return s << "(" << p.x << ", " << p.y << ")"; }
+	friend Wide<T> cross(Point a, Point b) { return Wide<T>(a.x) * b.y - Wide<T>(a.y) * b.x; }
+	friend Wide<T> dot(Point a, Point b) { return Wide<T>(a.x) * b.x + Wide<T>(a.y) * b.y; }
+	friend Wide<T> cross(Point o, Point a, Point b) { return cross(a - o, b - o); } // 以 o 为原点
+	friend Wide<T> dot(Point o, Point a, Point b) { return dot(a - o, b - o); }
+	Wide<T> norm() const { return dot(*this, *this); } // 模长平方
 	DB abs() const { return sqrtL(norm()); }
-	Point rot90() const { return Point(-y, x); }
-	Point<DB> rot(DB a) const {
-		DB c = cosl(a), s = sinl(a);
-		return Point<DB>(x*c - y*s, x*s + y*c);
-	}
-	auto normL1() const {
-		Wide<T> a = x, b = y;
-		return (a < 0 ? -a : a) + (b < 0 ? -b : b);
-	}
+	Wide<T> normL1() const { return (Wide<T>)(x < 0 ? -x : x) + (y < 0 ? -y : y); }
 	T normLinf() const { return max(x < 0 ? -x : x, y < 0 ? -y : y); }
+	Point rot90() const { return Point(-y, x); }
+	Point<DB> rot(DB a) const { return Point<DB>(x * cosl(a) - y * sinl(a), x * sinl(a) + y * cosl(a)); }
 };
-
-template<class T, class U>
-auto cross(Point<T> a, Point<U> b) {
-	using R = Wide<common_type_t<T, U>>;
-	return R(a.x) * b.y - R(a.y) * b.x;
-}
-template<class T, class U>
-auto dot(Point<T> a, Point<U> b) {
-	using R = Wide<common_type_t<T, U>>;
-	return R(a.x) * b.x + R(a.y) * b.y;
-}
-template<class T, class U, class V>
-auto cross(Point<T> o, Point<U> a, Point<V> b) { return cross(a-o, b-o); }
-template<class T, class U, class V>
-auto dot(Point<T> o, Point<U> a, Point<V> b) { return dot(a-o, b-o); }
 
 template<class T>
-struct Line {
+struct Line { // 直线 / 线段共用：p1 -> p2
 	Point<T> p1, p2;
-	Line() = default;
-	Line(Point<T> a, Point<T> b) : p1(a), p2(b) {}
-	Line(T k, T c) : p1(0, c), p2(1, k+c) {}
-	template<class U, class = Promote<T, U>>
-	Line(const Line<U> &l) : p1(l.p1), p2(l.p2) {}
-	friend bool operator<(Line a, Line b) {
-		return tie(a.p1, a.p2) < tie(b.p1, b.p2);
-	}
+	Line(Point<T> a = Point<T>(), Point<T> b = Point<T>()) : p1(a), p2(b) {}
+	Line(T k, T c) : p1(0, c), p2(1, k + c) {} // 斜截式 y = kx + c
+	template<class U, class = Promote<T, U>> Line(Line<U> l) : p1(l.p1), p2(l.p2) {}
+	friend bool operator<(Line a, Line b) { return tie(a.p1, a.p2) < tie(b.p1, b.p2); }
 	friend bool operator==(Line a, Line b) { return a.p1 == b.p1 && a.p2 == b.p2; }
 	friend istream &operator>>(istream &s, Line &l) { return s >> l.p1 >> l.p2; }
-	friend ostream &operator<<(ostream &s, Line l) {
-		return s << "<" << l.p1 << ", " << l.p2 << ">";
-	}
+	friend ostream &operator<<(ostream &s, Line l) { return s << "<" << l.p1 << ", " << l.p2 << ">"; }
 };
-// ax + by + c = 0，要求 a、b 不同时为 0。
+// 一般式 ax + by + c = 0（a、b 不同时为 0）
 Line<DB> gen_line_from_general(DB a, DB b, DB c) {
-	Point<DB> p = b != 0 ? Point<DB>(0, -c/b) : Point<DB>(-c/a, 0);
+	Point<DB> p = b != 0 ? Point<DB>(0, -c / b) : Point<DB>(-c / a, 0);
 	return Line<DB>(p, p + Point<DB>(b, -a));
 }
 mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
@@ -143,11 +89,11 @@ mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
 
 		% geometry-code: projection
 \begin{minted}{cpp}
-// 依赖：点线基础；l 必须是非退化直线。
+// 依赖：点线基础；l 非退化。返回值固定为 Point<DB>
 template<class T, class U>
 Point<DB> project(Point<T> p, Line<U> l) {
 	Point<DB> v = l.p2 - l.p1;
-	return l.p1 + v * (dot(v, p-l.p1) / v.norm());
+	return l.p1 + v * (dot(v, p - l.p1) / v.norm());
 }
 \end{minted}
 
@@ -233,14 +179,11 @@ Point<DB> reflect(Point<T> p, Line<U> l) { return project(p, l) * 2 - p; }
 		% geometry-code: ccw
 \begin{minted}{cpp}
 // 依赖：点线基础
-constexpr int ON_SEGMENT = 0, COUNTER_CLOCKWISE = 1, CLOCKWISE = -1;
-constexpr int ONLINE_BACK = 2, ONLINE_FRONT = -2;
+constexpr int ON_SEGMENT = 0, COUNTER_CLOCKWISE = 1, CLOCKWISE = -1, ONLINE_BACK = 2, ONLINE_FRONT = -2;
 template<class T, class U>
 int CCW(Point<T> p, Line<U> l) {
-	auto a = l.p2-l.p1;
-	auto b = p-l.p1;
-	int s = sgn(cross(a, b));
-	if (s) return s;
+	auto a = l.p2 - l.p1; auto b = p - l.p1;
+	if (int s = sgn(cross(a, b))) return s;
 	if (sgn(dot(a, b)) < 0) return ONLINE_BACK;
 	return a.norm() < b.norm() ? ONLINE_FRONT : ON_SEGMENT;
 }
@@ -252,22 +195,15 @@ int CCW(Point<T> p, Line<U> l) {
 
 		% geometry-code: ccw-angle
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, cross, dot（向量版用到）
-// 圆弧 from -> to 的逆时针弧角差 [0, 2pi), 不是 abs(to - from)
-static DB ccw_angle(DB theta_from, DB theta_to) {
-	DB d = std::fmod(theta_to - theta_from, 2 * PI);
-	if (d < 0) d += 2 * PI;
-	return d;
+// 依赖：点线基础。从 from 逆时针转到 to 的角，落在 [0, 2pi)，不是 abs(to - from)
+DB ccw_angle(DB from, DB to) {
+	DB d = fmodl(to - from, 2 * PI);
+	return d < 0 ? d + 2 * PI : d;
 }
-
-// 向量版: 从方向向量 from 逆时针转到方向向量 to 的角 [0, 2pi).
-// 用单次 atan2(cross, dot) (cross 当 sin 分量 / dot 当 cos 分量), 比两次 atan2 相减稳.
-template<class T, class U>
-static DB ccw_angle(Point<T> from, Point<U> to) {
-	DB d = std::atan2((DB)cross(from, to), (DB)dot(from, to));
-	if (d < 0) d += 2 * PI;
-	return d;
+template<class T, class U> // 向量版：单次 atan2(cross, dot) 比两次 atan2 相减稳
+DB ccw_angle(Point<T> from, Point<U> to) {
+	DB d = atan2l(cross(from, to), dot(from, to));
+	return d < 0 ? d + 2 * PI : d;
 }
 \end{minted}
 
@@ -280,14 +216,8 @@ static DB ccw_angle(Point<T> from, Point<U> to) {
 		% geometry-code: orthogonal-parallel
 \begin{minted}{cpp}
 // 依赖：点线基础
-template<class T, class U>
-bool isOrthogonal(Line<T> a, Line<U> b) {
-	return !sgn(dot(a.p2-a.p1, b.p2-b.p1));
-}
-template<class T, class U>
-bool isParallel(Line<T> a, Line<U> b) {
-	return !sgn(cross(a.p2-a.p1, b.p2-b.p1));
-}
+template<class T, class U> bool isOrthogonal(Line<T> a, Line<U> b) { return !sgn(dot(a.p2 - a.p1, b.p2 - b.p1)); }
+template<class T, class U> bool isParallel(Line<T> a, Line<U> b) { return !sgn(cross(a.p2 - a.p1, b.p2 - b.p1)); }
 \end{minted}
 
 		\subsection{判断两线段是否相交}
@@ -298,13 +228,12 @@ bool isParallel(Line<T> a, Line<U> b) {
 
 		% geometry-code: segment-intersection
 \begin{minted}{cpp}
-// 依赖：CCW；含端点相交与退化为点的线段。
+// 依赖：CCW；含端点相交与退化为点的线段
 template<class T, class U>
 bool isSegIntersect(Line<T> a, Line<U> b) {
 	if (a.p1 == a.p2) return CCW(a.p1, b) == ON_SEGMENT;
 	if (b.p1 == b.p2) return CCW(b.p1, a) == ON_SEGMENT;
-	return CCW(b.p1, a) * CCW(b.p2, a) <= 0
-	    && CCW(a.p1, b) * CCW(a.p2, b) <= 0;
+	return CCW(b.p1, a) * CCW(b.p2, a) <= 0 && CCW(a.p1, b) * CCW(a.p2, b) <= 0;
 }
 \end{minted}
 
@@ -324,11 +253,11 @@ bool isSegIntersect(Line<T> a, Line<U> b) {
 
 		% geometry-code: line-intersection
 \begin{minted}{cpp}
-// 依赖：点线基础；两条非退化、不平行直线。
+// 依赖：点线基础；两条非退化、不平行直线。返回值固定为 Point<DB>
 template<class T, class U>
-Point<DB> getintersect(const Line<T> &a, const Line<U> &b) {
-	Point<DB> p = a.p1, v = a.p2-a.p1, q = b.p1, w = b.p2-b.p1;
-	return p + v * (cross(w, p-q) / cross(v, w));
+Point<DB> getintersect(Line<T> a, Line<U> b) {
+	Point<DB> p = a.p1, v = a.p2 - a.p1, q = b.p1, w = b.p2 - b.p1;
+	return p + v * (cross(w, p - q) / cross(v, w));
 }
 \end{minted}
 
@@ -340,57 +269,27 @@ Point<DB> getintersect(const Line<T> &a, const Line<U> &b) {
 
 		% geometry-code: distances
 \begin{minted}{cpp}
-// 距离平方（不开方）：旋转卡壳里 ans 反复更新，留到最后一次 sqrt
+// 依赖：CCW, isSegIntersect。PPNorm 是距离平方（不开方，留到最后再 sqrt）；L1 / Linf 返回坐标公共类型
+template<class T, class U> auto distancePPNorm(Point<T> a, Point<U> b) { return (a - b).norm(); }
+template<class T, class U> DB distancePP(Point<T> a, Point<U> b) { return (a - b).abs(); }
+template<class T, class U> auto distancePPL1(Point<T> a, Point<U> b) { return (a - b).normL1(); }
+template<class T, class U> auto distancePPLinf(Point<T> a, Point<U> b) { return (a - b).normLinf(); }
 template<class T, class U>
-auto distancePPNorm(const Point<T> &a, const Point<U> &b) {
-	return (a - b).norm();
+DB distancePL(Point<T> p, Line<U> l) { // 点到直线
+	auto v = cross(l.p1, l.p2, p);
+	return (v < 0 ? -v : v) / (l.p2 - l.p1).abs();
 }
-
-// L2 距离：整数走开方修正，最终仍返回 DB 浮点近似值。
 template<class T, class U>
-DB distancePP(const Point<T> &a, const Point<U> &b) {
-	return (a - b).abs();
-}
-
-// L1 曼哈顿距离 = |dx| + |dy|. 返回类型继承 normL1 (整型 -> __int128_t, 浮点 -> T).
-template<class T, class U>
-auto distancePPL1(const Point<T> &a, const Point<U> &b) {
-	return (a - b).normL1();
-}
-
-// Linf 距离：返回两种坐标的公共类型，不截断浮点结果。
-template<class T, class U>
-auto distancePPLinf(const Point<T> &a, const Point<U> &b) {
-	return (a - b).normLinf();
-}
-
-// 依赖：
-//   struct Point, struct Line
-//   sgn, cross, dot
-//   Point::abs()
-//   isSegIntersect(Line, Line)
-template<class T, class U>
-DB distancePL(Point<T> p, Line<U> l) {
-	auto val = cross(l.p1, l.p2, p); // 三参数：以 l.p1 为原点
-	return sgn(val) * val / (l.p2 - l.p1).abs();
-}
-
-// AC https://qoj.ac/submission/2001668
-template<class T, class U>
-DB distancePS(Point<T> p, Line<U> l) {
-	if (l.p1 == l.p2) return (p - l.p1).abs(); // 退化为点
-	auto t = l.p2 - l.p1;
-	if (sgn(dot(t, p - l.p1)) < 0) return (p - l.p1).abs();
-	if (sgn(dot(t, p - l.p2)) > 0) return (p - l.p2).abs();
+DB distancePS(Point<T> p, Line<U> l) { // 点到线段，AC https://qoj.ac/submission/2001668
+	if (l.p1 == l.p2) return (p - l.p1).abs();
+	if (sgn(dot(l.p2 - l.p1, p - l.p1)) < 0) return (p - l.p1).abs();
+	if (sgn(dot(l.p1 - l.p2, p - l.p2)) < 0) return (p - l.p2).abs();
 	return distancePL(p, l);
 }
-
-// AC https://qoj.ac/submission/2001588
 template<class T, class U>
-DB distanceSS(Line<T> a, Line<U> b) {
+DB distanceSS(Line<T> a, Line<U> b) { // 线段到线段，AC https://qoj.ac/submission/2001588
 	if (isSegIntersect(a, b)) return 0;
-	return min({distancePS(a.p1, b), distancePS(a.p2, b),
-	            distancePS(b.p1, a), distancePS(b.p2, a)});
+	return min({distancePS(a.p1, b), distancePS(a.p2, b), distancePS(b.p1, a), distancePS(b.p2, a)});
 }
 \end{minted}
 
@@ -404,31 +303,22 @@ DB distanceSS(Line<T> a, Line<U> b) {
 		$$
 		逆时针排列时 $\sum$ 本身已为正，顺时针为负，统一取绝对值。
 
-		\textbf{拆出 \texttt{polygonSignedArea}}：返回值 \texttt{auto} 跟着 \texttt{cross} 走（整数 \texttt{T} $\to$ \texttt{i128}，浮点 \texttt{T} $\to$ \texttt{T}）。\textcolor{red}{\textbf{不要}}像旧版那样写成 \texttt{DB res = 0; res += cross(...)}——在整数 \texttt{T} 下 \texttt{cross} 返回 \texttt{\_\_int128\_t}，赋给 \texttt{double} 累加器会在 $|val| > 2^{53}$ 时丢精度。除此之外，\texttt{reorder\_polygon} 也复用 \texttt{polygonSignedArea} 取符号判方向，避免「前三点共线」时的局部退化。
+		\textbf{拆出 \texttt{polygonSignedArea}}：返回值 \texttt{Wide<T>} 跟着 \texttt{cross} 走（整数 \texttt{T} $\to$ \texttt{i128}，浮点 \texttt{T} $\to$ \texttt{T}）。\textcolor{red}{\textbf{不要}}像旧版那样写成 \texttt{DB res = 0; res += cross(...)}——在整数 \texttt{T} 下 \texttt{cross} 返回 \texttt{\_\_int128\_t}，赋给 \texttt{double} 累加器会在 $|val| > 2^{53}$ 时丢精度。除此之外，\texttt{reorder\_polygon} 也复用 \texttt{polygonSignedArea} 取符号判方向，避免「前三点共线」时的局部退化。
 
 		% geometry-code: polygon-area
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point
-//   cross(Point, Point)
-//   Point::abs()
-
-// 多边形 2 倍有向面积（不除 2 以保整数精度）
-// 返回类型 auto：整数 T -> i128，浮点 T -> T
-// > 0: CCW；< 0: CW；== 0: 退化（全共线 / 自交）
+// 依赖：点线基础。2 倍有向面积（> 0 CCW，< 0 CW，0 退化）；整数返回 i128，不丢精度
 template<class T>
-auto polygonSignedArea(const vector<Point<T>> &poly) {
-	auto res = cross(Point<T>(), Point<T>()); // 零值，类型由 cross 继承
-	size_t n = poly.size();
-	for (size_t i = 0; i < n; ++i) res += cross(poly[i], poly[(i + 1) % n]);
+Wide<T> polygonSignedArea(const vector<Point<T>> &poly) {
+	Wide<T> res = 0;
+	int n = poly.size();
+	for (int i = 0; i < n; ++i) res += cross(poly[i], poly[(i + 1) % n]);
 	return res;
 }
-
 template<class T>
 DB polygonArea(const vector<Point<T>> &poly) {
 	auto s = polygonSignedArea(poly);
-	if (s < 0) s = -s;
-	return (DB) s / 2.0;
+	return (DB)(s < 0 ? -s : s) / 2;
 }
 \end{minted}
 
@@ -437,7 +327,7 @@ DB polygonArea(const vector<Point<T>> &poly) {
 template<class T>
 DB polygon_perimeter(const vector<Point<T>> &poly) {
 	DB res = 0;
-	size_t n = poly.size();
+	int n = poly.size();
 	for (int i = 0; i < n; ++i) res += (poly[i] - poly[(i + 1) % n]).abs();
 	return res;
 }
@@ -445,10 +335,8 @@ DB polygon_perimeter(const vector<Point<T>> &poly) {
 
 % geometry-code: regular-polygon
 \begin{minted}{cpp}
-// 正 n 边形面积: A = n * l^2 / (4 * tan(pi / n)), n >= 3
-DB regular_polygon_area(ll n, DB l) {
-	return (DB) n * l * l / (4.0L * tanl(PI / (DB) n));
-}
+// 正 n 边形面积 A = n l^2 / (4 tan(pi / n))，n >= 3
+DB regular_polygon_area(ll n, DB l) { return n * l * l / (4 * tanl(PI / n)); }
 \end{minted}
 
 		\subsection{圆 \texttt{Circle}：测度五件套}
@@ -457,7 +345,7 @@ DB regular_polygon_area(ll n, DB l) {
 
 		\textbf{角度约定}：入参 \texttt{theta} 是弦所对的\textbf{圆心角}，单位\textbf{弧度}，约束 $\theta \in [0, 2\pi]$。$\theta < \pi$ 是 minor 弓形（小的那块），$\theta > \pi$ 是 major 弓形（大的那块），公式同一个，\textbf{不做内部 deg $\leftrightarrow$ rad 转换}（调用方自己 \texttt{deg * PI / 180}）。\texttt{point\_at} 接受任意 \texttt{theta}（含负值 / 超 $2\pi$），不抛 assert——绕圆走多圈合法。
 
-		\textbf{\texttt{theta\_at}：\texttt{point\_at} 的逆}：给定圆上一点 $p$，返回它相对圆心的极角。\texttt{atan2l} 出来的是 $(-\pi, \pi]$，加一次 $2\pi$ 归一化到 $[0, 2\pi)$，于是 $\texttt{point\_at}(\texttt{theta\_at}(p)) = p$（$p$ 在圆上时）。\texttt{LOCAL} 下 \texttt{check\_on\_circle} 断言 $p$ 真在圆上——比的是\textbf{平方距离}（\texttt{distancePPNorm} vs \texttt{squared(r)}）配 \texttt{sgn}，不开方也不裸等号。典型用法：把圆上若干交点转成极角后排序，扫出相邻弧段。
+		\textbf{\texttt{theta\_at}：\texttt{point\_at} 的逆}：给定圆上一点 $p$，返回它相对圆心的极角。\texttt{atan2l} 出来的是 $(-\pi, \pi]$，加一次 $2\pi$ 归一化到 $[0, 2\pi)$，于是 $\texttt{point\_at}(\texttt{theta\_at}(p)) = p$（$p$ 在圆上时）。不检查 $p$ 是否真在圆上，由调用方保证。典型用法：把圆上若干交点转成极角后排序，扫出相邻弧段。
 
 		\texttt{point\_at} 直接用标准 \texttt{cosl/sinl}，不绑定编译器专有的 \texttt{sincos} 指针类型；\texttt{DB} 采用 \texttt{double} 或 \texttt{long double} 都能编译。
 
@@ -469,106 +357,31 @@ DB regular_polygon_area(ll n, DB l) {
 
 		% geometry-code: circle
 \begin{minted}{cpp}
-enum CircleRelation {
-	// 表示这个公切线个数; COINCIDENT (-1) 是重合 sentinel (无穷多公切线)
-	COINCIDENT = -1,
-	ONE_CONTAINS_OTHER = 0,
-	INTERNALLY_TANGENT = 1,
-	INTERSECTING = 2,
-	EXTERNALLY_TANGENT = 3,
-	EXTERNALLY_APART = 4,
-};
+// enum 值即两圆公切线条数；COINCIDENT = -1 表示重合（无穷多）
+enum CircleRelation { COINCIDENT = -1, ONE_CONTAINS_OTHER, INTERNALLY_TANGENT, INTERSECTING, EXTERNALLY_TANGENT, EXTERNALLY_APART };
 
-// 依赖：
-//   struct Point, DB = long double, PI, eps, sgn, squared, distancePPNorm
+// 依赖：点线基础, distancePPNorm。theta 均为弧度制圆心角
 template<class T>
 struct Circle {
-	Point<T> c;
-	T r;
-
-	Circle() = default;
-	Circle(Point<T> c_, T r_) : c(c_), r(r_) {}
-
-	// Circle<U> -> Circle<T> 隐式 (common_type 单调升档方向, 同 Point converting ctor)
-	template<class U, class = Promote<T, U>>
-	Circle(const Circle<U> &o) : c(o.c), r(o.r) {}
-
-	// 圆上极角 theta 处的点 c + (r cos theta, r sin theta)
-	// theta 不限范围（允许负值 / > 2 PI），始终走 cos/sin 不抛 assert
-	Point<DB> point_at(DB theta) const {
-		return c + Point<DB>(cosl(theta), sinl(theta)) * (DB)r;
+	Point<T> c; T r;
+	explicit Circle(Point<T> c = Point<T>(), T r = 0) : c(c), r(r) {}
+	template<class U, class = Promote<T, U>> Circle(Circle<U> o) : c(o.c), r(o.r) {}
+	Point<DB> point_at(DB t) const { return c + Point<DB>(cosl(t), sinl(t)) * (DB)r; } // 极角 t 处的点，t 不限范围
+	template<class U> DB theta_at(Point<U> p) const { // point_at 的逆：圆上点 p 的极角，[0, 2pi)
+		Point<DB> d = p - c;
+		DB t = atan2l(d.y, d.x);
+		return t < 0 ? t + 2 * PI : t;
 	}
-
-	void check_theta(DB theta) const {
-#ifdef LOCAL
-		assert(theta >= -eps && theta <= 2 * PI + eps);
-#endif
-		(void) theta;
-	}
-
-	// point_at 的逆: 点 p 相对圆心的极角, 归一化到 [0, 2 PI)
-	// 满足 point_at(theta_at(p)) == p (p 在圆上时)
-	template<class U>
-	DB theta_at(const Point<U> &p) const {
-		check_on_circle(p);
-		DB t = atan2l((DB) p.y - (DB) c.y, (DB) p.x - (DB) c.x);
-		if (t < 0) t += 2 * PI;
-		return t;
-	}
-
-	template<class U>
-	void check_on_circle(const Point<U> &p) const {
-#ifdef LOCAL
-		assert(sgn(distancePPNorm(p, c) - squared(r)) == 0);
-#endif
-		(void) p;
-	}
-
-	// 弧长 = r theta
-	DB arc_length(DB theta) const {
-		check_theta(theta);
-		return (DB) r * theta;
-	}
-
-	// 弦长 = 2 r sin(theta / 2)
-	DB chord_length(DB theta) const {
-		check_theta(theta);
-		return 2.0L * (DB) r * sinl(theta / 2);
-	}
-
-	// 弓形高 (sagitta) = r (1 - cos(theta / 2))
-	DB sagitta(DB theta) const {
-		check_theta(theta);
-		return (DB) r * (1.0L - cosl(theta / 2));
-	}
-
-	// 扇形面积 = (1/2) r^2 theta
-	DB sector_area(DB theta) const {
-		check_theta(theta);
-		return 0.5L * (DB) r * r * theta;
-	}
-
-	// 弓形面积 = (1/2) r^2 (theta - sin theta)
-	// AC https://vjudge.net/solution/69814399 (Area of the Devil)
-	DB segment_area(DB theta) const {
-		check_theta(theta);
-		return 0.5L * (DB) r * r * (theta - sinl(theta));
-	}
-
-	// AC https://vjudge.net/solution/69993234 使用 sgn 避免精度问题
-	template<class U>
-	bool is_point_in_circle(const Point<U> &p) const {
-		return sgn(distancePPNorm(p, c) - squared(r)) <= 0;
-	}
+	DB arc_length(DB t) const { return r * t; }
+	DB chord_length(DB t) const { return 2 * r * sinl(t / 2); }
+	DB sagitta(DB t) const { return r * (1 - cosl(t / 2)); } // 弓形高
+	DB sector_area(DB t) const { return (DB)r * r * t / 2; }
+	DB segment_area(DB t) const { return (DB)r * r * (t - sinl(t)) / 2; } // 弓形 = 扇形 - 三角形
+	template<class U> bool is_point_in_circle(Point<U> p) const { return sgn(distancePPNorm(p, c) - squared(r)) <= 0; }
 	friend istream &operator>>(istream &s, Circle &a) { return s >> a.c >> a.r; }
-	friend ostream &operator<<(ostream &s, const Circle &a) {
-		return s << "<" << a.c << "," << a.r << ">";
-	}
+	friend ostream &operator<<(ostream &s, Circle a) { return s << "<" << a.c << "," << a.r << ">"; }
 };
-
-Circle<DB> circle_from_diameter(Point<DB> a, Point<DB> b) {
-	return Circle<DB>((a+b)/2, distancePP(a, b)/2);
-}
+Circle<DB> circle_from_diameter(Point<DB> a, Point<DB> b) { return Circle<DB>((a + b) / 2, distancePP(a, b) / 2); }
 \end{minted}
 
 		\subsection{两圆位置关系 \texttt{circle\_relation}}
@@ -583,19 +396,15 @@ Circle<DB> circle_from_diameter(Point<DB> a, Point<DB> b) {
 
 		% geometry-code: circle-relation
 \begin{minted}{cpp}
-// 依赖：Circle, distancePPNorm, squared, sgn
+// 依赖：Circle。全程平方比较，不开方
 template<class T>
-CircleRelation circle_relation(const Circle<T> &a, const Circle<T> &b) {
+CircleRelation circle_relation(Circle<T> a, Circle<T> b) {
 	auto d2 = distancePPNorm(a.c, b.c);
-	auto sum = squared(a.r + b.r);
-	auto dif = squared(a.r - b.r);
-	// 重合 (同心 + 同径): 无穷多公切线, 单独 sentinel
-	if (sgn(d2) == 0 && sgn(a.r - b.r) == 0) return COINCIDENT;
-	if (sgn(d2 - sum) > 0) return EXTERNALLY_APART;
-	if (sgn(d2 - sum) == 0) return EXTERNALLY_TANGENT;
-	if (sgn(d2 - dif) > 0) return INTERSECTING;
-	if (sgn(d2 - dif) == 0) return INTERNALLY_TANGENT;
-	return ONE_CONTAINS_OTHER;
+	if (!sgn(d2) && !sgn(a.r - b.r)) return COINCIDENT;
+	int o = sgn(d2 - squared(a.r + b.r)), i = sgn(d2 - squared(a.r - b.r));
+	if (o > 0) return EXTERNALLY_APART;
+	if (o == 0) return EXTERNALLY_TANGENT;
+	return i > 0 ? INTERSECTING : i == 0 ? INTERNALLY_TANGENT : ONE_CONTAINS_OTHER;
 }
 \end{minted}
 
@@ -619,26 +428,18 @@ CircleRelation circle_relation(const Circle<T> &a, const Circle<T> &b) {
 
 		% geometry-code: triangle-circles
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, struct Line, struct Circle
-//   distancePP, distancePS, getintersect, Point::rot90, sgn, cross（三参数）
-// 退化 (共线 / 任意两点重合, cross == 0): 内接圆不存在, 返回 r=0 sentinel
+// 依赖：Circle, distancePP, getintersect。三点共线 / 重合时：内接圆返回 r = 0，外接圆返回 r = -1
 Circle<DB> incircle_triangle(Point<DB> a, Point<DB> b, Point<DB> c) {
-	if (sgn(cross(a, b, c)) == 0) return Circle<DB>(a, 0);
-	DB ab = distancePP(a, b), ac = distancePP(a, c), bc = distancePP(b, c);
-	Point<DB> I = (a * bc + ac * b + ab * c) / (ab + ac + bc);
-	return Circle<DB>(I, abs(cross(a, b, c)) / (ab + ac + bc));
+	DB s = cross(a, b, c);
+	if (!sgn(s)) return Circle<DB>(a, 0);
+	DB ab = distancePP(a, b), ac = distancePP(a, c), bc = distancePP(b, c), p = ab + ac + bc;
+	return Circle<DB>((a * bc + b * ac + c * ab) / p, (s < 0 ? -s : s) / p);
 }
-
-// 外心 = 两条中垂线交点
-// 退化 (共线 / 任意两点重合, cross == 0): 外接圆不存在 (半径无穷大), 返回 r=-1 sentinel
-Circle<DB> outcircle_triangle(Point<DB> a, Point<DB> b, Point<DB> c) {
-	if (sgn(cross(a, b, c)) == 0) return Circle<DB>(a, -1);
-	Point<DB> abMid = (a + b) / 2, acMid = (a + c) / 2;
-	Point<DB> vecAb = (b - a).rot90(), vecAc = (c - a).rot90();
-	Point<DB> I = getintersect(Line(abMid, abMid + vecAb),
-	                           Line(acMid, acMid + vecAc));
-	return Circle<DB>(I, distancePP(I, a));
+Circle<DB> outcircle_triangle(Point<DB> a, Point<DB> b, Point<DB> c) { // 两条中垂线的交点
+	if (!sgn(cross(a, b, c))) return Circle<DB>(a, -1);
+	Point<DB> m1 = (a + b) / 2, m2 = (a + c) / 2;
+	Point<DB> o = getintersect(Line(m1, m1 + (b - a).rot90()), Line(m2, m2 + (c - a).rot90()));
+	return Circle<DB>(o, distancePP(o, a));
 }
 \end{minted}
 
@@ -654,32 +455,20 @@ Circle<DB> outcircle_triangle(Point<DB> a, Point<DB> b, Point<DB> c) {
 
 		% geometry-code: circle-line
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, struct Line, struct Circle
-//   cross（三参数）, squared, sgn, project, Point::abs
+// 依赖：Circle, project。关系：0 相离 / 1 相切 / 2 相交；退化直线视为无交点
 template<class T>
-int circle_line_relation(const Circle<T> &cir, const Line<T> &l) {
-	// 退化直线 (p1 == p2): 不构成有效直线, 视为无交点
+int circle_line_relation(Circle<T> cir, Line<T> l) {
 	if (l.p1 == l.p2) return 0;
-	auto cr2 = squared(cross(l.p1, l.p2, cir.c));
-	auto lenSq = (l.p2 - l.p1).norm();
-	auto rhs = squared(cir.r) * lenSq;
-	int s = sgn(cr2 - rhs);
-	return 1 - s;
+	return 1 - sgn(squared(cross(l.p1, l.p2, cir.c)) - squared(cir.r) * (l.p2 - l.p1).norm());
 }
-
 template<class T>
-vector<Point<DB> > getCrossPointsCL(const Circle<T> &cir, const Line<T> &l) {
+vector<Point<DB>> getCrossPointsCL(Circle<T> cir, Line<T> l) {
 	int k = circle_line_relation(cir, l);
-	if (k == 0) return {};
-	// 得到垂足
-	Point<DB> F = project(cir.c, l);
-	if (k == 1) return {F};
-	Point<DB> d = l.p2 - l.p1;
-	Point<DB> dhat = d / d.abs();
-	// 斜边 R 与直角边（圆心和垂足）得到另外一直角边（交点与垂足）
-	DB h = sqrtl(max((DB)0, (DB)cir.r * cir.r - (cir.c - F).norm()));
-	return {F - dhat * h, F + dhat * h};
+	if (!k) return {};
+	Point<DB> f = project(cir.c, l), d = l.p2 - l.p1; // 垂足 f，沿 l 方向 +- 半弦长
+	if (k == 1) return {f};
+	d = d / d.abs() * (DB)sqrtl(max((DB)0, (DB)cir.r * cir.r - (cir.c - f).norm()));
+	return {f - d, f + d};
 }
 \end{minted}
 
@@ -705,39 +494,28 @@ vector<Point<DB> > getCrossPointsCL(const Circle<T> &cir, const Line<T> &l) {
 
 		\textbf{重合圆 sentinel}：同心同径时 \texttt{circle\_circle\_relation} 返 $-1$（交点无穷多），\texttt{getCrossPointsCC} 据此返空，重合语义由 caller 自己处理。
 
-		\textbf{promotion 坑}：\texttt{(c2.c - c1.c) / D} 若 \texttt{cN} 是 \texttt{Point<ll>}、$D$ 是 \texttt{DB}，会走 \texttt{Point<ll>::operator/(Point<ll>, ll)} 把 $D$ 截成整数。必须先 \texttt{Point<DB> d = c2.c - c1.c;}。
+		\textbf{类型提示}：标量除法返回公共类型，\texttt{(c2.c - c1.c) / D} 在圆心是 \texttt{Point<ll>}、$D$ 是 \texttt{DB} 时直接得到 \texttt{Point<DB>}，不会截断；代码里先写 \texttt{Point<DB> d = c2.c - c1.c;} 只是为了后面复用 \texttt{d}。
 
 		% geometry-code: circle-circle
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, struct Circle
-//   distancePPNorm, squared, sgn, Point::abs, Point::rot90
+// 依赖：Circle。关系：-1 重合 / 0 不交 / 1 相切 / 2 相交；重合与不交都返回空
 template<class T>
-int circle_circle_relation(const Circle<T> &a, const Circle<T> &b) {
+int circle_circle_relation(Circle<T> a, Circle<T> b) {
 	auto d2 = distancePPNorm(a.c, b.c);
-	int outer = sgn(d2 - squared(a.r+b.r));
-	int inner = sgn(d2 - squared(a.r-b.r));
-	if (!sgn(d2) && !sgn(a.r-b.r)) return -1;
-	if (outer > 0 || inner < 0) return 0;
-	return outer && inner ? 2 : 1;
+	if (!sgn(d2) && !sgn(a.r - b.r)) return -1;
+	int o = sgn(d2 - squared(a.r + b.r)), i = sgn(d2 - squared(a.r - b.r));
+	return o > 0 || i < 0 ? 0 : o && i ? 2 : 1;
 }
-
 template<class T>
-vector<Point<DB> > getCrossPointsCC(const Circle<T> &c1, const Circle<T> &c2) {
+vector<Point<DB>> getCrossPointsCC(Circle<T> c1, Circle<T> c2) {
 	int k = circle_circle_relation(c1, c2);
-	// k = -1 重合 (无穷多) / k = 0 不交: 统一返空, 重合语义由 caller 自己处理
 	if (k <= 0) return {};
-	// 弦中点
 	Point<DB> d = c2.c - c1.c;
-	DB D = d.abs();
-	Point<DB> dhat = d / D;
-	DB a = ((DB)c1.r * c1.r - (DB)c2.r * c2.r + D * D) / (2 * D);
-	Point<DB> M = (Point<DB>)c1.c + dhat * a;
-	if (k == 1) return {M};
-	// 沿连心线垂直方向 +- 半弦长
-	DB h = sqrtl(max((DB)0, (DB)c1.r * c1.r - a * a));
-	Point<DB> nhat = dhat.rot90();
-	return {M + nhat * h, M - nhat * h};
+	DB D = d.abs(), a = ((DB)c1.r * c1.r - (DB)c2.r * c2.r + D * D) / (2 * D); // 弦中点到 c1 的有向距离
+	Point<DB> m = c1.c + d / D * a;
+	if (k == 1) return {m};
+	Point<DB> h = d.rot90() / D * (DB)sqrtl(max((DB)0, (DB)c1.r * c1.r - a * a)); // 半弦向量
+	return {m + h, m - h};
 }
 \end{minted}
 
@@ -751,9 +529,9 @@ vector<Point<DB> > getCrossPointsCC(const Circle<T> &c1, const Circle<T> &c2) {
 
 		% geometry-code: point-tangents
 \begin{minted}{cpp}
-// 依赖：getCrossPointsCC；圆内无切点，圆上返回自身。
+// 依赖：getCrossPointsCC。圆内无切点，圆上返回自身，圆外与辅圆 (P, |PT|) 求交
 vector<Point<DB>> getTangentPoints(Point<ll> P, Circle<ll> cir) {
-	i128 d = (P-cir.c).norm() - squared(cir.r);
+	i128 d = (P - cir.c).norm() - squared(cir.r);
 	if (d < 0) return {};
 	if (!d) return {Point<DB>(P)};
 	return getCrossPointsCC(Circle<DB>(cir), Circle<DB>(P, sqrtL(d)));
@@ -776,28 +554,20 @@ vector<Point<DB>> getTangentPoints(Point<ll> P, Circle<ll> cir) {
 
 		% geometry-code: common-tangents
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, struct Circle, eps
-//   Point::abs, Point::rot90
-vector<Point<DB> > getCommonTangentPoints(Circle<ll> c1, Circle<ll> c2) {
-	vector<Point<DB> > ret;
+// 依赖：Circle。返回各公切线在 c1 上的切点（外公切 + 内公切，已去重）；同心（含重合）返回空
+vector<Point<DB>> getCommonTangentPoints(Circle<ll> c1, Circle<ll> c2) {
+	vector<Point<DB>> ret;
 	Point<DB> d = c2.c - c1.c;
-	DB D = d.abs();
+	DB D = d.abs(), r1 = c1.r, r2 = c2.r;
 	if (D < eps) return ret;
-	Point<DB> u = d / D;
-	Point<DB> u_perp = u.rot90();
-	DB r1 = c1.r, r2 = c2.r;
-	auto add = [&](DB cos_a) {
-		if (cos_a > 1 + eps || cos_a < -1 - eps) return;
-		DB s = sqrtl(max((DB)0, 1 - cos_a * cos_a));
-		Point<DB> p = c1.c + u * (cos_a * r1), v = u_perp * (s * r1);
+	for (DB cs : {(r1 - r2) / D, (r1 + r2) / D}) { // 法向与连心线夹角的 cos：外公切 / 内公切
+		if (cs > 1 + eps || cs < -1 - eps) continue;
+		DB sn = sqrtl(max((DB)0, 1 - cs * cs));
+		Point<DB> p = c1.c + d / D * (cs * r1), v = d.rot90() / D * (sn * r1);
 		ret.push_back(p + v);
-		if (s >= eps) ret.push_back(p - v);
-	};
-	add((r1 - r2) / D); // 外公切
-	add((r1 + r2) / D); // 内公切
+		if (sn >= eps) ret.push_back(p - v);
+	}
 	sort(ret.begin(), ret.end());
-	// 内/外切临界 + r=0 退化时 4 候选可能近重合, unique 去重
 	ret.erase(unique(ret.begin(), ret.end()), ret.end());
 	return ret;
 }
@@ -815,22 +585,17 @@ vector<Point<DB> > getCommonTangentPoints(Circle<ll> c1, Circle<ll> c2) {
 
 		% geometry-code: circle-area
 \begin{minted}{cpp}
-// 依赖：
-//   struct Circle
-//   distancePP, sgn, PI
+// 依赖：Circle, distancePP。相交时 = 两个弓形之和
 template<class T>
 DB two_circle_intersect_area(Circle<T> c1, Circle<T> c2) {
-	DB D = distancePP(c1.c, c2.c);
-	DB r1 = c1.r, r2 = c2.r;
+	DB D = distancePP(c1.c, c2.c), r1 = c1.r, r2 = c2.r;
 	if (sgn(D - r1 - r2) >= 0) return 0;
-	DB diff = abs(r1 - r2);
-	if (sgn(D - diff) <= 0) {
-		DB rmin = min(r1, r2);
-		return PI * rmin * rmin;
-	}
-	DB t1 = 2 * acosl(clamp((D*D + r1*r1 - r2*r2) / (2*D*r1), (DB)-1, (DB)1));
-	DB t2 = 2 * acosl(clamp((D*D + r2*r2 - r1*r1) / (2*D*r2), (DB)-1, (DB)1));
-	return 0.5L * r1 * r1 * (t1 - sinl(t1)) + 0.5L * r2 * r2 * (t2 - sinl(t2));
+	if (sgn(D - fabsl(r1 - r2)) <= 0) return PI * min(r1, r2) * min(r1, r2);
+	auto seg = [&](DB r, DB o) { // 圆 r 上、靠向圆 o 的弓形
+		DB t = 2 * acosl(clamp((D * D + r * r - o * o) / (2 * D * r), (DB)-1, (DB)1));
+		return r * r * (t - sinl(t)) / 2;
+	};
+	return seg(r1, r2) + seg(r2, r1);
 }
 \end{minted}
 
@@ -852,35 +617,25 @@ DB two_circle_intersect_area(Circle<T> c1, Circle<T> c2) {
 
 		% geometry-code: polygon-circle
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point, struct Circle
-//   cross（两参数）, dot, Point::abs, sgn, sqrtl, atan2l
+// 依赖：Circle。三角形 (O, A, B) 与圆盘 (O, r) 的有向交面积，A、B 已平移到以圆心 O 为原点
 DB tri_disk_signed_area(Point<DB> A, Point<DB> B, DB r) {
 	if (A == B) return 0;
-	auto sector = [&](Point<DB> p, Point<DB> q) {
-		return r*r * atan2l(cross(p,q), dot(p,q)) / 2;
-	};
-	auto d = B-A;
-	DB dd = d.norm(), ad = dot(A,d);
-	DB disc = ad*ad - dd*(A.norm()-r*r);
-	if (disc <= 0) return sector(A,B);
-	DB s = sqrtl(disc);
-	DB l = max((DB)0, (-ad-s)/dd), h = min((DB)1, (-ad+s)/dd);
-	if (l >= h) return sector(A,B);
-	auto P = A+d*l, Q = A+d*h;
-	return sector(A,P) + cross(P,Q)/2 + sector(Q,B);
+	auto sector = [&](Point<DB> p, Point<DB> q) { return r * r * atan2l(cross(p, q), dot(p, q)) / 2; };
+	Point<DB> d = B - A;
+	DB dd = d.norm(), ad = dot(A, d), disc = ad * ad - dd * (A.norm() - r * r);
+	if (disc <= 0) return sector(A, B);
+	DB s = sqrtl(disc), l = max((DB)0, (-ad - s) / dd), h = min((DB)1, (-ad + s) / dd); // 边在圆内的参数区间
+	if (l >= h) return sector(A, B);
+	Point<DB> P = A + d * l, Q = A + d * h;
+	return sector(A, P) + cross(P, Q) / 2 + sector(Q, B);
 }
-
-// 简单多边形 (CCW) 与圆的交集面积. 累加每条边的 tri_disk_signed_area.
-DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<ll> > &poly) {
+// 简单多边形（CW / CCW 均可）与圆的交集面积
+template<class T>
+DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<T>> &poly) {
 	DB res = 0;
 	int n = poly.size();
-	for (int i = 0; i < n; ++i) {
-		Point<DB> A = poly[i] - cir.c;
-		Point<DB> B = poly[(i + 1) % n] - cir.c;
-		res += tri_disk_signed_area(A, B, cir.r);
-	}
-	return abs(res);
+	for (int i = 0; i < n; ++i) res += tri_disk_signed_area(poly[i] - cir.c, poly[(i + 1) % n] - cir.c, cir.r);
+	return res < 0 ? -res : res;
 }
 \end{minted}
 
@@ -902,7 +657,7 @@ DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<ll> > &poly)
 			\end{tikzpicture}
 
 			\vspace{2pt}
-			{\footnotesize\sffamily\color{gray} 图注：标红顶点的内角 $> 180^{\circ}$（反射角），\texttt{isConvex} 中第一遍 \texttt{cross(poly[i] - poly[0], poly[i+1] - poly[0]) <= 0} 触发返回 false。}
+			{\footnotesize\sffamily\color{gray} 图注：标红顶点的内角 $> 180^{\circ}$（反射角），\texttt{isConvex} 中相对 \texttt{poly[0]} 的扇形检查 \texttt{cross(poly[0], poly[i], poly[i+1]) < strict} 触发返回 false。}
 		\end{center}
 
 		\subsubsection{反例 2：自交多边形（蝴蝶结）}
@@ -915,7 +670,7 @@ DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<ll> > &poly)
 			\end{tikzpicture}
 
 			\vspace{2pt}
-			{\footnotesize\sffamily\color{gray} 图注：四个顶点排成蝴蝶结，相对 \texttt{poly[0]} 不再是单调 CCW 排列，第一遍叉乘扫描即被排除。}
+			{\footnotesize\sffamily\color{gray} 图注：四个顶点排成蝴蝶结，相对 \texttt{poly[0]} 不再是单调 CCW 排列，扇形检查即被排除。}
 		\end{center}
 
 		\subsubsection{反例 3：内角恰为 $180^{\circ}$}
@@ -930,10 +685,10 @@ DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<ll> > &poly)
 			\end{tikzpicture}
 
 			\vspace{2pt}
-			{\footnotesize\sffamily\color{gray} 图注：底边上多了一个 $180^{\circ}$ 顶点，第二遍 \texttt{cross(a, b) <= 0} 等号触发返回 false（严格大于零才算凸）。}
+			{\footnotesize\sffamily\color{gray} 图注：底边上多了一个 $180^{\circ}$ 顶点，相邻两边叉乘 \texttt{s < strict} 在 \texttt{s = 0} 时触发返回 false（严格模式要求大于零）。}
 		\end{center}
 
-		\textbf{实现}：\texttt{reorder\_polygon} 把多边形旋转 / 反向到「最左下点位 \texttt{[0]} + CCW 顺序」，再分两轮检查：(a)~所有顶点相对于 \texttt{poly[0]} 是 CCW 排列；(b)~每个内角的叉乘符号合规。
+		\textbf{实现}：\texttt{reorder\_polygon} 把多边形旋转 / 反向到「最左下点位 \texttt{[0]} + CCW 顺序」，再在同一个循环里检查两件事：(a)~每个内角（相邻两边的叉乘）符号合规；(b)~所有顶点相对于 \texttt{poly[0]} 按 CCW 排列。
 
 		\textbf{\texttt{reorder\_polygon} 用整体 \texttt{polygonSignedArea} 判方向}，\textcolor{red}{\textbf{不要}}用「前三点 \texttt{cross}」局部判向：含三点共线的多边形（如长方形 + 边密集共线）前三点 \texttt{cross = 0}，会被旧版 \texttt{<= 0} 误判为 CW 而强 reverse，下游 \texttt{isConvex} / 旋转卡壳全部失效（QOJ 784 实测）。
 
@@ -947,50 +702,33 @@ DB polygon_circle_intersect_area(Circle<DB> cir, const vector<Point<ll> > &poly)
 
 		% geometry-code: reorder
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point
-//   sgn, cross（含三参数）, polygonSignedArea
+// 依赖：polygonSignedArea。整理成 CCW 且 [0] 为 y 最小（再 x 最小）的点；整体面积判向，不受前三点共线影响
 template<class T>
 void reorder_polygon(vector<Point<T>> &poly) {
-	ll n = poly.size();
-	// 整体有向面积判向，避免「前三点共线」的局部退化（QOJ 784 反例）
 	if (sgn(polygonSignedArea(poly)) < 0) reverse(poly.begin(), poly.end());
-	// 找到 y 最小、再 x 最小的点并循环左移到 [0]
-	ll pos_mn = 0;
-	for (int i = 1; i < n; ++i) if (poly[i].y < poly[pos_mn].y || (poly[i].y == poly[pos_mn].y && poly[i].x < poly[pos_mn].x)) pos_mn = i;
-	rotate(poly.begin(), poly.begin() + pos_mn, poly.end());
+	auto byY = [](Point<T> a, Point<T> b) { return tie(a.y, a.x) < tie(b.y, b.x); };
+	rotate(poly.begin(), min_element(poly.begin(), poly.end(), byY), poly.end());
 }
 \end{minted}
 
 % geometry-code: is-convex
 \begin{minted}{cpp}
-// 不允许自交的多边形，顺序都可以；会把 poly 变为 CCW 顺序
+// 依赖：reorder_polygon。不允许自交，顺序任意（会整理成 CCW）。strict：拒绝内角 180°（三点共线）
 // AC https://qoj.ac/submission/2002121
-// strict = true : 严格凸（拒绝三点共线 / 内角 = 180°）
-// strict = false: 弱凸  （允许三点共线 / 内角 = 180°），题面允许共线时用
 template<class T>
 bool isConvex(vector<Point<T>> poly, bool strict = true) {
-	ll n = poly.size();
-	if (n <= 2) return false; // 0 / 1 / 2 点不是多边形
+	int n = poly.size();
+	if (n <= 2) return false;
 	reorder_polygon(poly);
-	auto fail = [&](int s) { return strict ? s <= 0 : s < 0; };
-	// 所有顶点相对 poly[0] 应按 CCW 整齐排列，否则是星形 / 乱序
-	bool has_turn = false; // 至少一处真左转，排除全共线（面积 = 0）退化
-	for (int i = 1; i < n - 1; ++i) {
-		int s = sgn(cross(poly[0], poly[i], poly[i + 1]));
-		if (fail(s)) return false;
-		if (s > 0) has_turn = true;
-	}
-	// 弱凸下若全程 cross == 0（全部点共线、面积 = 0）也得拒；
-	// strict 下 has_turn 在第一轮必为 true，此判等价空操作
-	if (!has_turn) return false;
-	// strict 时拒绝内角 = 180°（sgn = 0），弱凸只拒绝凹（sgn < 0）
+	bool turn = false; // 至少一处真左转，排除全共线
 	for (int i = 0; i < n; ++i) {
-		ll i1 = (i + 1) % n, i2 = (i + 2) % n;
-		auto a = poly[i1] - poly[i], b = poly[i2] - poly[i1];
-		if (fail(sgn(cross(a, b)))) return false;
+		int s = sgn(cross(poly[i], poly[(i + 1) % n], poly[(i + 2) % n]));
+		if (s < strict) return false;
+		turn |= s > 0;
+		// 所有顶点相对 poly[0] 也要按 CCW 排列，否则是星形 / 乱序
+		if (i && i < n - 1 && sgn(cross(poly[0], poly[i], poly[i + 1])) < strict) return false;
 	}
-	return true;
+	return turn;
 }
 \end{minted}
 
@@ -1019,16 +757,16 @@ bool isConvex(vector<Point<T>> poly, bool strict = true) {
 
 		% geometry-code: point-in-polygon
 \begin{minted}{cpp}
-// 依赖：CCW。确定性半开射线计数：0 外部 / 1 边界 / 2 内部。
+// 依赖：CCW。水平射线 + 半开区间计数：0 外部 / 1 边界 / 2 内部；凹多边形也可
 template<class T>
 int isInPolygon(Point<T> p, const vector<Point<T>> &poly) {
 	bool inside = false;
 	int n = poly.size();
 	for (int i = 0; i < n; ++i) {
-		auto a = poly[i], b = poly[(i+1)%n];
-		if (CCW(p, Line<T>(a,b)) == ON_SEGMENT) return 1;
-		if (a.y > b.y) swap(a,b);
-		if (a.y <= p.y && p.y < b.y && cross(a,b,p) > 0) inside = !inside;
+		auto a = poly[i], b = poly[(i + 1) % n];
+		if (CCW(p, Line<T>(a, b)) == ON_SEGMENT) return 1;
+		if (a.y > b.y) swap(a, b);
+		if (a.y <= p.y && p.y < b.y && cross(a, b, p) > 0) inside = !inside;
 	}
 	return inside ? 2 : 0;
 }
@@ -1042,52 +780,35 @@ int isInPolygon(Point<T> p, const vector<Point<T>> &poly) {
 
 		% geometry-code: polar-sort
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point
-//   sgn, cross
+// 依赖：点线基础。极角序：x 正半轴（含原点）起逆时针一圈；全整数叉积，不用 atan2
 template<class T>
-int get_part_of_point(const Point<T> &p) {
-	if (p.y < 0) return 0;             // 下半平面 (-pi, 0)
-	if (p.y == 0 && p.x >= 0) return 1; // 角度为 0
-	return 2;                           // 上半平面 (0, pi]
-}
-
-// 按 atan2(y, x) 升序排，但用整数叉乘规避浮点
-// AC https://qoj.ac/submission/2001485
-template<class T>
-void polar_angle_sort(vector<Point<T>> &poly) {
-	sort(poly.begin(), poly.end(), [](const Point<T> &a, const Point<T> &b) -> bool {
-		int part1 = get_part_of_point(a), part2 = get_part_of_point(b);
-		if (part1 != part2) return part1 < part2;
-		return cross(a, b) > 0;
+int get_part_of_point(Point<T> p) { return p.y < 0 ? 0 : p.y == 0 && p.x >= 0 ? 1 : 2; }
+template<class T> // AC https://qoj.ac/submission/2001485
+void polar_angle_sort(vector<Point<T>> &a) {
+	sort(a.begin(), a.end(), [](Point<T> p, Point<T> q) {
+		int u = get_part_of_point(p), v = get_part_of_point(q);
+		return u != v ? u < v : cross(p, q) > 0;
 	});
 }
-
-// 重载：对有向直线按方向向量做极角排序（半平面交用）
-// 同向（平行）的两条线，取「半平面内侧更靠右」的那条排前面——
-// 等价判定：bl.p1 在 al 右侧（CLOCKWISE）时 al 在前
+// 有向直线按方向向量极角排序；同向的线「左半平面更紧」的排前（半平面交用）
 template<class T>
-void polar_angle_sort(vector<Line<T>> &poly) {
-	sort(poly.begin(), poly.end(), [](const Line<T> &al, const Line<T> &bl) -> bool {
-		auto a = al.p2 - al.p1, b = bl.p2 - bl.p1;
-		int part1 = get_part_of_point(a), part2 = get_part_of_point(b);
-		if (part1 != part2) return part1 < part2;
-		int c = (cross(a,b) > 0) - (cross(a,b) < 0);
-		if (c != 0) return c == 1;
-		// 同向：bl 在 al 右侧，说明 al 的左半平面更紧，应排前
-		return cross(a, bl.p1-al.p1) < 0;
+void polar_angle_sort(vector<Line<T>> &a) {
+	sort(a.begin(), a.end(), [](Line<T> l, Line<T> m) {
+		Point<T> p = l.p2 - l.p1, q = m.p2 - m.p1;
+		int u = get_part_of_point(p), v = get_part_of_point(q);
+		if (u != v) return u < v;
+		if (auto c = cross(p, q)) return c > 0;
+		return cross(p, m.p1 - l.p1) < 0;
 	});
 }
-
-// polar_angle_sort 之后，把同向平行线去重，只保留每组最紧的那一条
-// （配合上面的排序顺序，每组同向线的第一条即最紧）
+// 排序后同向线只留每组最紧的一条（即每组第一条）
 template<class T>
-void unique_line_polar_angle_sort(vector<Line<T>> &poly) {
-	polar_angle_sort(poly);
-	poly.resize(unique(all(poly), [](const Line<T> &al, const Line<T> &bl) {
-		auto a = al.p2 - al.p1, b = bl.p2 - bl.p1;
-		return get_part_of_point(a) == get_part_of_point(b) && cross(a,b) == 0;
-	}) - poly.begin());
+void unique_line_polar_angle_sort(vector<Line<T>> &a) {
+	polar_angle_sort(a);
+	a.erase(unique(a.begin(), a.end(), [](Line<T> l, Line<T> m) {
+		Point<T> p = l.p2 - l.p1, q = m.p2 - m.p1;
+		return get_part_of_point(p) == get_part_of_point(q) && cross(p, q) == 0;
+	}), a.end());
 }
 \end{minted}
 
@@ -1132,17 +853,16 @@ void unique_line_polar_angle_sort(vector<Line<T>> &poly) {
 
 		% geometry-code: minkowski
 \begin{minted}{cpp}
-// 依赖：reorder_polygon；输入凸多边形，可退化为点/线段。
-// 原地整理输入；返回闭合边界（末点重复首点），保留共线边。
+// 依赖：reorder_polygon。输入凸多边形（可退化为点 / 线段），原地整理；返回闭合边界（末点重复首点），保留共线边
 template<class T>
 vector<Point<T>> minkowski(vector<Point<T>> &P1, vector<Point<T>> &P2) {
 	if (P1.empty() || P2.empty()) return {};
 	reorder_polygon(P1); reorder_polygon(P2);
 	int n = P1.size(), m = P2.size(), i = 0, j = 0;
-	vector<Point<T>> ans{P1[0]+P2[0]};
-	while (i < n || j < m) {
-		auto a = P1[(i+1)%n]-P1[i%n], b = P2[(j+1)%m]-P2[j%m];
-		bool takeA = j == m || (i < n && cross(a,b) > 0);
+	vector<Point<T>> ans{P1[0] + P2[0]};
+	while (i < n || j < m) { // 按极角归并两组边向量
+		auto a = P1[(i + 1) % n] - P1[i % n], b = P2[(j + 1) % m] - P2[j % m];
+		bool takeA = j == m || (i < n && cross(a, b) > 0);
 		ans.push_back(ans.back() + (takeA ? a : b));
 		takeA ? ++i : ++j;
 	}
@@ -1167,29 +887,27 @@ vector<Point<T>> minkowski(vector<Point<T>> &P1, vector<Point<T>> &P2) {
 
 		% geometry-code: half-planes
 \begin{minted}{cpp}
-// 依赖：unique_line_polar_angle_sort, getintersect。
-// 左侧闭半平面；求有界、正面积交集。无界输入需自行加题目允许的边界。
+// 依赖：unique_line_polar_angle_sort, getintersect。p1 -> p2 左侧闭半平面；求有界、正面积交集，
+// 空 / 无界 / 退化返回空。无界输入需自行加题目允许的边界
 template<class T>
 vector<Point<DB>> half_plane_cut(vector<Line<T>> lines) {
 	unique_line_polar_angle_sort(lines);
 	deque<Line<T>> q;
-	auto outside = [&](Line<T> a, Line<T> b, Line<T> c) {
-		return sgn(cross(c.p1, c.p2, getintersect(a,b))) < 0;
-	};
+	auto out = [&](Line<T> a, Line<T> b, Line<T> c) { return sgn(cross(c.p1, c.p2, getintersect(a, b))) < 0; };
+	auto para = [&](Line<T> a, Line<T> b) { return cross(a.p2 - a.p1, b.p2 - b.p1) == 0; };
 	for (auto l : lines) {
-		while (q.size() > 1 && outside(q[q.size()-2], q.back(), l)) q.pop_back();
-		while (q.size() > 1 && outside(q[0], q[1], l)) q.pop_front();
-		if (!q.empty() && cross(q.back().p2-q.back().p1, l.p2-l.p1) == 0) return {};
+		while (q.size() > 1 && out(q[q.size() - 2], q.back(), l)) q.pop_back();
+		while (q.size() > 1 && out(q[0], q[1], l)) q.pop_front();
+		if (!q.empty() && para(q.back(), l)) return {}; // 反向平行：交集为空或退化
 		q.push_back(l);
 	}
-	while (q.size() > 2 && outside(q[q.size()-2], q.back(), q.front())) q.pop_back();
-	while (q.size() > 2 && outside(q[0], q[1], q.back())) q.pop_front();
+	while (q.size() > 2 && out(q[q.size() - 2], q.back(), q.front())) q.pop_back();
+	while (q.size() > 2 && out(q[0], q[1], q.back())) q.pop_front();
 	if (q.size() < 3) return {};
 	vector<Point<DB>> poly;
 	for (int i = 0; i < (int)q.size(); ++i) {
-		auto a = q[i], b = q[(i+1)%q.size()];
-		if (cross(a.p2-a.p1, b.p2-b.p1) == 0) return {};
-		poly.push_back(getintersect(a,b));
+		if (para(q[i], q[(i + 1) % q.size()])) return {};
+		poly.push_back(getintersect(q[i], q[(i + 1) % q.size()]));
 	}
 	return poly;
 }
@@ -1222,36 +940,32 @@ cout << fsp(1) << polygonArea(poly) << "\n";
 
 		% geometry-code: convex-hull
 \begin{minted}{cpp}
-// 依赖：polygonSignedArea。FULL 从最低点开始 CCW；LOWER/UPPER 按 x 正/逆序。
+// 依赖：polygonSignedArea。strict：不保留共线点。FULL 从最低点起 CCW；LOWER 左到右；UPPER 右到左
 enum HullMode { HULL_FULL, HULL_LOWER, HULL_UPPER };
 template<class T>
 vector<Point<T>> make_convex_hull(vector<Point<T>> A, bool strict, HullMode mode) {
-	if (mode == HULL_FULL) {
-		sort(A.begin(), A.end(), [](auto a, auto b) {
-			return tie(a.y,a.x) < tie(b.y,b.x);
-		});
-	} else sort(A.begin(), A.end());
+	if (mode == HULL_FULL) sort(A.begin(), A.end(), [](Point<T> a, Point<T> b) { return tie(a.y, a.x) < tie(b.y, b.x); });
+	else sort(A.begin(), A.end());
 	A.erase(unique(A.begin(), A.end()), A.end());
 	int n = A.size();
 	if (n <= 2) {
 		if (mode == HULL_UPPER) reverse(A.begin(), A.end());
 		return A;
 	}
-	auto chain = [&](int start, int step) {
+	auto chain = [&](int start, int step) { // 单调栈扫一侧
 		vector<Point<T>> h;
 		for (int i = start; i >= 0 && i < n; i += step) {
-			while (h.size() > 1 && sgn(cross(h[h.size()-2], h.back(), A[i])) < (strict ? 1 : 0))
-				h.pop_back();
+			while (h.size() > 1 && sgn(cross(h[h.size() - 2], h.back(), A[i])) < strict) h.pop_back();
 			h.push_back(A[i]);
 		}
 		return h;
 	};
-	if (mode == HULL_LOWER) return chain(0,1);
-	if (mode == HULL_UPPER) return chain(n-1,-1);
-	auto h = chain(0,1), u = chain(n-1,-1);
+	if (mode == HULL_LOWER) return chain(0, 1);
+	if (mode == HULL_UPPER) return chain(n - 1, -1);
+	auto h = chain(0, 1), u = chain(n - 1, -1);
 	h.pop_back(); u.pop_back();
 	h.insert(h.end(), u.begin(), u.end());
-	return !strict && !sgn(polygonSignedArea(h)) ? A : h;
+	return !strict && !sgn(polygonSignedArea(h)) ? A : h; // 全共线且保留共线点：直接返回排好序的点
 }
 \end{minted}
 
@@ -1335,36 +1049,34 @@ vector<Point<T>> make_convex_hull(vector<Point<T>> A, bool strict, HullMode mode
 
 		% geometry-code: diameter
 \begin{minted}{cpp}
-// 依赖：点线基础；CCW 凸边界，允许共线边与重复顶点。
-// 返回数组下标，空输入 {-1,-1}；共用一份 O(n) 卡壳扫描。
+// 依赖：点线基础。CCW 凸边界（允许共线边、重复顶点）。返回最远两点下标，空输入 {-1, -1}
 template<class T>
-pair<int,int> convex_diameter_indices(const vector<Point<T>> &A) {
+pair<int, int> convex_diameter_indices(const vector<Point<T>> &A) {
 	int n = A.size();
-	if (!n) return {-1,-1};
-	int lo = min_element(A.begin(), A.end())-A.begin();
-	int hi = max_element(A.begin(), A.end())-A.begin();
+	if (!n) return {-1, -1};
+	int lo = min_element(A.begin(), A.end()) - A.begin(), hi = max_element(A.begin(), A.end()) - A.begin();
 	bool collinear = true;
-	for (auto p : A) if (sgn(cross(A[lo],A[hi],p))) collinear = false;
-	if (collinear) return {lo,hi};
-	pair<int,int> best{0,0};
-	auto ans = (A[0]-A[0]).norm();
+	for (auto p : A) if (sgn(cross(A[lo], A[hi], p))) collinear = false;
+	if (collinear) return {lo, hi};
+	pair<int, int> best{0, 0};
+	Wide<T> ans = 0;
 	auto update = [&](int i, int j) {
-		auto d = (A[i]-A[j]).norm();
-		if (d > ans) { ans = d; best = {i,j}; }
+		auto d = (A[i] - A[j]).norm();
+		if (d > ans) ans = d, best = {i, j};
 	};
-	for (int i = 0, j = 0; i < n; ++i) {
-		int k = (i+1)%n;
+	for (int i = 0, j = 0; i < n; ++i) { // 边 (i, k) 为卡尺，j 是以它为底面积最大的顶点（单调推进，用 >= 越过 plateau）
+		int k = (i + 1) % n;
 		if (A[i] == A[k]) continue;
-		auto area = [&](int p) { return cross(A[i],A[k],A[p]); };
-		while (area((j+1)%n) >= area(j)) j = (j+1)%n;
-		update(i,j); update(k,j);
+		auto area = [&](int p) { return cross(A[i], A[k], A[p]); };
+		while (area((j + 1) % n) >= area(j)) j = (j + 1) % n;
+		update(i, j); update(k, j);
 	}
 	return best;
 }
 template<class T>
-long double convex_diameter(const vector<Point<T>> &A) {
-	auto [i,j] = convex_diameter_indices(A);
-	return i < 0 ? 0 : sqrtL((A[i]-A[j]).norm());
+DB convex_diameter(const vector<Point<T>> &A) {
+	auto [i, j] = convex_diameter_indices(A);
+	return i < 0 ? 0 : (A[i] - A[j]).abs();
 }
 \end{minted}
 
@@ -1376,12 +1088,12 @@ long double convex_diameter(const vector<Point<T>> &A) {
 
 		% geometry-code: furthest-pair
 \begin{minted}{cpp}
-// 依赖：make_convex_hull, convex_diameter_indices；输入点需设置 id。
+// 依赖：make_convex_hull, convex_diameter_indices。返回原始下标（读入时需设置 id），空输入 {-1, -1}
 template<class T>
-pair<int,int> furthest_pair_of_point(vector<Point<T>> A) {
+pair<int, int> furthest_pair_of_point(vector<Point<T>> A) {
 	A = make_convex_hull(A, true, HULL_FULL);
-	auto [i,j] = convex_diameter_indices(A);
-	return i < 0 ? pair<int,int>{-1,-1} : pair<int,int>{A[i].id,A[j].id};
+	auto [i, j] = convex_diameter_indices(A);
+	return i < 0 ? pair(-1, -1) : pair(A[i].id, A[j].id);
 }
 \end{minted}
 
@@ -1409,44 +1121,40 @@ cout << l << " " << r << '\n';
 		\end{itemize}
 		外层 \texttt{edge} 沿 CCW 扫一圈，内层 \texttt{up}, \texttt{r}, \texttt{l} 各自单调（不回退），整体 $O(n)$。
 
-			extbf{共用投影还原矩形}：令 $v=e^\perp$、$d=|e|^2$。代码中的 $x,w,h$ 是沿 $e,v$ 的系数（不是实际长度）：
+		\textbf{共用投影还原矩形}：令 $v=e^\perp$、$d=|e|^2$。代码中的 $x,w,h$ 是沿 $e,v$ 的系数（不是实际长度）：
 		\[
 		 x=\frac{e\cdot(A[l]-A[i])}{d},\qquad
 		 w=\frac{e\cdot(A[r]-A[l])}{d},\qquad
 		 h=\frac{v\cdot(A[up]-A[i])}{d}.
 		\]
-		左下角 $p=A[i]+xe$，其余三角为 $p+we$、$p+we+hv$、$p+hv$，面积为 $whd$。这样宽高计算和顶点还原共用同一组投影，不再构造四条直线求交。接口仍接收 	exttt{vector<Point<DB>>}，返回浮点面积和四个 CCW 顶点。
+		左下角 $p=A[i]+xe$，其余三角为 $p+we$、$p+we+hv$、$p+hv$，面积为 $whd$。这样宽高计算和顶点还原共用同一组投影，不再构造四条直线求交。接口仍接收 \texttt{vector<Point<DB>>}，返回浮点面积和四个 CCW 顶点。
 
 		% geometry-code: rectangle
 \begin{minted}{cpp}
-// 依赖：make_convex_hull；面积 + BL/BR/TR/TL 四点（CCW）。
-// 空输入返回全零；点/线段返回面积 0 和重复顶点。
-pair<DB, array<Point<DB>,4>> minimum_rectangle_cover(vector<Point<DB>> A) {
+// 依赖：make_convex_hull。返回最小面积 + BL/BR/TR/TL 四角（CCW）；空输入全零，点 / 线段面积 0
+pair<DB, array<Point<DB>, 4>> minimum_rectangle_cover(vector<Point<DB>> A) {
 	A = make_convex_hull(A, true, HULL_FULL);
 	int n = A.size();
-	if (!n) return make_pair(DB(0), array<Point<DB>,4>());
-	if (n <= 2) return {0, {A.front(),A.back(),A.back(),A.front()}};
+	if (!n) return {0, array<Point<DB>, 4>()};
+	if (n <= 2) return {0, {A.front(), A.back(), A.back(), A.front()}};
 	int up = 0, l = 0, r = 0;
 	DB best = INFINITY;
-	array<Point<DB>,4> corners;
-	for (int i = 0; i < n; ++i) {
-		auto e = A[(i+1)%n]-A[i], v = e.rot90();
+	array<Point<DB>, 4> corners;
+	for (int i = 0; i < n; ++i) { // 枚举底边 e = A[i] -> A[i+1]，up / r / l 分别沿法向、e、-e 投影最大，单调推进
+		auto e = A[(i + 1) % n] - A[i], v = e.rot90();
 		auto advance = [&](int &j, Point<DB> dir) {
-			if (!i) for (int k = 0; k < n; ++k)
-				if (dot(dir,A[k]) > dot(dir,A[j])) j = k;
-			while (dot(dir,A[(j+1)%n]-A[j]) > 0) j = (j+1)%n;
+			if (!i) for (int k = 0; k < n; ++k) if (dot(dir, A[k]) > dot(dir, A[j])) j = k;
+			while (dot(dir, A[(j + 1) % n] - A[j]) > 0) j = (j + 1) % n;
 		};
-		advance(up,v); advance(r,e); advance(l,-e);
-		DB d = e.norm(), x = dot(e,A[l]-A[i])/d;
-		DB w = dot(e,A[r]-A[l])/d, h = dot(v,A[up]-A[i])/d;
-		DB area = w*h*d;
-		if (area < best) {
-			best = area;
-			auto p = A[i]+e*x;
-			corners = {p,p+e*w,p+e*w+v*h,p+v*h};
+		advance(up, v); advance(r, e); advance(l, -e);
+		DB d = e.norm(), x = dot(e, A[l] - A[i]) / d, w = dot(e, A[r] - A[l]) / d, h = dot(v, A[up] - A[i]) / d;
+		if (w * h * d < best) {
+			best = w * h * d;
+			auto p = A[i] + e * x; // 左下角
+			corners = {p, p + e * w, p + e * w + v * h, p + v * h};
 		}
 	}
-	return {best,corners};
+	return {best, corners};
 }
 \end{minted}
 
@@ -1458,30 +1166,28 @@ pair<DB, array<Point<DB>,4>> minimum_rectangle_cover(vector<Point<DB>> A) {
 
 		% geometry-code: closest-pair
 \begin{minted}{cpp}
-// 依赖：点线基础，MAXN；调用 dfs 前按 x 排序 A，区间 [l,r] 非空。
-// O(n log^2 n)，保留原有全局数组 / Best / mindis / dfs 接口。
+// 依赖：点线基础, MAXN。调用 dfs(0, n - 1) 前把 A 按 x 排序。O(n log^2 n)，返回距离平方与两点
 Point<ll> A[MAXN];
 struct Best {
 	i128 d;
-	Point<ll> a,b;
+	Point<ll> a, b;
 	bool operator<(const Best &o) const { return d < o.d; }
 };
-Best mindis(vector<Point<ll>> &a, Best res) {
-	sort(a.begin(), a.end(), [](auto p, auto q) { return p.y < q.y; });
+Best mindis(vector<Point<ll>> &a, Best res) { // 窄带内按 y 扫
+	sort(a.begin(), a.end(), [](Point<ll> p, Point<ll> q) { return p.y < q.y; });
 	for (int i = 0; i < (int)a.size(); ++i)
-		for (int j = i-1; j >= 0 && squared(a[i].y-a[j].y) <= res.d; --j)
-			res = min(res, Best{(a[i]-a[j]).norm(),a[i],a[j]});
+		for (int j = i - 1; j >= 0 && squared(a[i].y - a[j].y) <= res.d; --j)
+			res = min(res, Best{(a[i] - a[j]).norm(), a[i], a[j]});
 	return res;
 }
 Best dfs(int l, int r) {
-	if (l == r) return {numeric_limits<i128>::max(),A[l],A[l]};
-	int m = (l+r)/2;
-	Best res = min(dfs(l,m), dfs(m+1,r));
+	if (l == r) return {numeric_limits<i128>::max(), A[l], A[l]};
+	int m = (l + r) / 2;
+	Best res = min(dfs(l, m), dfs(m + 1, r));
 	if (!res.d) return res;
 	vector<Point<ll>> strip;
-	for (int i = l; i <= r; ++i)
-		if (squared(A[i].x-A[m].x) < res.d) strip.push_back(A[i]);
-	return mindis(strip,res);
+	for (int i = l; i <= r; ++i) if (squared(A[i].x - A[m].x) < res.d) strip.push_back(A[i]);
+	return mindis(strip, res);
 }
 \end{minted}
 
@@ -1495,38 +1201,22 @@ Best dfs(int l, int r) {
 
 		% geometry-code: convex-distance
 \begin{minted}{cpp}
+// 依赖：reorder_polygon, distanceSS。两个不相交凸多边形的边界最小距离；须 (A, B) 与 (B, A) 各调一次取 min
 // AC https://vjudge.net/solution/69793877
-// 依赖：
-//   struct Point, struct Line
-//   reorder_polygon, cross, distanceSS
-//   宏 SZ, all（用户自定义）
 template<class T>
-DB cal_min_dis_two_convex(vector<Point<T> > A, vector<Point<T> > B) {
+DB cal_min_dis_two_convex(vector<Point<T>> A, vector<Point<T>> B) {
 	if (A.empty() || B.empty()) return INFINITY;
-	reorder_polygon(A);
-	reorder_polygon(B);
-	ll yMnA = 0, yMxB = max_element(all(B), [](auto a, auto b) {
-		return a.y < b.y;
-	}) - B.begin();
+	reorder_polygon(A); reorder_polygon(B);
+	int n = A.size(), m = B.size(), i = 0; // A 从最低点、B 从最高点起步（一对反向支撑线）
+	int j = max_element(B.begin(), B.end(), [](Point<T> a, Point<T> b) { return a.y < b.y; }) - B.begin();
 	DB ans = INFINITY;
-	ll eA = yMnA, eB = yMxB;
-	for (int _ = 0; _ < SZ(A) + SZ(B); ++_) {
-		auto check = [&]() {
-			auto vecA = A[(eA + 1) % SZ(A)] - A[eA];
-			auto vecB = B[(eB + 1) % SZ(B)] - B[eB];
-			return cross(vecA, vecB) > 0;
-		};
-		while (check()) ++eB, eB %= SZ(B);
-		ans = min(ans, distanceSS(Line(A[(eA + 1) % SZ(A)], A[eA]),
-								  Line(B[(eB + 1) % SZ(B)], B[eB])));
-		eA += 1;
-		eA %= SZ(A);
+	for (int _ = 0; _ < n + m; ++_) {
+		while (cross(A[(i + 1) % n] - A[i], B[(j + 1) % m] - B[j]) > 0) j = (j + 1) % m;
+		ans = min(ans, distanceSS(Line<T>(A[i], A[(i + 1) % n]), Line<T>(B[j], B[(j + 1) % m])));
+		i = (i + 1) % n;
 	}
 	return ans;
 }
-
-// 调用方：必须双向各跑一次取 min
-// DB ans = min(cal_min_dis_two_convex(A, B), cal_min_dis_two_convex(B, A));
 \end{minted}
 
 	\newpage
@@ -1538,55 +1228,24 @@ DB cal_min_dis_two_convex(vector<Point<T> > A, vector<Point<T> > B) {
 
 % geometry-code: generator
 \begin{minted}{cpp}
-// T 为 Point 坐标类型, 整数 (ll) 或浮点 (DB) 自动分支:
-//   T 整数 : cos/sin 后 llround 钉整数, 返回 vector<Point<ll>>
-//   T 浮点 : 保留 cos/sin 原浮点值,    返回 vector<Point<DB>>
-// 坐标范围: x, y in [-R, R] (椭圆 (R cos theta, R/asp sin theta), asp in [1,3], 内嵌半径 R 圆盘;
-//          旋转 phi 不变半径; llround 边界最多 ±1, 整体 [-R, R] 安全).
+// 依赖：点线基础, rng。T = ll 时坐标取整（范围 [-R, R]）。拒绝采样：R 太小装不下 N 个整点时不会结束
 template<class T>
-vector<Point<T> > gen_convex_polygon(int N, bool allow_collinear, ll R) {
-	// 退化 case (N <= 2): 主循环对 N <= 2 必死循环
-	if (N <= 2) {
-		set<pair<T, T> > S;
-		while ((int) S.size() < N) {
-			using Dist = conditional_t<is_floating_point_v<T>,
-			                          uniform_real_distribution<T>, uniform_int_distribution<T>>;
-			Dist pick(-R,R);
-			S.insert({pick(rng),pick(rng)});
-		}
-		vector<Point<T> > A;
-		for (auto [x, y]: S) A.push_back(Point<T>(x, y));
-		return A;
-	}
-	DB phi = uniform_real_distribution<DB>(0, 2 * PI)(rng);
-	DB asp = uniform_real_distribution<DB>(1.0, 3.0)(rng); // 1=圆, >1=椭圆
-	DB cp = cos(phi), sp = sin(phi);
+vector<Point<T>> gen_convex_polygon(int N, bool allow_collinear, ll R) {
+	DB phi = uniform_real_distribution<DB>(0, 2 * PI)(rng), asp = uniform_real_distribution<DB>(1, 3)(rng);
+	auto fix = [](DB v) { return T(is_floating_point_v<T> ? v : (DB)llround(v)); };
 	while (true) {
 		vector<DB> th(N);
-		for (auto &t: th) t = uniform_real_distribution<DB>(0, 2 * PI)(rng);
+		for (auto &t : th) t = uniform_real_distribution<DB>(0, 2 * PI)(rng);
 		sort(th.begin(), th.end());
-		vector<Point<T> > A(N);
-		for (int i = 0; i < N; ++i) {
-			DB x = R * cos(th[i]), y = R / asp * sin(th[i]); // 椭圆
-			DB rx = cp * x - sp * y, ry = sp * x + cp * y; // 旋转 phi
-			if constexpr (is_floating_point_v<T>) {
-				A[i] = Point<T>(rx, ry);
-			} else {
-				A[i] = Point<T>((T) llround(rx), (T) llround(ry));
-			}
+		vector<Point<T>> A(N);
+		for (int i = 0; i < N; ++i) { // 椭圆 (R cos, R / asp sin) 再旋转 phi
+			DB x = R * cosl(th[i]), y = R / asp * sinl(th[i]);
+			A[i] = Point<T>(fix(x * cosl(phi) - y * sinl(phi)), fix(x * sinl(phi) + y * cosl(phi)));
 		}
-		bool ok = true;
-		for (int i = 0; i < N && ok; ++i) {
-			int j = (i + 1) % N, k = (i + 2) % N;
-			if (A[i] == A[j]) {
-				ok = false;
-				break;
-			}
-			auto c = cross(A[i], A[j], A[k]);
-			if (allow_collinear ? c < 0 : c <= 0) {
-				ok = false;
-				break;
-			}
+		bool ok = N < 2 || A[0] != A[1];
+		for (int i = 0; i < N && N > 2 && ok; ++i) {
+			auto c = cross(A[i], A[(i + 1) % N], A[(i + 2) % N]);
+			ok = A[i] != A[(i + 1) % N] && (allow_collinear ? c >= 0 : c > 0);
 		}
 		if (ok) return A;
 	}
@@ -1599,23 +1258,27 @@ vector<Point<T> > gen_convex_polygon(int N, bool allow_collinear, ll R) {
 
 % geometry-code: min-circle
 \begin{minted}{cpp}
-// 依赖：Circle, circle_from_diameter, outcircle_triangle；随机增量，空集半径为 0。
+// 依赖：circle_from_diameter, outcircle_triangle。随机增量，期望 O(n)；空集返回原点半径 0
+// AC https://vjudge.net/solution/69974356
 template<class T>
 Circle<DB> min_circle_cover(vector<Point<T>> A) {
-    shuffle(A.begin(), A.end(), rng);
-    Circle<DB> res(Point<DB>(), 0);
-    for (int i = 0; i < (int)A.size(); ++i) {
-        if (i && res.is_point_in_circle(A[i])) continue;
-        res = Circle<DB>(A[i], 0);
-        for (int j = 0; j < i; ++j) {
-            if (res.is_point_in_circle(A[j])) continue;
-            res = circle_from_diameter(A[i], A[j]);
-            for (int k = 0; k < j; ++k)
-                if (!res.is_point_in_circle(A[k]))
-                    res = outcircle_triangle(A[i], A[j], A[k]);
-        }
-    }
-    return res;
+	shuffle(A.begin(), A.end(), rng);
+	Circle<DB> res;
+	for (int i = 0; i < (int)A.size(); ++i) {
+		if (i && res.is_point_in_circle(A[i])) continue;
+		res = Circle<DB>(A[i], 0);
+		for (int j = 0; j < i; ++j) {
+			if (res.is_point_in_circle(A[j])) continue;
+			res = circle_from_diameter(A[i], A[j]);
+			for (int k = 0; k < j; ++k) {
+				if (res.is_point_in_circle(A[k])) continue;
+				res = outcircle_triangle(A[i], A[j], A[k]);
+				if (res.r < 0) // 浮点近共线：三点无外接圆，退化为最远两点的直径圆
+					res = circle_from_diameter(A[k], distancePPNorm(A[i], A[k]) > distancePPNorm(A[j], A[k]) ? A[i] : A[j]);
+			}
+		}
+	}
+	return res;
 }
 \end{minted}
 
@@ -1730,32 +1393,21 @@ Circle<DB> min_circle_cover(vector<Point<T>> A) {
 
 	% geometry-code: pick
 \begin{minted}{cpp}
-// 依赖：
-//   struct Point
-//   polygonSignedArea(vector<Point<T>>)
-
-// 边界整点数 b（含顶点）
+// 依赖：polygonSignedArea。整点简单多边形：b = 边界整点数（含顶点），i = 内部整点数 = (2A - b + 2) / 2，全程整数
 template<class T>
 ll pick_boundary(const vector<Point<T>> &poly) {
 	ll b = 0;
-	size_t n = poly.size();
-	for (size_t i = 0; i < n; ++i) {
+	int n = poly.size();
+	for (int i = 0; i < n; ++i) { // 别写 abs(d.x)：只 include <cstdlib> 时 ::abs 是 int 版
 		Point<T> d = poly[(i + 1) % n] - poly[i];
-		// 别写 abs(d.x)：Point 的成员 abs() 是模长，
-		// 而只 include <cstdlib> 时 ::abs 是 int 版，
-		// 会把 ll 悄悄截断
-		ll dx = (ll) d.x, dy = (ll) d.y;
-		b += __gcd(dx < 0 ? -dx : dx, dy < 0 ? -dy : dy);
+		b += gcd((ll)(d.x < 0 ? -d.x : d.x), (ll)(d.y < 0 ? -d.y : d.y));
 	}
 	return b;
 }
-
-// 内部整点数 i = (2A - b + 2) / 2，全程整数
 template<class T>
 ll pick_interior(const vector<Point<T>> &poly) {
-	auto s2 = polygonSignedArea(poly);   // 2 倍有向面积
-	if (s2 < 0) s2 = -s2;
-	return (ll) ((s2 - pick_boundary(poly) + 2) / 2);
+	auto s = polygonSignedArea(poly);
+	return (ll)(((s < 0 ? -s : s) - pick_boundary(poly) + 2) / 2);
 }
 \end{minted}
 

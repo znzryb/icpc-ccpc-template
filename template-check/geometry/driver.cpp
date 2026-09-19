@@ -53,8 +53,9 @@ int main() {
    static_assert(is_same_v<decltype(dot(Point<i128>(),Point<i128>())),i128>);
    static_assert(is_convertible_v<P,F> && !is_convertible_v<F,P>);
    static_assert(is_same_v<decltype(distancePPLinf(P(),F())),DB>);
-   assert(isqrt(numeric_limits<i128>::max())==i128(13043817825332782212ULL));
-   assert(isqrt(15)==3 && isqrt(16)==4 && isqrt(0)==0);
+   assert(sqrtL(i128(1)<<100)==(DB)(1LL<<50) && sqrtL(i128(16))==4 && sqrtL(i128(0))==0);
+   assert(abs(sqrtL(i128(15))-sqrtl(15))<eps && sqrtL((DB)2.25)==1.5);
+   assert((P(1,2)+F(.5,0))==F(1.5,2) && (F(1,0)-P(1,0))==F() && (P(1,2)*.5)==F(.5,1) && (P(3,3)/2)==P(1,1));
    P p(3,4);p.id=12;F f=p;assert(f.id==12 && (p+p).id==-1);
    assert(p.abs()==5 && p.normL1()==7 && p.normLinf()==4);
    assert(distancePP(p,F(3,4))==0 && dot(P(),p,F(p))==25);
