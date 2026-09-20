@@ -42,7 +42,7 @@ def main():
     args=parser.parse_args()
     print('\n'.join(geometry.check(args.espanso)),flush=True)
     manifest,blocks=geometry.load()
-    matches={m['trigger']:m['replace'] for m in yaml.safe_load(args.espanso.read_text())['matches']}
+    matches={geometry.primary(m):m['replace'] for m in yaml.safe_load(args.espanso.read_text())['matches']}
     with tempfile.TemporaryDirectory(prefix='geometry-tests-') as td:
         tmp=Path(td)
         # Every trigger is compiled with its documented dependencies, not with the whole library.

@@ -200,5 +200,50 @@
       ":Point",
       ":incircleOutTriangleCircle"
     ]
+  },
+  "aliases": {
+    ":getCrossPointsCL": [
+      ":circleLine",
+      ":circleLineRelation"
+    ]
+  },
+  "search_terms": {
+    ":getCrossPointsCL": [
+      "getCrossPointsCL",
+      "circle_line_relation",
+      "circleLine",
+      "circle line",
+      "line circle",
+      "圆与直线",
+      "直线与圆",
+      "圆和直线",
+      "圆与线段",
+      "线段与圆",
+      "segment circle",
+      "圆直线交点",
+      "交点",
+      "求交点",
+      "intersection",
+      "cross point",
+      "crosspoint",
+      "相交判定",
+      "相切",
+      "相离",
+      "tangent",
+      "位置关系",
+      "关系判定",
+      "弦",
+      "弦长",
+      "chord",
+      "半弦长",
+      "垂足",
+      "project",
+      "投影",
+      "点到直线距离",
+      "distance point line",
+      "圆截直线",
+      "CGL_7_D",
+      "EOlymp-359"
+    ]
   }
 }

@@ -1,7 +1,8 @@
 # 计算几何模板：C++17 精简版
 
 维护来源是 `sections/13_geometry.tex` 中带 `% geometry-code:` 标记的代码块（真身）。
-`script/geometry_snippets.json` 记录代码块顺序、23 个 Espanso 触发词的组合及依赖；
+`script/geometry_snippets.json` 记录代码块顺序、23 个 Espanso 触发词的组合及依赖，
+以及别名触发词（`aliases`）和搜索关键词（`search_terms`）；
 `script/geometry.py` 只读取这些代码，不维护第二份 C++ 实现。
 
 ## 使用和同步
@@ -23,7 +24,8 @@
 ```
 
 `--espanso /path/to/computational_geometry.yml` 可指定另一份几何配置。
-同步只更新该文件已有触发词的 replace 字段，保留 label 等元数据；触发词集合不符则失败。
+同步只更新该文件已有片段的 replace、`triggers`（主触发词 + `aliases`）、`search_terms` 字段，
+保留 label 等元数据；主触发词集合不符则失败。别名和搜索关键词都在 json 里维护，不要手改 yml。
 注意 `--write-espanso` 用 `yaml.dump` 重写整个文件，**yml 里的注释不会保留**；
 沉淀记录写在 tex 的 change log 链接和 git 提交里，不要再往 yml 里写注释。
 从新版代码改起，不要再回写旧做题目录。Espanso 测试可通过 `ICPC_TEMPLATE_ROOT` 指向此仓库。

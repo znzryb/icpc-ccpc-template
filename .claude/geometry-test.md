@@ -8,7 +8,8 @@ Espanso 的 `computational_geometry.yml`（`~/Library/Application Support/espans
 ## 三个文件
 
 - `sections/13_geometry.tex`：代码 + 讲解（真身）。
-- `script/geometry_snippets.json`：代码块顺序、23 个 Espanso 触发词由哪些代码块拼成、触发词之间的依赖。
+- `script/geometry_snippets.json`：代码块顺序、23 个 Espanso 触发词由哪些代码块拼成、触发词之间的依赖，
+  外加别名触发词 `aliases`、espanso 搜索栏关键词 `search_terms`（都由 `--write-espanso` 落到 yml，别手改 yml）。
   新增 / 拆分代码块时要同步这里，否则 `geometry.py` 的校验会失败。
 - `script/geometry.py`：从 tex 抽代码，校验 / 生成 Espanso，`--stats` 出缩减统计。
 
