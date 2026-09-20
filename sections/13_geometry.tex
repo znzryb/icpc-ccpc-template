@@ -477,29 +477,43 @@ vector<Point<DB>> getCrossPointsCL(Circle<T> cir, Line<T> l) {
 		\textbf{为什么要单独一份}：\texttt{Line<T>} 在本模板里同时当直线与线段用，而上面的 \texttt{getCrossPointsCL} 是\textbf{直线}语义——交点可能落在 $p_1 p_2$ 之外的延长线上。线段版只需在直线版的结果上筛掉段外的交点：交点 $P$ 已经在直线上，所以「$P$ 落在线段内」等价于 $\mathrm{dot}(A - P,\, B - P) \le 0$（$P$ 看向两个端点的方向相反，$= 0$ 即 $P$ 就是某个端点）。
 
 		\begin{center}
-			\begin{tikzpicture}[scale=1.1, >=Stealth]
-				\draw[thick] (0,0) circle (1.5);
-				\fill (0,0) circle (1.2pt);
-				\node[font=\tiny, anchor=north east] at (-0.05,-0.05) {$C$};
-				% 2 个交点：横穿
-				\draw[thick, red] (-2.4,0.6) -- (2.4,0.6);
-				\fill[red] (-1.375,0.6) circle (1.3pt) (1.375,0.6) circle (1.3pt);
-				\node[font=\tiny, color=red, anchor=west] at (2.45,0.6) {2};
-				% 1 个交点：一端在圆内
-				\draw[thick, orange] (0.2,-0.2) -- (2.4,-0.85);
-				\fill[orange] (1.44,-0.57) circle (1.3pt);
-				\node[font=\tiny, color=orange, anchor=west] at (2.45,-0.85) {1};
-				% 0 个交点：整段在圆内
-				\draw[thick, blue] (-0.9,-0.5) -- (0.4,-0.9);
-				\node[font=\tiny, color=blue, anchor=east] at (-0.95,-0.5) {0};
-				% 0 个交点：只有延长线与圆相交
-				\draw[thick, teal] (-2.4,-1.35) -- (-1.7,-1.05);
-				\draw[teal, dashed] (-1.7,-1.05) -- (0.6,0);
-				\node[font=\tiny, color=teal, anchor=east] at (-2.45,-1.35) {0};
+			\begin{tikzpicture}[>=Stealth, font=\scriptsize]
+				% 返回 2：线段横穿圆
+				\begin{scope}
+					\draw[thick] (0,0) circle (0.9);
+					\fill (0,0) circle (0.7pt);
+					\draw[thick, red] (-1.4,0.35) -- (1.4,0.35);
+					\fill[red] (-0.829,0.35) circle (1.2pt) (0.829,0.35) circle (1.2pt);
+					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{2}\\两端都在圆外、横穿};
+				\end{scope}
+				% 返回 1：一端在圆内
+				\begin{scope}[xshift=2.7cm]
+					\draw[thick] (0,0) circle (0.9);
+					\fill (0,0) circle (0.7pt);
+					\draw[thick, orange] (0,-0.1) -- (1.5,-0.55);
+					\fill[orange] (0.829,-0.349) circle (1.2pt);
+					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{1}\\一端在圆内、穿出一次};
+				\end{scope}
+				% 返回 0：整段在圆内
+				\begin{scope}[xshift=5.4cm]
+					\draw[thick] (0,0) circle (0.9);
+					\fill (0,0) circle (0.7pt);
+					\draw[thick, blue] (-0.55,0.35) -- (0.5,-0.2);
+					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{0}\\整段在圆内（与圆盘相交）};
+				\end{scope}
+				% 返回 0：只有延长线与圆相交
+				\begin{scope}[xshift=8.1cm]
+					\draw[thick] (0,0) circle (0.9);
+					\fill (0,0) circle (0.7pt);
+					\draw[thick, teal] (-1.75,-0.8) -- (-1.15,-0.58);
+					\draw[teal, dashed] (-1.15,-0.58) -- (-0.43,-0.32);
+					\draw[teal, fill=white] (-0.782,-0.445) circle (1.2pt);
+					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{0}\\只有延长线相交};
+				\end{scope}
 			\end{tikzpicture}
 
 			\vspace{2pt}
-			{\footnotesize\sffamily\color{gray} 图注：四条线段的返回值。蓝色整段在圆内、青色只有\textbf{延长线}（虚线）与圆相交，两者 \texttt{getCrossPointsCL} 分别给 0 个和 2 个交点，线段版都返回 0。}
+			{\footnotesize\sffamily\color{gray} 图注：四种情形下 \texttt{circle\_segment\_relation} 的返回值。右边两种 \texttt{getCrossPointsCL} 会分别给出 2 个交点（第四图中的空心点在延长线上）和 0 个交点，线段版都返回 0——这正是两者的差别。}
 		\end{center}
 
 		\textbf{返回值语义}：\texttt{circle\_segment\_relation} 返回\textbf{线段与圆周的公共点个数} $0 / 1 / 2$，与 \texttt{getCrossPointsCS} 给出的交点个数恒等。它跟直线版的「0 相离 / 1 相切 / 2 相交」\textcolor{red}{\textbf{不是一回事}}：
