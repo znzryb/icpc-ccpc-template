@@ -18,15 +18,25 @@
 
 ## 图片怎么放
 
-仓库没有外部图床，PR 里用到的图片（包括用户给的需求图）统一提交到
-`.github/pr-assets/<主题>/`，文件名用英文短横线（如 `size-before-after.png`）。
-在 PR 正文里用**带 commit SHA 的 raw 链接**引用，分支删掉之后链接仍然有效：
+仓库没有外部图床，PR 里用到的图片（包括用户给的需求图）统一放到**孤儿分支 `media`**，
+不进主分支历史。目录 `pr/<主题>/`，文件名用英文短横线（如 `size-before-after.png`）：
+
+```sh
+git checkout media                     # 孤儿分支，只有图片
+mkdir -p pr/<主题> && cp ... pr/<主题>/
+git add pr && git commit -m "media: <主题> 配图" && git push origin media
+git checkout <原来的分支>
+```
+
+在 PR 正文里用 media 分支的 raw 链接引用：
 
 ```
-![说明](https://raw.githubusercontent.com/znzryb/icpc-ccpc-template/<commit-sha>/.github/pr-assets/<主题>/<文件名>.png)
+![说明](https://raw.githubusercontent.com/znzryb/icpc-ccpc-template/media/pr/<主题>/<文件名>.png)
 ```
 
-图片加进仓库后要先 push，拿到 SHA 再写进 PR 描述。图片控制在 1 MB 以内，宽度 1200–1600 px 即可。
+图片先 push 到 media 再写进 PR 描述，写完用 `curl -I` 或在 PR 页面确认渲染出来了。
+不要把 PR 配图提交到工作分支（`.github/pr-assets/` 之类），会污染主分支。
+图片控制在 1 MB 以内，宽度 1200–1600 px 即可。
 
 ## 示例骨架
 
