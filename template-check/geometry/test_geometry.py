@@ -114,6 +114,31 @@ for _ in range(120):
 for c,a,b in [((0,0,1),(-2,0),(2,0)),((0,0,1),(-2,1),(2,1)),((0,0,1),(-2,2),(2,2)),((0,0,1),(0,0),(0,0)),((0,0,0),(-2,0),(2,0))]:
  k=0 if a==b else 1-( ((a[0]-c[0])*(b[1]-a[1])-(a[1]-c[1])*(b[0]-a[0]))**2>c[2]**2*((a[0]-b[0])**2+(a[1]-b[1])**2) )+ ( ((a[0]-c[0])*(b[1]-a[1])-(a[1]-c[1])*(b[0]-a[0]))**2<c[2]**2*((a[0]-b[0])**2+(a[1]-b[1])**2) )
  add('cl '+' '.join(map(str,c))+' '+coords([a,b]),lambda s,k=k: int(s.split()[0])==k and int(s.split()[1])==k or (_ for _ in ()).throw(AssertionError((s,k))))
+# Segment-circle crossings: exact integer oracle (quadratic in t, roots compared without floating point).
+def segment_circle_count(c,a,b):
+ (cx,cy,r),(ax,ay),(bx,by)=c,a,b
+ dx,dy=bx-ax,by-ay;A=dx*dx+dy*dy
+ if A==0:return 0  # degenerate segment follows the line version: no crossing
+ fx,fy=ax-cx,ay-cy;B=2*(fx*dx+fy*dy);C=fx*fx+fy*fy-r*r;disc=B*B-4*A*C
+ if disc<0:return 0
+ # root t=(-B+sign*sqrt(disc))/(2A) lies in [0,1] iff B <= sign*sqrt(disc) <= 2A+B
+ ge=lambda sign,v: (v<=0 or disc>=v*v) if sign>0 else (v<=0 and v*v>=disc)
+ le=lambda sign,v: (v>=0 and disc<=v*v) if sign>0 else (v>=0 or v*v<=disc)
+ return sum(ge(sign,B) and le(sign,2*A+B) for sign in ([1] if disc==0 else [1,-1]))
+segcircle=[((0,0,2),(-1,0),(1,0)),((0,0,2),(2,0),(2,0)),((0,0,2),(0,0),(4,0)),((0,0,2),(-4,2),(4,2)),
+           ((0,0,2),(1,2),(4,2)),((0,0,2),(-4,0),(4,0)),((0,0,2),(2,0),(5,0)),((0,0,2),(0,2),(0,-2)),
+           ((3,-1,1),(3,-1),(3,-1)),((0,0,1),(-2,1),(0,1))]
+for _ in range(200):
+ segcircle.append(((rng.randint(-8,8),rng.randint(-8,8),rng.randint(1,8)),
+                   (rng.randint(-10,10),rng.randint(-10,10)),(rng.randint(-10,10),rng.randint(-10,10))))
+for c,a,b in segcircle:
+ exp=segment_circle_count(c,a,b)
+ def ck(s,c=c,a=a,b=b,exp=exp):
+  v=list(map(float,s.split()));assert int(v[0])==exp and int(v[1])==exp,(s,c,a,b,exp)
+  seg=Point(a) if a==b else LineString([a,b])
+  for x,y in zip(v[2::2],v[3::2]):
+   close(math.hypot(x-c[0],y-c[1]),c[2]);assert seg.distance(Point(x,y))<1e-9,(s,c,a,b)
+ add('cs '+' '.join(map(str,c))+' '+coords([a,b]),ck)
 # Run batches; deterministic inputs retained in failure report.
 for i in range(0,len(cases),100):
  batch=cases[i:i+100]

@@ -46,6 +46,8 @@ int main() {
    cout<<" "<<tang.size();for(auto p:tang)cout<<" "<<p.x<<" "<<p.y;cout<<"\n";
   } else if(cmd=="cl") {
    Circle<ll>c;Line<ll>l;cin>>c>>l;auto pts=getCrossPointsCL(c,l);cout<<circle_line_relation(c,l)<<" "<<pts.size();for(auto p:pts)cout<<" "<<p.x<<" "<<p.y;cout<<"\n";
+  } else if(cmd=="cs") {
+   Circle<ll>c;Line<ll>l;cin>>c>>l;auto pts=getCrossPointsCS(c,l);cout<<circle_segment_relation(c,l)<<" "<<pts.size();for(auto p:pts)cout<<" "<<p.x<<" "<<p.y;cout<<"\n";
   } else if(cmd=="fixed") {
    using P=Point<ll>; using F=Point<DB>;
    static_assert(is_same_v<decltype(cross(P(),P())),i128>);
@@ -85,6 +87,13 @@ int main() {
    assert(getTangentPoints(P(1,0),Circle<ll>(P(),1)).size()==1);
    assert(abs(distancePL(P(2,0),gen_line_from_general(1,-1,-2)))<eps);
    auto tp=getTangentPoints(P(2,0),Circle<ll>(P(),1));assert(tp.size()==2);
+   Circle<ll>ci(P(),2);
+   assert(getCrossPointsCS(ci,Line<ll>(P(-1,0),P(1,0))).empty()); // 整段在圆内
+   assert(getCrossPointsCS(ci,Line<ll>(P(2,0),P(2,0))).empty()); // 退化成点，沿用直线版口径
+   assert(circle_segment_relation(ci,Line<ll>(P(0,0),P(4,0)))==1); // 一端在圆内
+   assert(circle_segment_relation(ci,Line<ll>(P(-4,2),P(4,2)))==1); // 相切，切点在段内
+   assert(circle_segment_relation(ci,Line<ll>(P(1,2),P(4,2)))==0); // 相切，切点在段外
+   assert(circle_segment_relation(ci,Line<ll>(P(-4,0),P(4,0)))==2);
    vector<P>square{P(0,0),P(2,0),P(2,2),P(0,2)};
    assert(pick_boundary(square)==8&&pick_interior(square)==1&&polygon_perimeter(square)==8);
    assert(isConvex(square));reorder_polygon(square);assert(square[0]==P(0,0));

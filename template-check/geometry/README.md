@@ -11,6 +11,7 @@
 - 其余触发词保持原名；例如凸包需要 `:Point + :polygonArea + :makeConvexHull`。
 - 卡壳组合仍同时包含直径、最远点对和最小矩形覆盖；直径与最远点对共用 `convex_diameter_indices`。
 - 圆类仍带 `CircleRelation`、圆的输入/输出、直径圆构造，且支持 `DB=double` 和 `long double`。
+- `:getCrossPointsCL` 同时带直线版和线段版；线段版 `getCrossPointsCS` / `circle_segment_relation` 只保留落在段内（含端点）的交点，返回的是与**圆周**的公共点个数（整段在圆内是 0）。
 - 旧版只在 Espanso 中的凸多边形生成、最小圆覆盖、混合类型叉积和三参数点积已补进打印模板。
 - 最近点对、两凸多边形距离、Pick 定理仍在打印模板中；没有为了统一触发词而丢掉这些功能。
 

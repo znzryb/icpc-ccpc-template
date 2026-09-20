@@ -17,6 +17,7 @@
     "circle-relation",
     "triangle-circles",
     "circle-line",
+    "circle-segment",
     "circle-circle",
     "point-tangents",
     "common-tangents",
@@ -100,7 +101,8 @@
       "triangle-circles"
     ],
     ":getCrossPointsCL": [
-      "circle-line"
+      "circle-line",
+      "circle-segment"
     ],
     ":getCrossPointsCC": [
       "circle-circle"
@@ -210,6 +212,10 @@
   "search_terms": {
     ":getCrossPointsCL": [
       "getCrossPointsCL",
+      "getCrossPointsCS",
+      "circle_segment_relation",
+      "circleSegment",
+      "circle segment",
       "circle_line_relation",
       "circleLine",
       "circle line",
@@ -243,7 +249,12 @@
       "distance point line",
       "圆截直线",
       "CGL_7_D",
-      "EOlymp-359"
+      "EOlymp-359",
+      "线段与圆周交点",
+      "线段穿过圆",
+      "射线与圆",
+      "圆盘",
+      "distancePS"
     ]
   }
 }
