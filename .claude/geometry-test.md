@@ -17,7 +17,7 @@ Espanso 的 `computational_geometry.yml`（`~/Library/Application Support/espans
 
 1. 改 tex 里的代码块（改完顺手改旁边的讲解）。
 2. 在仓库根目录跑对拍：`~/miniconda3/bin/python template-check/geometry/run.py`
-   （23 个触发词依赖组合编译 + 1720 个 Shapely 对拍用例 + `DB=double/long double` 的 LOCAL 断言）。
+   （23 个触发词依赖组合编译 + 1930 个 Shapely 对拍用例 + `DB=double/long double` 的 LOCAL 断言）。
    在没有 espanso 的机器上用 `--espanso <某份 yml>` 指定文件；`--write-espanso` 可以先把它生成出来。
 3. 同步 Espanso：`~/miniconda3/bin/python script/geometry.py --write-espanso`。
    注意它用 `yaml.dump` 重写整个文件，yml 里的注释（含以前的 changelog 块）不会保留，
