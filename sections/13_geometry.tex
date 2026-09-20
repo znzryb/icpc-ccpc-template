@@ -502,12 +502,12 @@ vector<Point<DB>> getCrossPointsCL(Circle<T> cir, Line<T> l) {
 					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{0}\\整段在圆内（与圆盘相交）};
 				\end{scope}
 				% 返回 0：只有延长线与圆相交
-				\begin{scope}[xshift=8.1cm]
+				\begin{scope}[xshift=8.4cm]
 					\draw[thick] (0,0) circle (0.9);
 					\fill (0,0) circle (0.7pt);
-					\draw[thick, teal] (-1.75,-0.8) -- (-1.15,-0.58);
-					\draw[teal, dashed] (-1.15,-0.58) -- (-0.43,-0.32);
-					\draw[teal, fill=white] (-0.782,-0.445) circle (1.2pt);
+					\draw[thick, teal] (-1.5,-0.708) -- (-1.3,-0.635);
+					\draw[teal, dashed] (-1.3,-0.635) -- (-0.43,-0.316);
+					\draw[teal, fill=white] (-0.782,-0.445) circle (1.5pt);
 					\node[anchor=north, text width=2.4cm, align=center] at (0,-1.1) {返回 \texttt{0}\\只有延长线相交};
 				\end{scope}
 			\end{tikzpicture}
