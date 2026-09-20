@@ -13,6 +13,9 @@ _minted-*/
 *.log
 *.toc
 
+## Python 脚本缓存（script/geometry.py、template-check/ 对拍脚本）
+__pycache__/
+
 ## IDE / 系统
 .idea/
 .DS_Store
