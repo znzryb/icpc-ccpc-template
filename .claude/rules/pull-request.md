@@ -28,15 +28,43 @@ git add pr && git commit -m "media: <主题> 配图" && git push origin media
 git checkout <原来的分支>
 ```
 
-在 PR 正文里用 media 分支的 raw 链接引用：
+在 PR 正文里引用 media 分支上的图，**只用这一个形态**：
 
 ```
-![说明](https://raw.githubusercontent.com/znzryb/icpc-ccpc-template/media/pr/<主题>/<文件名>.png)
+![说明](https://github.com/znzryb/icpc-ccpc-template/blob/media/pr/<主题>/<文件名>.png?raw=true)
 ```
 
-图片先 push 到 media 再写进 PR 描述，写完用 `curl -I` 或在 PR 页面确认渲染出来了。
+**不要用 `raw.githubusercontent.com`。** 它对公开仓库能渲染、对私有仓库渲染不出来
+（那个域名不带 GitHub 的登录态，私有仓库的图只会变成一个裂掉的链接）。
+`github.com/<owner>/<repo>/blob/...?raw=true` 走的是带登录态的主域名，**公开与私有都工作** ——
+一个形态通吃，就不必每次先去判仓库是公开还是私有，也就不会判错。
+
+推完图**必须确认它真的在 media 分支上**：
+
+```sh
+gh api "repos/znzryb/icpc-ccpc-template/contents/pr/<主题>?ref=media" --jq '.[] | "\(.name)  \(.size) bytes"'
+```
+
+**不要用 `curl` 去 GET 那条图片链接，也不要声称在 PR 页面上看过渲染结果。**
+AI 手里的 `curl` 和浏览器都**没有仓库的登录态**：私有仓库两者都只会拿到 404,
+而那个 404 既证明不了图坏、也证明不了图好 —— 把它当验证用,只会得出一个假结论
+（2026-09-20 真踩过:curl 到 404,自己解释成「私有仓库匿名当然 404」就放过去了,
+结果 PR 正文里两张图全是裂的,是用户截图指出来的）。
+能查的只有「文件在不在 media 上」,上面那条 `gh api` 就够了;
+渲染结果只有人打开 PR 页面才看得见。
+
 不要把 PR 配图提交到工作分支（`.github/pr-assets/` 之类），会污染主分支。
 图片控制在 1 MB 以内，宽度 1200–1600 px 即可。
+
+## 给别的仓库发 PR：先读那个仓库自己的规则
+
+本文件是 **icpc-ccpc-template 的** PR 规则。在别的仓库里发 PR 时（哪怕会话的工作目录
+还停在这里），**先读目标仓库的 `.claude/rules/pull-request.md`**，以它为准。
+
+图片链接这件事就是这么踩的：OJ-AC-ladder 是私有仓库，它自己的规则里白纸黑字写着
+「引用必须用 `blob/media/<文件名>?raw=true`——私有仓库的 raw.githubusercontent.com
+链接在 PR 正文里渲染不出来」,而当时照抄的是**这个文件**里的 raw 模板。
+答案就在目标仓库的规则里,没去读。
 
 ## 示例骨架
 
