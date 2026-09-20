@@ -502,7 +502,7 @@ vector<Point<DB>> getCrossPointsCL(Circle<T> cir, Line<T> l) {
 			{\footnotesize\sffamily\color{gray} 图注：四条线段的返回值。蓝色整段在圆内、青色只有\textbf{延长线}（虚线）与圆相交，两者 \texttt{getCrossPointsCL} 分别给 0 个和 2 个交点，线段版都返回 0。}
 		\end{center}
 
-		\textbf{返回值语义}：\texttt{circle\_segment\_relation} 返回的是\textbf{线段与圆周的公共点个数} $0 / 1 / 2$，与 \texttt{getCrossPointsCS().size()} 恒等。它跟直线版的「0 相离 / 1 相切 / 2 相交」\textcolor{red}{\textbf{不是一回事}}：
+		\textbf{返回值语义}：\texttt{circle\_segment\_relation} 返回\textbf{线段与圆周的公共点个数} $0 / 1 / 2$，与 \texttt{getCrossPointsCS} 给出的交点个数恒等。它跟直线版的「0 相离 / 1 相切 / 2 相交」\textcolor{red}{\textbf{不是一回事}}：
 		\begin{itemize}
 			\setlength\itemsep{0pt}
 			\item 返回 0 可能是整段在圆外，也可能是\textbf{整段在圆内}（与圆盘相交，只是不穿过圆周）；
