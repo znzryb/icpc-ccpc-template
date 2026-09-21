@@ -939,9 +939,9 @@ vector<Point<T>> minkowski(vector<Point<T>> &P1, vector<Point<T>> &P2) {
 }
 \end{minted}
 
-		\subsection{半平面交（half\_plane\_cut）}
+		\subsection[\tochl{半平面交（half\_plane\_cut）}]{半平面交（half\_plane\_cut）}
 
-		把每条有向直线 \texttt{Line(p1, p2)} 看作半平面 ——「沿 \texttt{p1 → p2} 方向走，左手边」是合法区域。所有半平面的交集若非空则为一个凸多边形（可能退化为无界、零面积等情形，本模板返回 \texttt{vector<Point<DB>>}，空表示交集为空 / 退化）。
+		把每条有向直线 \texttt{Line(p1, p2)} 看作半平面 ——「沿 \texttt{p1 → p2} 方向走，左手边」是合法区域（\textbf{如果想要这个东西按照你所想的方式运行，应该传入方向是 CCW}）。所有半平面的交集若非空则为一个凸多边形（可能退化为无界、零面积等情形，本模板返回 \texttt{vector<Point<DB>>}，空表示交集为空 / 退化）。
 
 		\textbf{算法核心}：双端队列扫描法。先 \texttt{unique\_line\_polar\_angle\_sort} 把直线按极角排序 + 同向去重，然后逐条加入 deque \texttt{q}：每次新直线 \texttt{l} 进来，先用 \texttt{l} 反向清理队尾（队尾两条线的交点若在 \texttt{l} 右侧，说明该交点被 \texttt{l} 切掉，对应的队尾线已经无贡献），再清理队首（对称地）；扫完一轮后还要做一次 \textbf{wrap-around}：用队首 / 队尾互相再清一遍（处理环形闭合时残留的失效线段）。
 
