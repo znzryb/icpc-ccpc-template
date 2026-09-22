@@ -81,10 +81,14 @@
 % \date{April 2026}
 
 % 高亮函数的用法
-%
-\newcommand{\hl}[2][yellow!45]{\colorbox{#1}{#2}}
+% 是合法区域（\hl{如果想要这个东西按照你所想的方式运行，应该传入方向是 CCW}）
+\usepackage{xeCJKfntef}
+\newcommand{\hl}[2][yellow!45]{\CJKunderanyline*{0.55ex}{\color{#1}\rule{2pt}{2.2ex}}{#2}}
 \newtcolorbox{hlpara}[1][yellow!35]{colback=#1, colframe=#1, breakable, enhanced,
 	boxrule=0pt, left=4pt, right=4pt, top=3pt, bottom=3pt, sharp corners}
+%\begin{hlpara}
+%	一整段话，能跨页断开。
+%\end{hlpara}
 
 \begin{document}
 
