@@ -51,7 +51,7 @@ struct GRID {
 #define rson(o) (o << 1 | 1)
 #define SZ(a) ((long long)a.size())
 #define fsp(x) fixed << setprecision(x)
-#define debug(x) cerr << "[" << #x << "]" << ": " << x << "\n"
+#define debug(x) println(stderr, "{}:{}", #x, x)
 #define cend cerr << "\n---------------------------------------------------\n"
 #define cEnd cerr << "\n***************************************************\n"
 
@@ -100,7 +100,7 @@ signed main() {
 */
 	\end{minted}
 
-	这个 \texttt{debug(x)} 是简版宏：单参数、直接 \texttt{cerr << x}，要求 \texttt{x} 支持 \texttt{operator<<}（基本类型 / \texttt{string} 都 OK，\texttt{vector<T>} 等容器不能直接打）。不再做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，留着也无伤大雅；介意的话提交前手动把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL} 即可。容器调试请用 range-for 手写循环。
+	这个 \texttt{debug(x)} 走 C++23 的 \texttt{println(stderr, ...)}，\textbf{需要 \texttt{-std=c++23}}（\texttt{<print>} 已被 \texttt{bits/stdc++.h} 带上）。只要 \texttt{x} 能被 \texttt{std::format} 格式化就能打：基本类型、\texttt{string}、\texttt{vector} / \texttt{set} / \texttt{map} 等容器、\texttt{pair} / \texttt{tuple} 以及它们的任意嵌套，例如 \texttt{debug(a)} 输出 \texttt{a:[1, 2, 3]}，\texttt{debug(mp)} 输出 \texttt{mp:\{1: "one", 2: "two"\}}；\texttt{x} 也可以是表达式（\texttt{debug(a[1] + n)} 输出 \texttt{a[1] + n:7}）。自定义结构体先用 STL 章的 \texttt{FMT\_STRUCT} 宏注册一下即可。不做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，介意的话提交前把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL}。
 
 	\subsection{CMake 配置}
 

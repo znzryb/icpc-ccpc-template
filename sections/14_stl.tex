@@ -413,5 +413,52 @@ do {
 			\item \textbf{枚举组合的技巧}：开一个 $n - k$ 个 \texttt{0} + $k$ 个 \texttt{1} 的 01 数组，\texttt{sort} 后用同一套 \texttt{do-while} 枚举它的全部排列，就是 $\binom{n}{k}$ 个组合的指示向量。
 			\item 对称版本 \texttt{prev\_permutation}：字典序上一个，完全升序时返回 \texttt{false}；\texttt{string} / 数组 / \texttt{vector} 都能用（任何双向迭代器区间）。
 		\end{itemize}
+		\subsection[\tochl{\texttt{FMT\_STRUCT}：让结构体能被 \texttt{format} / \texttt{println} 打印}]{\texttt{FMT\_STRUCT}：让结构体能被 \texttt{format} / \texttt{println} 打印}
+
+		配合开头模板里的 \texttt{debug(x)}（\texttt{println(stderr, ...)} 版）使用：给自定义结构体特化 \texttt{std::formatter<T>}，在 \texttt{format} 里用结构化绑定把成员拆出来，\texttt{std::tie} 成 \texttt{tuple} 交给 C++23 自带的 tuple formatter 打印。注册之后，结构体本身、装着结构体的 \texttt{vector} / \texttt{map}、嵌在别的结构体里的成员都能直接 \texttt{debug}。需要 \texttt{-std=c++23}。
+
+		\begin{minted}{cpp}
+#define FMT_STRUCT(T, ...)                                   \
+template<> struct std::formatter<T> {                        \
+    constexpr auto parse(auto& ctx_) { return ctx_.begin(); } \
+    auto format(const T& obj_, auto& ctx_) const {           \
+        auto& [__VA_ARGS__] = obj_;                          \
+        return std::format_to(ctx_.out(), "{}",              \
+                              std::tie(__VA_ARGS__));        \
+    }                                                        \
+};
+		\end{minted}
+
+		\textbf{调用方式}：第一个参数是类型名，后面按成员声明顺序写\textbf{绑定名}，个数必须等于成员个数（名字随便取，跟成员名无关）：
+
+		\begin{minted}{cpp}
+struct P { int x, y; };
+FMT_STRUCT(P, x, y)         // 全局作用域, 结尾不用分号
+struct E { string name; ll w; P p; };
+FMT_STRUCT(E, a, b, c)      // 绑定名随意, 个数 = 成员数
+
+P p{1, 2};
+vector<P> v{{1, 2}, {3, 4}};
+E e{"ab", 5, {1, 2}};
+debug(p); debug(v); debug(e);
+		\end{minted}
+
+		\textbf{打印效果}（stderr，本机 clang++ / g++-15 + \texttt{-std=c++23} 实测）：
+
+		\begin{minted}{text}
+p:(1, 2)
+v:[(1, 2), (3, 4)]
+e:("ab", 5, (1, 2))
+		\end{minted}
+
+		结构体打成圆括号 tuple，容器是方括号，\texttt{string} 带双引号、\texttt{char} 带单引号（\texttt{pair<int,char>\{3,'c'\}} 打成 \texttt{(3, 'c')}），\texttt{map} 打成 \texttt{\{1: "one"\}}。
+
+		\begin{itemize}
+			\item \textbf{必须写在全局作用域}（在 \texttt{namespace std} 外特化 \texttt{std::formatter}），不能写在 \texttt{main} 或别的函数里。
+			\item \textbf{嵌套结构体}：内层类型要先 \texttt{FMT\_STRUCT}，外层才能打印（如上面先 \texttt{P} 后 \texttt{E}）。
+			\item \textbf{结构化绑定的限制}：成员全部 public、不能有带数据成员的基类；绑定名个数不等于成员数直接编译错误。
+			\item 宏内形参刻意叫 \texttt{obj\_} / \texttt{ctx\_}：若叫 \texttt{x}，\texttt{FMT\_STRUCT(P, x, y)} 的绑定名会和形参撞名报 \texttt{redefinition of 'x'}。
+		\end{itemize}
+
 	\end{multicols*}
 
