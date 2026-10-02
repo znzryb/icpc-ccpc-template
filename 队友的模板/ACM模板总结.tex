@@ -33,7 +33,7 @@
 \newcommand{\matrix}[1]{\begin{smallmatrix}#1\end{smallmatrix}}
 \makeatother
 
-% ===== 章节样式（保留 md 自带编号，故用无编号 section* + 手动入目录）=====
+% ===== 章节样式 =====
 \setcounter{tocdepth}{2}
 \titlespacing{\section}{0pt}{8pt}{4pt}
 \titlespacing{\subsection}{0pt}{6pt}{3pt}
@@ -54,8 +54,7 @@
 
 \begin{multicols*}{2}
 
-\section*{ACM模板总结}
-\addcontentsline{toc}{section}{ACM模板总结}
+\section{ACM模板总结}
 
 
 鵗曦的板子，算法小群:1071069207 \par
@@ -69,12 +68,10 @@ const ll INF = 4e18; \par
 define all(x) x.begin(), x.end() \par
 
 
-\section*{杂项}
-\addcontentsline{toc}{section}{杂项}
+\section{杂项}
 
 
-\subsection*{随机数生成器}
-\addcontentsline{toc}{subsection}{随机数生成器}
+\subsection{随机数生成器}
 
 
 \begin{minted}{cpp}
@@ -87,8 +84,7 @@ uint64_t y = uniform_int_distribution<uint64_t>(1, (1ull<<60))(rng);  // 随机 
 \end{minted}
 
 
-\subsection*{重载 \_\_int128\_t 输入输出}
-\addcontentsline{toc}{subsection}{重载 \_\_int128\_t 输入输出}
+\subsection{重载 \_\_int128\_t 输入输出}
 
 
 \begin{minted}{cpp}
@@ -117,8 +113,7 @@ istream &operator>>(istream &is, __int128 &x) {
 
 
 
-\subsection*{ACM模板}
-\addcontentsline{toc}{subsection}{ACM模板}
+\subsection{ACM模板}
 
 
 \begin{minted}{cpp}
@@ -158,12 +153,10 @@ int main()
 
 
 
-\section*{数据结构}
-\addcontentsline{toc}{section}{数据结构}
+\section{数据结构}
 
 
-\subsection*{字典树}
-\addcontentsline{toc}{subsection}{字典树}
+\subsection{字典树}
 
 
 \begin{minted}{cpp}
@@ -240,8 +233,7 @@ public:
 
 
 
-\subsection*{单调栈}
-\addcontentsline{toc}{subsection}{单调栈}
+\subsection{单调栈}
 
 
 \begin{minted}{cpp}
@@ -268,8 +260,7 @@ for (int i = n; i >= 1; i--) {
 
 
 
-\subsection*{对顶堆}
-\addcontentsline{toc}{subsection}{对顶堆}
+\subsection{对顶堆}
 
 
 \begin{minted}{cpp}
@@ -308,8 +299,7 @@ for (int i = n; i >= 1; i--) {
 
 
 
-\subsection*{并查集}
-\addcontentsline{toc}{subsection}{并查集}
+\subsection{并查集}
 
 
 \begin{minted}{cpp}
@@ -430,8 +420,7 @@ public:
 
 
 
-\subsection*{bitset}
-\addcontentsline{toc}{subsection}{bitset}
+\subsection{bitset}
 
 
 \begin{minted}{cpp}
@@ -494,8 +483,7 @@ public:
 
 
 
-\subsection*{ST表}
-\addcontentsline{toc}{subsection}{ST表}
+\subsection{ST表}
 
 
 \begin{minted}{cpp}
@@ -538,8 +526,7 @@ public:
 
 
 
-\subsection*{树状数组}
-\addcontentsline{toc}{subsection}{树状数组}
+\subsection{树状数组}
 
 
 \begin{minted}{cpp}
@@ -573,8 +560,7 @@ struct Fenwick {
 \end{minted}
 
 
-\subsection*{Info线段树}
-\addcontentsline{toc}{subsection}{Info线段树}
+\subsection{Info线段树}
 
 
 \begin{minted}{cpp}
@@ -751,8 +737,7 @@ public:
 
 
 
-\subsection*{主席树}
-\addcontentsline{toc}{subsection}{主席树}
+\subsection{主席树}
 
 
 \begin{minted}{cpp}
@@ -860,8 +845,7 @@ public:
 \end{minted}
 
 
-\subsection*{动态开点线段树}
-\addcontentsline{toc}{subsection}{动态开点线段树}
+\subsection{动态开点线段树}
 
 
 \begin{minted}{cpp}
@@ -921,8 +905,7 @@ public:
 \end{minted}
 
 
-\subsection*{可持久化数组}
-\addcontentsline{toc}{subsection}{可持久化数组}
+\subsection{可持久化数组}
 
 
 \begin{minted}{cpp}
@@ -990,8 +973,7 @@ public:
 \end{minted}
 
 
-\subsection*{重链剖分}
-\addcontentsline{toc}{subsection}{重链剖分}
+\subsection{重链剖分}
 
 
 \begin{minted}{cpp}
@@ -1091,8 +1073,7 @@ public:
 
 
 
-\subsection*{线段树分治}
-\addcontentsline{toc}{subsection}{线段树分治}
+\subsection{线段树分治}
 
 
 \begin{minted}{cpp}
@@ -1112,8 +1093,7 @@ add(1, 1, q, L, R, {u, v});
 \end{minted}
 
 
-\subsection*{线段树维护线性基}
-\addcontentsline{toc}{subsection}{线段树维护线性基}
+\subsection{线段树维护线性基}
 
 
 \begin{minted}{cpp}
@@ -1333,8 +1313,7 @@ public:
 
 
 
-\subsection*{珂朵莉树（ODT）}
-\addcontentsline{toc}{subsection}{珂朵莉树（ODT）}
+\subsection{珂朵莉树（ODT）}
 
 
 \begin{minted}{cpp}
@@ -1482,12 +1461,10 @@ const int V = 2 * n + 1;
 
 
 
-\section*{数学}
-\addcontentsline{toc}{section}{数学}
+\section{数学}
 
 
-\subsection*{重要式子}
-\addcontentsline{toc}{subsection}{重要式子}
+\subsection{重要式子}
 
 
 1. $max(a,b) = \frac{a + b + \abs{a - b}}{2}$ \par
@@ -1540,12 +1517,10 @@ $min(a,b) = \frac{a + b - \abs{a - b}}{2}$ \par
 
 8. \par
 
-\subsection*{公平博弈}
-\addcontentsline{toc}{subsection}{公平博弈}
+\subsection{公平博弈}
 
 
-\subsubsection*{基本概念}
-\addcontentsline{toc}{subsubsection}{基本概念}
+\subsubsection{基本概念}
 
 
 公平组合游戏通常满足： \par
@@ -1563,8 +1538,7 @@ $min(a,b) = \frac{a + b - \abs{a - b}}{2}$ \par
 \noindent\rule{\linewidth}{0.4pt}\par
 
 
-\subsubsection*{Bash 博弈}
-\addcontentsline{toc}{subsubsection}{Bash 博弈}
+\subsubsection{Bash 博弈}
 
 
 模型： \par
@@ -1579,8 +1553,7 @@ n % (a + b) != 0  // 先手必胜
 \end{minted}
 
 
-\subsubsection*{Nim 博弈}
-\addcontentsline{toc}{subsubsection}{Nim 博弈}
+\subsubsection{Nim 博弈}
 
 
 模型： \par
@@ -1597,8 +1570,7 @@ xor_sum != 0  // 先手必胜
 \end{minted}
 
 
-\subsubsection*{反 Nim 博弈}
-\addcontentsline{toc}{subsubsection}{反 Nim 博弈}
+\subsubsection{反 Nim 博弈}
 
 
 模型： \par
@@ -1617,8 +1589,7 @@ xor_sum != 0  // 先手必胜
 \end{minted}
 
 
-\subsubsection*{SG 函数}
-\addcontentsline{toc}{subsubsection}{SG 函数}
+\subsubsection{SG 函数}
 
 
 定义： \par
@@ -1651,8 +1622,7 @@ SG_total != 0  // 先手必胜
 \noindent\rule{\linewidth}{0.4pt}\par
 
 
-\subsubsection*{SG 函数打表法}
-\addcontentsline{toc}{subsubsection}{SG 函数打表法}
+\subsubsection{SG 函数打表法}
 
 
 例如每次可以取 \texttt{moves} 中的数量： \par
@@ -1681,8 +1651,7 @@ vector<int> get_sg(int N, vector<int> moves) {
 
 
 
-\subsection*{快速幂}
-\addcontentsline{toc}{subsection}{快速幂}
+\subsection{快速幂}
 
 
 \begin{minted}{cpp}
@@ -1708,8 +1677,7 @@ long long inv(long long a, long long mod) {
 
 
 
-\subsection*{矩阵类}
-\addcontentsline{toc}{subsection}{矩阵类}
+\subsection{矩阵类}
 
 
 \begin{minted}{cpp}
@@ -1783,8 +1751,7 @@ struct Matrix {
 \end{minted}
 
 
-\subsection*{线性筛}
-\addcontentsline{toc}{subsection}{线性筛}
+\subsection{线性筛}
 
 
 \begin{minted}{cpp}
@@ -1946,8 +1913,7 @@ private:
 \end{minted}
 
 
-\subsection*{质因数分解}
-\addcontentsline{toc}{subsection}{质因数分解}
+\subsection{质因数分解}
 
 
 \begin{minted}{cpp}
@@ -1983,8 +1949,7 @@ vector<pair<int, int>> factorize(int x)
 
 
 
-\subsection*{扩展欧几里得}
-\addcontentsline{toc}{subsection}{扩展欧几里得}
+\subsection{扩展欧几里得}
 
 
 \begin{minted}{cpp}
@@ -2060,8 +2025,7 @@ public:
 
 
 
-\subsection*{组合数(包含卡特兰数)}
-\addcontentsline{toc}{subsection}{组合数(包含卡特兰数)}
+\subsection{组合数(包含卡特兰数)}
 
 
 \begin{minted}{cpp}
@@ -2119,8 +2083,7 @@ struct Combinatorics {
 
 
 
-\subsection*{异或线性基}
-\addcontentsline{toc}{subsection}{异或线性基}
+\subsection{异或线性基}
 
 
 \begin{minted}{cpp}
@@ -2192,12 +2155,10 @@ class LinearBasis{
 
 
 
-\section*{图论}
-\addcontentsline{toc}{section}{图论}
+\section{图论}
 
 
-\subsection*{Dijkstra}
-\addcontentsline{toc}{subsection}{Dijkstra}
+\subsection{Dijkstra}
 
 
 \begin{minted}{cpp}
@@ -2227,8 +2188,7 @@ auto dijkstra = [](int s, const vector<vector<pair<ll, int>>> &adj) {
 \end{minted}
 
 
-\subsection*{01-BFS}
-\addcontentsline{toc}{subsection}{01-BFS}
+\subsection{01-BFS}
 
 
 \begin{minted}{cpp}
@@ -2262,8 +2222,7 @@ vector<ll> zero_one_bfs(int n, int s, const vector<vector<pair<int,int>>> &g) {
 
 
 
-\subsection*{拓扑排序}
-\addcontentsline{toc}{subsection}{拓扑排序}
+\subsection{拓扑排序}
 
 
 \begin{minted}{cpp}
@@ -2294,8 +2253,7 @@ vector<ll> zero_one_bfs(int n, int s, const vector<vector<pair<int,int>>> &g) {
 
 
 
-\subsection*{匈牙利二分图最大匹配}
-\addcontentsline{toc}{subsection}{匈牙利二分图最大匹配}
+\subsection{匈牙利二分图最大匹配}
 
 
 \begin{minted}{cpp}
@@ -2371,8 +2329,7 @@ struct Hungarian {
 \end{minted}
 
 
-\subsection*{欧拉回路}
-\addcontentsline{toc}{subsection}{欧拉回路}
+\subsection{欧拉回路}
 
 
 \begin{minted}{cpp}
@@ -2467,8 +2424,7 @@ void solve()
 
 
 
-\subsection*{树上差分}
-\addcontentsline{toc}{subsection}{树上差分}
+\subsection{树上差分}
 
 
 \begin{minted}{cpp}
@@ -2624,8 +2580,7 @@ auto recoverDfnDiff = [&]()
 
 
 
-\subsection*{树上启发式合并}
-\addcontentsline{toc}{subsection}{树上启发式合并}
+\subsection{树上启发式合并}
 
 
 \begin{minted}{cpp}
@@ -2675,8 +2630,7 @@ dfs(1, 0, true);
 \end{minted}
 
 
-\subsection*{倍增求LCA}
-\addcontentsline{toc}{subsection}{倍增求LCA}
+\subsection{倍增求LCA}
 
 
 \begin{minted}{cpp}
@@ -2748,8 +2702,7 @@ struct LCA {
 \end{minted}
 
 
-\subsection*{Tarjan\_SCC}
-\addcontentsline{toc}{subsection}{Tarjan\_SCC}
+\subsection{Tarjan\_SCC}
 
 
 \begin{minted}{cpp}
@@ -2824,8 +2777,7 @@ private:
 \end{minted}
 
 
-\subsection*{Tarjan\_EBCC}
-\addcontentsline{toc}{subsection}{Tarjan\_EBCC}
+\subsection{Tarjan\_EBCC}
 
 
 \begin{minted}{cpp}
@@ -2891,8 +2843,7 @@ private:
 \end{minted}
 
 
-\subsection*{Tarjan\_VBCC}
-\addcontentsline{toc}{subsection}{Tarjan\_VBCC}
+\subsection{Tarjan\_VBCC}
 
 
 \begin{minted}{cpp}
@@ -3001,8 +2952,7 @@ public:
 \end{minted}
 
 
-\subsection*{最小割最大流}
-\addcontentsline{toc}{subsection}{最小割最大流}
+\subsection{最小割最大流}
 
 
 \begin{minted}{cpp}
@@ -3280,8 +3230,7 @@ public:
 \end{minted}
 
 
-\subsection*{最小费用最大流}
-\addcontentsline{toc}{subsection}{最小费用最大流}
+\subsection{最小费用最大流}
 
 
 \begin{minted}{cpp}
@@ -3417,14 +3366,12 @@ public:
 
 
 
-\section*{字符串}
-\addcontentsline{toc}{section}{字符串}
+\section{字符串}
 
 
 下面的字符串算法均默认采用 0-base实现 \par
 
-\subsection*{KMP}
-\addcontentsline{toc}{subsection}{KMP}
+\subsection{KMP}
 
 
 \begin{minted}{cpp}
@@ -3448,8 +3395,7 @@ public:
 
 
 
-\subsection*{manacher 求最长回文半径}
-\addcontentsline{toc}{subsection}{manacher 求最长回文半径}
+\subsection{manacher 求最长回文半径}
 
 
 \begin{minted}{cpp}
@@ -3488,8 +3434,7 @@ public:
 \end{minted}
 
 
-\subsection*{Z函数求所有后缀与原字符串的LCP}
-\addcontentsline{toc}{subsection}{Z函数求所有后缀与原字符串的LCP}
+\subsection{Z函数求所有后缀与原字符串的LCP}
 
 
 \begin{minted}{cpp}
@@ -3524,12 +3469,10 @@ public:
 
 
 
-\section*{动态规划}
-\addcontentsline{toc}{section}{动态规划}
+\section{动态规划}
 
 
-\subsection*{SOSDP}
-\addcontentsline{toc}{subsection}{SOSDP}
+\subsection{SOSDP}
 
 
 子集和DP ：给定 $$ val[mask]$$，求 $$ dp[mask] = \sum{  val[sub] [sub ⊆ mask ]}$$  。 \par
@@ -3554,8 +3497,7 @@ public:
 \end{minted}
 
 
-\subsection*{树上背包}
-\addcontentsline{toc}{subsection}{树上背包}
+\subsection{树上背包}
 
 
 \begin{minted}{cpp}
@@ -3597,8 +3539,7 @@ public:
 \end{minted}
 
 
-\subsection*{多重背包（二进制拆分）}
-\addcontentsline{toc}{subsection}{多重背包（二进制拆分）}
+\subsection{多重背包（二进制拆分）}
 
 
 \begin{minted}{cpp}
@@ -3636,12 +3577,10 @@ public:
 
 
 
-\section*{几何}
-\addcontentsline{toc}{section}{几何}
+\section{几何}
 
 
-\subsection*{经典结论与技巧}
-\addcontentsline{toc}{subsection}{经典结论与技巧}
+\subsection{经典结论与技巧}
 
 
 1. 对于平面上的点 \texttt{(X, Y)}，如果要\textbf{最大化}： \par
@@ -3655,12 +3594,10 @@ public:
 
 原因是：如果最优点对在 \texttt{X} 排序中间隔了别的点，那么中间那个点一定能和两端之一组成一个不劣的点对。 \par
 
-\section*{其它技巧}
-\addcontentsline{toc}{section}{其它技巧}
+\section{其它技巧}
 
 
-\subsection*{普通莫队}
-\addcontentsline{toc}{subsection}{普通莫队}
+\subsection{普通莫队}
 
 
 \begin{minted}{cpp}
@@ -3725,8 +3662,7 @@ public:
 \end{minted}
 
 
-\subsection*{带修莫队}
-\addcontentsline{toc}{subsection}{带修莫队}
+\subsection{带修莫队}
 
 
 \begin{minted}{cpp}
