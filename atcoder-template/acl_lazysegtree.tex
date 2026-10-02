@@ -31,11 +31,11 @@ struct lazy_segtree {
         for (int i = sz - 1; i; i--) up(i);
     }
     void up(int k) { d[k] = mapping(lz[k], op(d[2 * k], d[2 * k + 1])); }
-    void all(int k, F f) {
+    void ap(int k, F f) {
         d[k] = mapping(f, d[k]);
         if (k < sz) lz[k] = composition(f, lz[k]);
     }
-    void push(int k) { all(2 * k, lz[k]), all(2 * k + 1, lz[k]), lz[k] = id(); }
+    void push(int k) { ap(2 * k, lz[k]), ap(2 * k + 1, lz[k]), lz[k] = id(); }
     void set(int p, S x) {
         p += sz;
         for (int i = lg; i; i--) push(p >> i);
@@ -60,8 +60,8 @@ struct lazy_segtree {
         l += sz, r += sz + 1;
         for (int i = lg; i; i--) push(l >> i), push((r - 1) >> i);
         for (int a = l, b = r; a < b; a >>= 1, b >>= 1) {
-            if (a & 1) all(a++, f);
-            if (b & 1) all(--b, f);
+            if (a & 1) ap(a++, f);
+            if (b & 1) ap(--b, f);
         }
         for (int i = 1; i <= lg; i++) up(l >> i), up((r - 1) >> i);
     }

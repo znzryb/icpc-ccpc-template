@@ -24,7 +24,8 @@ bash template-check/acl_stress/run.sh    # 抽取 + 编译 + 跑，全过打印 
    - `HLDACL`：随机树上的路径 / 子树异或修改、路径 / 子树查询和子树边接口
    - `z_algorithm`：小字母表随机串（`string` / `vector<int>` 两个重载）对官方 + 暴力，
      20 万长度的全同串 / 周期串对官方，`vector<ll>` / `vector<pair>` 泛型重载对暴力，空串边界
-3. 编译带 ASan + UBSan（`-fno-sanitize=vptr,function`，libstdc++ 下必须关）。
+3. 抽出 `01_dream_start` 初始化模板里的 `#define`（`dream_macros.inc`）放在模板前面，模板里的函数名撞宏会直接编译失败。
+4. 编译带 ASan + UBSan（`-fno-sanitize=vptr,function`，libstdc++ 下必须关）。
 
 ## 注意
 

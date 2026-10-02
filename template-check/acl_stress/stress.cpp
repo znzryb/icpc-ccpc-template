@@ -7,6 +7,10 @@
 using namespace std;
 using ll = long long;
 
+// 01_dream_start 初始化模板里的宏（run.sh 抽取）：模板贴在它后面，不能撞名
+// （曾经把成员函数起名 all，撞 #define all(vec) 编译不过）
+#include "dream_macros.inc"
+
 #include "lazyseg.inc"
 #include "seg.inc"
 #include "z.inc"
@@ -44,6 +48,7 @@ namespace ex_hld {
 #include "hld.inc"
 }
 #undef FOR
+#include "dream_undef.inc"
 
 // ================= segtree: 区间最大值 =================
 using S1 = ll;

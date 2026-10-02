@@ -42,6 +42,10 @@ done
 
 "$PY" extract.py "$ROOT/sections/10_graph.tex" hld.inc 'struct HLDACL {'
 
+# 初始化模板里的宏一起带上，模板代码贴在它后面时不能撞名（_GLIBCXX_DEBUG 除外）
+grep -E '^#define [A-Za-z_]+' "$ROOT/sections/01_dream_start.tex" | grep -v _GLIBCXX_DEBUG > dream_macros.inc
+sed -E 's/^#define ([A-Za-z_]+).*/#undef \1/' dream_macros.inc > dream_undef.inc
+
 # macOS clang + libstdc++ 工具链，见
 # ~/Desktop/DoProblemAsMyTaste/.claude/rules/macos-clang-libstdcxx-toolchain.md
 "$CXX" -std=c++20 -O1 -g -Wall -Wextra \
