@@ -197,7 +197,7 @@ int main() {
                 int p = rng() % n;
                 ll v = randv();
                 a[p] += v;
-                mine.apply(p, v);
+                mine.apply(p, p, v);  // 精简版没有 apply(p, f) 重载
                 off.apply(p, v);
             } else if (t == 2) {  // 区间和
                 ll want = 0;
@@ -226,6 +226,15 @@ int main() {
                         CHECK(got == want - 1, "lazy.max_right vs brute");
                     }
                     CHECK(got == off.max_right(l, g) - 1, "lazy.max_right vs acl");
+                    int got2 = mine.min_left(r - 1, g);
+                    if (nonneg) {
+                        int want2 = r;
+                        ll cur = 0;
+                        while (want2 > 0 && cur + a[want2 - 1] <= x)
+                            cur += a[--want2];
+                        CHECK(got2 == want2, "lazy.min_left vs brute");
+                    }
+                    CHECK(got2 == off.min_left(r, g), "lazy.min_left vs acl");
                     CHECK(mine.all_prod().sum == off.all_prod().sum,
                           "lazy.all_prod vs acl");
                 }

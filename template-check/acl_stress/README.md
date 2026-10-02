@@ -16,7 +16,7 @@ bash template-check/acl_stress/run.sh    # 抽取 + 编译 + 跑，全过打印 
    **测的是 .tex 里的真实内容**，改了模板不同步就会立刻暴露。
 2. `stress.cpp` 把移植版、官方 `atcoder::segtree` / `atcoder::lazy_segtree`、朴素暴力三方对拍：
    - `segtree`：区间最大值，随机 `set` / `get` / `prod` / `all_prod` / `max_right` / `min_left`
-   - `lazy_segtree` 区间加 + 区间和：`apply(p,f)` / `apply(l,r,f)` / `prod` / `get` / `set` / `max_right`
+   - `lazy_segtree` 区间加 + 区间和：`apply(p,p,f)` / `apply(l,r,f)` / `prod` / `get` / `set` / `max_right` / `min_left`
    - `lazy_segtree` 区间赋值 + 区间最大（`NONE` 哨兵那套 `mapping` / `composition`）
    - 空树 / 默认构造 / `prod(0,0)` 边界
    - 打印稿中的四个 `segtree` 示例：单点最大值、最大子段和、第 k 个 1 / 左右边界、含负数的前缀二分
