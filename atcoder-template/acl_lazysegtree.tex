@@ -2,196 +2,105 @@
 
 		\textbf{五件套约束}：\texttt{op} 必须满足结合律；\texttt{e} 是其单位元；\texttt{mapping(f,x)} 表示把作用 $f$ 施加到 $x$；\texttt{composition(f,g)} 表示“先 $g$ 后 $f$”；\texttt{id} 是恒等作用。作用还必须满足对 \texttt{op} 的分配律。
 
+		\textbf{精简写法}：\texttt{up(k)} 写成 \texttt{d[k] = mapping(lz[k], op(左, 右))}，即不变式「节点值 = 自身标记作用在两儿子之积上」，所以区间两端的下推 / 上拉不必像 ACL 那样判断边界是否对齐，无条件做即可；代价是每次上拉多一次 \texttt{mapping}，复杂度不变。
+
 		\textbf{最大的坑}：\texttt{mapping} 拿不到区间边界。凡是更新公式需要长度，都要把 \texttt{len} 存进 $S$，让它随 \texttt{op} 一起合并。
 
-		\textbf{接口}：除 \texttt{segtree} 的 \texttt{set/get/prod/all\_prod/max\_right/min\_left} 外，新增 \texttt{apply(p,f)} 与闭区间 \texttt{apply(l,r,f)}。因为查询前可能需要下推标记，\texttt{get/prod} 与两个二分接口不再是 \texttt{const}。
+		\textbf{接口}：除 \texttt{segtree} 的 \texttt{set/get/prod/all\_prod/max\_right/min\_left} 外，新增闭区间 \texttt{apply(l,r,f)}；单点修改写 \texttt{apply(p,p,f)}（精简版删了 ACL 的 \texttt{apply(p,f)} 重载）。因为查询前可能需要下推标记，\texttt{get/prod} 与两个二分接口不再是 \texttt{const}。
 
 		\subsubsection{模板本体}
 
 		\begin{minted}{cpp}
-/* ACL atcoder/lazysegtree 自包含移植 + 闭区间
+/* ACL atcoder/lazysegtree 精简移植 + 闭区间
  * lazy_segtree(n) 合法位置 0..n; 区间 [l, r] 左闭右闭
- * 1-based 只碰 1..n; 0-based 只碰 0..n-1
- * 从 vector 建树时 v[i] 对应位置 i, 长度由 vector 决定
- * 空区间写 r == l - 1, prod 返回 e(), apply 直接返回
+ * 单点修改写 apply(p, p, f); 空区间写 r == l - 1
+ * 不变式 d[k] = mapping(lz[k], 两儿子之积), 故下推/上拉可无条件做
  */
 template<class S, S (*op)(S, S), S (*e)(),
          class F, S (*mapping)(F, S),
          F (*composition)(F, F), F (*id)()>
 struct lazy_segtree {
-public:
-    lazy_segtree() : lazy_segtree(0) {}
-
-    explicit lazy_segtree(int n)
-        : lazy_segtree(vector<S>(n + 1, e())) {}
-
-    explicit lazy_segtree(const vector<S> &v)
-        : _n(int(v.size())) {
-        size = (int) bit_ceil((unsigned) _n);
-        log = countr_zero((unsigned) size);
-        d = vector<S>(2 * size, e());
-        lz = vector<F>(size, id());
-        for (int i = 0; i < _n; i++)
-            d[size + i] = v[i];
-        for (int i = size - 1; i >= 1; i--)
-            update(i);
+    int n, sz = 1, lg = 0;
+    vector<S> d;
+    vector<F> lz;
+    lazy_segtree(int n = 0) : lazy_segtree(vector<S>(n + 1, e())) {}
+    lazy_segtree(const vector<S> &v) : n(v.size()) {
+        while (sz < n) sz *= 2, lg++;
+        d.assign(2 * sz, e()), lz.assign(sz, id());
+        copy(v.begin(), v.end(), d.begin() + sz);
+        for (int i = sz - 1; i; i--) up(i);
     }
-
+    void up(int k) { d[k] = mapping(lz[k], op(d[2 * k], d[2 * k + 1])); }
+    void all(int k, F f) {
+        d[k] = mapping(f, d[k]);
+        if (k < sz) lz[k] = composition(f, lz[k]);
+    }
+    void push(int k) { all(2 * k, lz[k]), all(2 * k + 1, lz[k]), lz[k] = id(); }
     void set(int p, S x) {
-        assert(0 <= p && p < _n);
-        p += size;
-        for (int i = log; i >= 1; i--) push(p >> i);
+        p += sz;
+        for (int i = lg; i; i--) push(p >> i);
         d[p] = x;
-        for (int i = 1; i <= log; i++) update(p >> i);
+        for (int i = 1; i <= lg; i++) up(p >> i);
     }
-
-    S get(int p) {
-        assert(0 <= p && p < _n);
-        p += size;
-        for (int i = log; i >= 1; i--) push(p >> i);
-        return d[p];
-    }
-
-    S prod(int l, int r) {
-        r++;
-        assert(0 <= l && l <= r && r <= _n);
-        if (l == r) return e();
-        l += size, r += size;
-        for (int i = log; i >= 1; i--) {
-            if (((l >> i) << i) != l) push(l >> i);
-            if (((r >> i) << i) != r)
-                push((r - 1) >> i);
-        }
-        S sml = e(), smr = e();
-        while (l < r) {
-            if (l & 1) sml = op(sml, d[l++]);
-            if (r & 1) smr = op(d[--r], smr);
-            l >>= 1, r >>= 1;
-        }
-        return op(sml, smr);
-    }
-
+    S get(int p) { return prod(p, p); }
     S all_prod() { return d[1]; }
-
-    void apply(int p, F f) {
-        assert(0 <= p && p < _n);
-        p += size;
-        for (int i = log; i >= 1; i--) push(p >> i);
-        d[p] = mapping(f, d[p]);
-        for (int i = 1; i <= log; i++) update(p >> i);
+    S prod(int l, int r) {
+        S sl = e(), sr = e();
+        if (l > r) return sl;
+        l += sz, r += sz + 1;
+        for (int i = lg; i; i--) push(l >> i), push((r - 1) >> i);
+        for (; l < r; l >>= 1, r >>= 1) {
+            if (l & 1) sl = op(sl, d[l++]);
+            if (r & 1) sr = op(d[--r], sr);
+        }
+        return op(sl, sr);
     }
-
     void apply(int l, int r, F f) {
-        r++;
-        assert(0 <= l && l <= r && r <= _n);
-        if (l == r) return;
-        l += size, r += size;
-        for (int i = log; i >= 1; i--) {
-            if (((l >> i) << i) != l) push(l >> i);
-            if (((r >> i) << i) != r)
-                push((r - 1) >> i);
+        if (l > r) return;
+        l += sz, r += sz + 1;
+        for (int i = lg; i; i--) push(l >> i), push((r - 1) >> i);
+        for (int a = l, b = r; a < b; a >>= 1, b >>= 1) {
+            if (a & 1) all(a++, f);
+            if (b & 1) all(--b, f);
         }
-        {
-            int l2 = l, r2 = r;
-            while (l < r) {
-                if (l & 1) all_apply(l++, f);
-                if (r & 1) all_apply(--r, f);
-                l >>= 1, r >>= 1;
-            }
-            l = l2, r = r2;
-        }
-        for (int i = 1; i <= log; i++) {
-            if (((l >> i) << i) != l) update(l >> i);
-            if (((r >> i) << i) != r)
-                update((r - 1) >> i);
-        }
+        for (int i = 1; i <= lg; i++) up(l >> i), up((r - 1) >> i);
     }
-
-    template<class G>
-    int max_right(int l, G g) {
-        assert(0 <= l && l <= _n);
-        assert(g(e()));
-        if (l == _n) return _n - 1;
-        l += size;
-        for (int i = log; i >= 1; i--) push(l >> i);
+    template<class G> int max_right(int l, G g) {
+        if (l == n) return n - 1;
+        l += sz;
+        for (int i = lg; i; i--) push(l >> i);
         S sm = e();
         do {
             while (l % 2 == 0) l >>= 1;
             if (!g(op(sm, d[l]))) {
-                while (l < size) {
-                    push(l);
-                    l = 2 * l;
-                    if (g(op(sm, d[l]))) {
-                        sm = op(sm, d[l]);
-                        l++;
-                    }
+                while (l < sz) {
+                    push(l), l *= 2;
+                    if (g(op(sm, d[l]))) sm = op(sm, d[l++]);
                 }
-                return (l - size) - 1;
+                return l - sz - 1;
             }
-            sm = op(sm, d[l]);
-            l++;
+            sm = op(sm, d[l++]);
         } while ((l & -l) != l);
-        return _n - 1;
+        return n - 1;
     }
-
-    template<class G>
-    int min_left(int r, G g) {
-        r++;
-        assert(0 <= r && r <= _n);
-        assert(g(e()));
-        if (r == 0) return 0;
-        r += size;
-        for (int i = log; i >= 1; i--)
-            push((r - 1) >> i);
+    template<class G> int min_left(int r, G g) {
+        if (++r == 0) return 0;
+        r += sz;
+        for (int i = lg; i; i--) push((r - 1) >> i);
         S sm = e();
         do {
             r--;
-            while (r > 1 && (r % 2)) r >>= 1;
+            while (r > 1 && r % 2) r >>= 1;
             if (!g(op(d[r], sm))) {
-                while (r < size) {
-                    push(r);
-                    r = 2 * r + 1;
-                    if (g(op(d[r], sm))) {
-                        sm = op(d[r], sm);
-                        r--;
-                    }
+                while (r < sz) {
+                    push(r), r = 2 * r + 1;
+                    if (g(op(d[r], sm))) sm = op(d[r--], sm);
                 }
-                return r + 1 - size;
+                return r + 1 - sz;
             }
             sm = op(d[r], sm);
         } while ((r & -r) != r);
         return 0;
-    }
-
-private:
-    int _n, size, log;
-    vector<S> d;
-    vector<F> lz;
-
-    static unsigned bit_ceil(unsigned n) {
-        unsigned x = 1;
-        while (x < n) x *= 2;
-        return x;
-    }
-
-    static int countr_zero(unsigned n) {
-        return __builtin_ctz(n);
-    }
-
-    void update(int k) {
-        d[k] = op(d[2 * k], d[2 * k + 1]);
-    }
-
-    void all_apply(int k, F f) {
-        d[k] = mapping(f, d[k]);
-        if (k < size)
-            lz[k] = composition(f, lz[k]);
-    }
-
-    void push(int k) {
-        all_apply(2 * k, lz[k]);
-        all_apply(2 * k + 1, lz[k]);
-        lz[k] = id();
     }
 };
 		\end{minted}
