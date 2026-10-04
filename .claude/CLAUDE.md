@@ -11,6 +11,16 @@
 - `TemplateDetailedExplain/` —— 部分模板的详细讲解。
 - `template-check/`、`archive/`、`snippets/`、`image/` —— 辅助资源。
 - `.autocp` —— autocp 插件元信息（题目样例等），勿手改。
+- `TemporaryPrint/` —— 临时打印页，一个打印页一个子文件夹（见下节）。
+
+## 临时打印（正式板子已送印）
+
+`template-main.pdf` 已经整本送打印店印好了。之后用户要「临时打印 / 补印 / 打一页新改的」时，**不整本重印**：
+
+- 先照常改 `sections/*.tex`（正式板子仍是唯一真身），再在 `TemporaryPrint/<主题>/` 下建一个**独立文件夹**放这一页：
+  `temporary_print.tex` + `fragment.tex`（复制改好的 subsection）+ `build.sh` + `README.md`，`TemporaryPrint/` 顶层不散放 tex。
+- 直接 `cp -R TemporaryPrint/mcmf TemporaryPrint/<主题>` 起步，跑 `./build.sh` 出 `out/temporary_print.pdf`（`out/` 不入库）。
+- 完整约定见 `TemporaryPrint/README.md`，新增一页时顺手把它的目录树补上。
 
 ## 编译
 
