@@ -165,7 +165,7 @@ void Solve() {
 }
 		\end{minted}
 
-		\subsection{字符串哈希（mod $2^{61}-1$ 版本）}
+		\subsection[\tochl{字符串哈希（mod $2^{61}-1$ 版本）}]{字符串哈希（mod $2^{61}-1$ 版本）}
 
 		一个用 Mersenne 素数 $2^{61}-1$ 作模的字符串哈希，整数运算用 \verb|__uint128_t| 中转、做一次「低 61 位 + 高位」折叠后只需最多一次减法即可归约到 $[0, M)$。配合 \verb|HS| 类提供的前缀哈希、动态 \verb|push| / \verb|pop|、以及一个简单的 \verb|find| 子串计数接口，覆盖比赛里绝大多数字符串哈希需求。
 
