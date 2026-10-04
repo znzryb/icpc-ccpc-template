@@ -1,0 +1,32 @@
+\subsection{字符串哈希（mod $2^{61}-1$ 版本）}
+
+用 Mersenne 素数 $2^{61}-1$ 作模，乘法走 \verb|__uint128_t| 中转，做一次「低 61 位 + 高位」折叠后至多减一次 $M$ 就归约到 $[0, M)$；base 运行时随机，防离线构造碰撞。为了赛场手敲快，\textbf{不用自动取模类}，哈希值直接是 \verb|ull|，只有一个 \verb|mul| 函数。
+
+\textbf{接口}：\verb|get(l, r)| 取 $s[l..r]$（0-based 闭区间，不做越界检查）；\verb|push(c)| / \verb|pop()| 在末尾增删字符；整串哈希 $=$ \verb|h.back()|。约定越前面越高位（和写数字一样），所以两段拼接 $\mathrm{hash}(XY) = \mathrm{hash}(X) \cdot B^{|Y|} + \mathrm{hash}(Y)$。子串计数这类需求在外面写一个循环即可（见代码末尾注释）。
+
+\begin{minted}{cpp}
+// AC https://vjudge.net/solution/65151535 string matching
+// AC https://www.luogu.com.cn/record/245201000 push / pop
+const ull M = (1ULL << 61) - 1;
+ull mul(ull a, ull b) {
+	__uint128_t t = (__uint128_t) a * b;
+	ull s = (t & M) + (t >> 61); // 一次折叠, 至多减一次 M
+	return s >= M ? s - M : s;
+}
+// base 运行时随机, 防 anti-hash
+const ull B = mt19937_64(chrono::steady_clock::now().time_since_epoch().count())() % (M - 257) + 257;
+// 越前面越高位; h[i] = s[0..i) 的哈希, p[i] = B^i
+struct HS {
+	vector<ull> h{0}, p{1};
+	HS(const string &s) { for (char c : s) push(c); }
+	void push(unsigned char c) {
+		h.push_back((mul(h.back(), B) + c) % M);
+		p.push_back(mul(p.back(), B));
+	}
+	void pop() { h.pop_back(); p.pop_back(); }
+	ull get(int l, int r) { return (h[r + 1] + M - mul(h[l], p[r - l + 1])) % M; } // s[l..r], 0-based
+};
+// 子串计数: t 在 s 中出现几次
+// HS hs(s), ht(t); int m = SZ(t), cnt = 0;
+// for (int i = 0; i + m <= SZ(s); i++) cnt += hs.get(i, i + m - 1) == ht.h.back();
+\end{minted}

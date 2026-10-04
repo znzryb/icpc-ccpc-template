@@ -167,145 +167,35 @@ void Solve() {
 
 		\subsection[\tochl{字符串哈希（mod $2^{61}-1$ 版本）}]{字符串哈希（mod $2^{61}-1$ 版本）}
 
-		一个用 Mersenne 素数 $2^{61}-1$ 作模的字符串哈希，整数运算用 \verb|__uint128_t| 中转、做一次「低 61 位 + 高位」折叠后只需最多一次减法即可归约到 $[0, M)$。配合 \verb|HS| 类提供的前缀哈希、动态 \verb|push| / \verb|pop|、以及一个简单的 \verb|find| 子串计数接口，覆盖比赛里绝大多数字符串哈希需求。
+		用 Mersenne 素数 $2^{61}-1$ 作模，乘法走 \verb|__uint128_t| 中转，做一次「低 61 位 + 高位」折叠后至多减一次 $M$ 就归约到 $[0, M)$；base 运行时随机，防离线构造碰撞。为了赛场手敲快，\textbf{不用自动取模类}，哈希值直接是 \verb|ull|，只有一个 \verb|mul| 函数。
+
+		\textbf{接口}：\verb|get(l, r)| 取 $s[l..r]$（0-based 闭区间，不做越界检查）；\verb|push(c)| / \verb|pop()| 在末尾增删字符；整串哈希 $=$ \verb|h.back()|。约定越前面越高位（和写数字一样），所以两段拼接 $\mathrm{hash}(XY) = \mathrm{hash}(X) \cdot B^{|Y|} + \mathrm{hash}(Y)$。子串计数这类需求在外面写一个循环即可（见代码末尾注释）。
 
 		\begin{minted}{cpp}
-struct U {
-	using u128 = __uint128_t;
-	static constexpr ll MOD = (1ULL << 61) - 1;
-
-	ll v; // always in [0, MOD)
-
-	U() : v(0) {}
-	U(ll x) {
-		ll t = x % MOD;
-		if (t < 0) t += MOD;
-		v = (ll) t;
-	}
-
-	static inline ll add(ll a, ll b) {
-		ll s = a + b;
-		if (s >= MOD) s -= MOD;
-		return s;
-	}
-	static inline ll sub(ll a, ll b) {
-		return (a >= b) ? (a - b) : (a + MOD - b);
-	}
-	static inline ll mul(ll a, ll b) {
-		u128 t = (u128) a * b;             // < 2^122
-		ll s = ll(t & MOD) + ll(t >> 61);  // 1-step fold
-		if (s >= MOD) s -= MOD;            // at most one subtract needed
-		return s;
-	}
-
-	U &operator+=(const U &o) { v = add(v, o.v); return *this; }
-	U &operator-=(const U &o) { v = sub(v, o.v); return *this; }
-	U &operator*=(const U &o) { v = mul(v, o.v); return *this; }
-
-	friend U operator+(U a, const U &b) { a += b; return a; }
-	friend U operator-(U a, const U &b) { a -= b; return a; }
-	friend U operator*(U a, const U &b) { a *= b; return a; }
-
-	friend bool operator==(const U &a, const U &b) { return a.v == b.v; }
-	friend bool operator!=(const U &a, const U &b) { return a.v != b.v; }
-	friend bool operator< (const U &a, const U &b) { return a.v <  b.v; }
-	friend bool operator> (const U &a, const U &b) { return a.v >  b.v; }
-	friend bool operator<=(const U &a, const U &b) { return a.v <= b.v; }
-	friend bool operator>=(const U &a, const U &b) { return a.v >= b.v; }
-};
-
-// base 运行时随机, 防 anti-hash (固定 base 容易被离线预计算碰撞)
-const U base = []{
-	mt19937_64 rng(chrono::steady_clock::now().time_since_epoch().count());
-	uniform_int_distribution<ll> dist(257, U::MOD - 1);
-	return U(dist(rng));
-}();
-
-// AC https://vjudge.net/solution/65151535 string matching 测试 find
-// AC https://www.luogu.com.cn/record/245201000 测试 push / pop / 增强 get
-// 字符串哈希约定:越前面是越高位 (和数字一样)
+// AC https://vjudge.net/solution/65151535 string matching
+// AC https://www.luogu.com.cn/record/245201000 push / pop
+const ull M = (1ULL << 61) - 1;
+ull mul(ull a, ull b) {
+	__uint128_t t = (__uint128_t) a * b;
+	ull s = (t & M) + (t >> 61); // 一次折叠, 至多减一次 M
+	return s >= M ? s - M : s;
+}
+// base 运行时随机, 防 anti-hash
+const ull B = mt19937_64(chrono::steady_clock::now().time_since_epoch().count())() % (M - 257) + 257;
+// 越前面越高位; h[i] = s[0..i) 的哈希, p[i] = B^i
 struct HS {
-	vector<U> hs, powBase;
-	U hashval;
-	ll n;
-	string s;
-	// 内部 0-based, hs[i] 表示 s[0..i] 的哈希
-	HS(const string &ls) {
-		n = SZ(ls);
-		s = ls;
-		hs.assign(n, 0);
-		powBase.assign(n + 1, 0);
-		powBase[0] = 1;
-		for (ll i = 1; i <= n; ++i) {
-			powBase[i] = powBase[i - 1] * base;
-		}
-		if (n > 0) {
-			hs[0] = U(s[0]);
-			for (ll i = 1; i < n; ++i) {
-				hs[i] = hs[i - 1] * base + U(s[i]);
-			}
-			hashval = hs[n - 1];
-		} else {
-			hashval = 0;
-		}
+	vector<ull> h{0}, p{1};
+	HS(const string &s) { for (char c : s) push(c); }
+	void push(unsigned char c) {
+		h.push_back((mul(h.back(), B) + c) % M);
+		p.push_back(mul(p.back(), B));
 	}
-
-	// get(l, r): 返回 s[l..r] 的哈希 (0-based, inclusive)
-	// 自动把越界端点 clamp 到合法范围
-	U get(ll l, ll r) {
-		if (n == 0) return 0;
-		l = max(0ll, l);
-		r = min(n - 1, r);
-		if (l > r) return 0;
-		if (l == 0) return hs[r];
-		return hs[r] - hs[l - 1] * powBase[r - l + 1];
-	}
-	U get(ll l) { return get(l, n - 1); }
-
-	// 返回 ls 在 s 中的出现次数
-	ll find(const string &ls) {
-		U hxfind = 0;
-		ll m = SZ(ls);
-		if (m == 0) return n + 1;
-		if (m > n) return 0;
-		for (ll i = 0; i < m; ++i) {
-			hxfind = hxfind * base + ls[i];
-		}
-		ll res = 0;
-		for (ll r = m - 1; r < n; ++r) {
-			U hx = get(r - m + 1, r);
-			if (hx == hxfind) res++;
-		}
-		return res;
-	}
-
-	void pop() {
-		if (n == 0) return;
-		n--;
-		s.pop_back();
-		if (n == 0) {
-			hs.clear();
-			hashval = 0;
-			return;
-		}
-		hs.pop_back();
-		hashval = hs.back();
-	}
-
-	void push(char c) {
-		s.push_back(c);
-		if (n == 0) {
-			hs.push_back(U(c));
-		} else {
-			hs.push_back(hs.back() * base + U(c));
-		}
-		n++;
-		hashval = hs.back();
-		if (SZ(powBase) <= n) {
-			powBase.push_back(powBase.back() * base);
-		}
-	}
+	void pop() { h.pop_back(); p.pop_back(); }
+	ull get(int l, int r) { return (h[r + 1] + M - mul(h[l], p[r - l + 1])) % M; } // s[l..r], 0-based
 };
+// 子串计数: t 在 s 中出现几次
+// HS hs(s), ht(t); int m = SZ(t), cnt = 0;
+// for (int i = 0; i + m <= SZ(s); i++) cnt += hs.get(i, i + m - 1) == ht.h.back();
 		\end{minted}
 
 		\subsection{子序列自动机}
