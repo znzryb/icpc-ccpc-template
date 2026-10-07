@@ -18,8 +18,8 @@
 `template-main.pdf` 已经整本送打印店印好了。之后用户要「临时打印 / 补印 / 打一页新改的」时，**不整本重印**：
 
 - 先照常改 `sections/*.tex`（正式板子仍是唯一真身），再在 `TemporaryPrint/<主题>/` 下建一个**独立文件夹**放这一页：
-  `temporary_print.tex` + `fragment.tex`（复制改好的 subsection）+ `build.sh` + `README.md`，`TemporaryPrint/` 顶层不散放 tex。
-- 直接 `cp -R TemporaryPrint/mcmf TemporaryPrint/<主题>` 起步，跑 `./build.sh` 出 `out/temporary_print.pdf`（`out/` 不入库）。
+  `<主题>_temporary_print.tex`（主题 = 文件夹名，`-` 换 `_`）+ `fragment.tex`（复制改好的 subsection）+ `build.sh` + `README.md`，`TemporaryPrint/` 顶层不散放 tex。
+- 直接 `cp -R TemporaryPrint/mcmf TemporaryPrint/<主题>` 起步，主文件改名后跑 `./build.sh` 出 `out/<主题>_temporary_print.pdf`（`out/` 不入库）。
 - 完整约定见 `TemporaryPrint/README.md`，新增一页时顺手把它的目录树补上。
 
 ## 编译

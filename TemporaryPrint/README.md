@@ -17,7 +17,7 @@ TemporaryPrint/
 
 | 文件 | 作用 |
 |---|---|
-| `temporary_print.tex` | 主文件：从 `template-main.tex` 裁出来的最小 preamble + 居中标题（模块名、来源 section、日期） |
+| `<主题>_temporary_print.tex` | 主文件（主题 = 文件夹名，`-` 换 `_`，如 `string_hash_temporary_print.tex`；带前缀是为了几页 PDF 放一起时不混）：从 `template-main.tex` 裁出来的最小 preamble + 居中标题（模块名、来源 section、日期） |
 | `fragment.tex` | 要印的片段：从 `sections/*.tex` 复制的一个 `\subsection`（说明文字 + `minted` 代码块），不带 `\section` 和 `multicols*` |
 | `build.sh` | `./build.sh` 编译：xelatex 两遍 + 扫 error / Overfull / Missing character / 未加载宏包四类，结果应全 0 |
 | `README.md` | 一两行：这页印的是什么、补印自哪里 |
@@ -26,8 +26,8 @@ TemporaryPrint/
 
 1. `cp -R mcmf <新主题>`，删掉复制过来的 `out/`；
 2. 先改正式板子 `sections/*.tex`，再把改好的 subsection 复制进 `fragment.tex`（正式板子仍是唯一真身）；
-3. 改 `temporary_print.tex` 标题那两行、改 `README.md`；
-4. `./build.sh`，拿 `out/temporary_print.pdf` 去打印。
+3. 把主文件改名为 `<新主题>_temporary_print.tex`（`build.sh` 按文件夹名自动找它，不用改脚本），改标题那两行、改 `README.md`；
+4. `./build.sh`，拿 `out/<主题>_temporary_print.pdf` 去打印。
 
 ## 约定
 
