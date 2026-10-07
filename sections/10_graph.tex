@@ -290,64 +290,30 @@ void Solve() {
 
 		\subsection[\tochl{并查集（DSU）与 DSU on next 技巧}]{并查集（DSU）与 DSU on next 技巧}
 
-		朴素并查集 + 路径压缩，外加 \texttt{taglr(l, r)} 把 $[l, r]$ 这段区间整段标记为「已处理」——具体做法是让区间里的每个点都不指向自己（指向 $r+1$）。\texttt{find(x)} 因此天然返回 \texttt{x} 之后第一个未被标记的位置，扫描时常用来\textbf{跳过整段已处理区间}。
+		朴素并查集（\texttt{find} 用\textbf{路径减半}，一行、非递归），外加 \texttt{taglr(l, r)} 把 $[l, r]$ 这段区间整段标记为「已处理」——具体做法是让区间里的每个点都不指向自己（\texttt{fa[i] = i + 1}，一路连到 $r+1$）。\texttt{find(x)} 因此天然返回 \texttt{x} 之后第一个未被标记的位置，扫描时常用来\textbf{跳过整段已处理区间}。\texttt{fa} 多开两格，\texttt{n + base} 是越界哨兵（全标完时 \texttt{find} 落在这里）。普通 \texttt{merge} 与 \texttt{taglr} 不要混在同一个对象上用（$l$、$l+1$ 已同块时会成环）。
 
 		\begin{minted}{cpp}
-/**   并查集（DSU）+ DSU on next
- *    find(x) 表示 x 之后第一个没有被标记的数字。
- *    构造函数传入的 n 必须不多不少，否则 countFa 会出错。
- *    base = 0 / 1 切换 0-based 与 1-based，合法下标范围分别是 [0, n) 与 [1, n]。
+/**   并查集（DSU）+ DSU on next：find(x) = x 之后第一个没被标记的位置
+ *    base = 0 / 1：合法下标 [0, n) / [1, n]；n 要给准，否则 countFa 出错
  */
 struct DSU {
-    vector<int> fa;
-    ll n;
-    int base;                          // 0 或 1，决定合法下标的起点
-
-    DSU() {}
-    DSU(ll n, int base = 0) : n(n), base(base) { init(n); }
-
-    void init(ll n) {
-        fa.resize(n + base + 5);
-        for(int i = 0; i < SZ(fa); ++i) fa[i] = i;
-    }
-
-    ll find(ll x) {
-        ll root = x;
-        while (root != fa[root]) {
-            root = fa[root];
-        }
-        while (x != root) {
-            tie(x, fa[x]) = make_tuple(fa[x], root);
-        }
-        return x;
-    }
-
-    bool same(ll x, ll y) { return find(x) == find(y); }
-
-    bool merge(ll x, ll y) {           // 注意方向：fa[x] = y，配合 dsu on next
-        x = find(x); y = find(y);
+    vector<int> fa; int n = 0, base;
+    DSU(int n = 0, int base = 0) : base(base) { init(n); }
+    void init(int _n) { n = _n; fa.resize(n + base + 2); iota(all(fa), 0); }
+    int find(int x) { while (x != fa[x]) x = fa[x] = fa[fa[x]]; return x; } // 路径减半
+    bool same(int x, int y) { return find(x) == find(y); }
+    bool merge(int x, int y) {          // 方向 fa[x] = y，配合 dsu on next
+        x = find(x), y = find(y);
         if (x == y) return false;
-        fa[x] = y;
-        return true;
+        fa[x] = y; return true;
     }
-
-    // 把 [l, r] 这段区间整段标记，标记后这段区间内任意点 find 都会越过去
-    void taglr(ll l, ll r) {
-        l = max((ll)base, l);
-        r = min((ll)SZ(fa) - 2, r);
-        l = find(l);
-        while(l <= r) {
-            merge(l, l + 1);
-            l = find(l + 1);
-        }
+    void taglr(int l, int r) {          // [l, r] 整段标记，之后 find 会越过去
+        r = min(r, (int)SZ(fa) - 2);
+        for (l = find(max(l, base)); l <= r; l = find(l)) fa[l] = l + 1;
     }
-
-    ll countFa() {                     // 当前还有多少个独立的根
-        ll res = 0;
-        for(ll i = base; i < base + n; ++i) if (fa[i] == i) ++res;
-        return res;
-    }
+    int countFa() { int c = 0; for (int i = base; i < base + n; i++) c += fa[i] == i; return c; }
 };
+// 对拍：与旧版（ll + 两趟压缩）随机 2 万组一致
 		\end{minted}
 
 		有时候这套思路别僵在数组上，\textbf{用 \texttt{map} 当并查集容器}也行，没出现过的 key 默认就是它自己当根。参考 \href{https://codeforces.com/contest/2157/submission/355136647}{CF Round 1077E 的提交}：
