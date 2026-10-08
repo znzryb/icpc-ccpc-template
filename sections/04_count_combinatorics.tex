@@ -288,6 +288,83 @@ inline ll CC(ll n, ll k) {
 		（第一式把 $\binom{n}{i}$ 换成 $\binom{n}{n-i}$ 即可。）
 		见到「两个组合数相乘再对下标求和」就应该先试着往这里凑。
 
+		\textbf{「左右各选 $r$ 个」式}：左边 $a$ 个、右边 $b$ 个，两边选\textbf{一样多}的方案总数
+		\[
+			\sum_{r}\binom{a}{r}\binom{b}{r} = \binom{a+b}{a}.
+		\]
+		一一对应：「左边选中的」并上「右边\textbf{没}选中的」恰好是 $a$ 个，反过来也唯一还原。
+		典型场景：数组排序后\textbf{固定中位数所在位置}，两侧必须等量选。
+		两侧数量差恰好为 $d$ 时同理（平移版）：
+		\[
+			\sum_{r}\binom{a}{r}\binom{b}{r+d} = \binom{a+b}{a+d}.
+		\]
+
+		\subsubsection{例：中位数为 X（2026 CCPC 网络赛 M）}
+
+		给长为 $n$ 的序列和 $x$，数中位数恰好为 $x$ 的非空子序列个数（偶数个取中间两数平均；不同下标集合算不同）。$n\le 2\times10^5$。
+
+		\begin{center}
+			\begin{tikzpicture}[x=0.62cm, y=0.62cm, font=\scriptsize]
+				\tikzset{c/.style={draw, minimum size=0.62cm, inner sep=0pt},
+					sel/.style={c, fill=blue!25}, mid/.style={c, fill=red!35},
+					ban/.style={c, fill=gray!35}}
+				% 奇数：中心 i = 3，左 3 个选 2 个、右 4 个选 2 个
+				\node[left] at (-0.5, 0) {奇};
+				\foreach \k/\s in {0/sel, 1/c, 2/sel, 3/mid, 4/c, 5/sel, 6/c, 7/sel}
+					\node[\s] at (\k, 0) {\k};
+				\draw[decorate, decoration={brace, mirror, amplitude=4pt}] (-0.45, -0.45) -- (2.45, -0.45)
+					node[midway, below=4pt] {$i$ 个里选 $r$};
+				\draw[decorate, decoration={brace, mirror, amplitude=4pt}] (3.55, -0.45) -- (7.45, -0.45)
+					node[midway, below=4pt] {$n-1-i$ 个里选 $r$};
+				% 偶数：中心对 i = 2, j = 5，中间不能选
+				\node[left] at (-0.5, -2.4) {偶};
+				\foreach \k/\s in {0/c, 1/sel, 2/mid, 3/ban, 4/ban, 5/mid, 6/sel, 7/c}
+					\node[\s] at (\k, -2.4) {\k};
+				\draw[decorate, decoration={brace, mirror, amplitude=4pt}] (-0.45, -2.85) -- (1.45, -2.85)
+					node[midway, below=4pt] {$i$ 个里选 $r$};
+				\draw[decorate, decoration={brace, mirror, amplitude=4pt}] (5.55, -2.85) -- (7.45, -2.85)
+					node[midway, below=4pt] {$n-1-j$ 个里选 $r$};
+			\end{tikzpicture}
+
+			\vspace{2pt}
+			{\footnotesize\sffamily\color{gray} 图注：排序后 $n=8$ 的下标。\textcolor{red!70!black}{红} = 中心，\textcolor{blue!70!black}{蓝} = 选中，灰 = 偶数情形两中心之间不能选。奇数中心 $i=3$ 两侧各选 $r=2$；偶数中心对 $(2,5)$ 两侧各选 $r=1$。}
+		\end{center}
+
+		\begin{enumerate}
+			\item \textbf{去分数、恰好转不超过}：比 $2\cdot\mathrm{med}$（必为整数）。设 $F(Y)$ 为 $2\cdot\mathrm{med}\le Y$ 的集合数，答案 $=F(2x)-F(2x-1)$。
+			\item \textbf{排序后按中心计数}（重复值也当不同位置，下标集合自然区分）：
+			      奇数中心 $i$（$0$-based）：$\sum_r\binom{i}{r}\binom{n-1-i}{r}=\binom{n-1}{i}$，条件 $2a_i\le Y$；
+			      偶数中心对 $i<j$：$\sum_r\binom{i}{r}\binom{n-1-j}{r}=\binom{i+n-1-j}{i}$，条件 $a_i+a_j\le Y$。
+			\item \textbf{双指针 + 朱世杰}：$i$ 增大时最大合法 $j$（记 $q$）单调不增；一整段 $j\in(i,q]$ 合并为
+			      \[
+			      	\sum_{j=i+1}^{q}\binom{i+n-1-j}{i}=\binom{n-1}{i+1}-\binom{i+n-q-1}{i+1}.
+			      \]
+		\end{enumerate}
+		总复杂度 $O(n\log n)$（排序）。
+
+		\begin{minted}{cpp}
+// 依赖上文 namespace Comb（CC），mod = 998244353，MAXN >= n
+// F(Y) = 「2·中位数 <= Y」的非空下标集合数，a 已排序
+ll F(const vector<ll> &a, ll Y) {
+	int n = SZ(a); ll res = 0;
+	for (int i = 0; i < n; i++)        // 奇数：中心 i，两侧各选 r 个
+		if (2 * a[i] <= Y) res += CC(n - 1, i);
+	for (int i = 0, q = n - 1; i < n; i++) {  // 偶数：中心对 i<j，q 单调左移
+		while (q > i && a[i] + a[q] > Y) q--;
+		if (q <= i) break;
+		res += CC(n - 1, i + 1) - CC(i + n - q - 1, i + 1) + mod; // j in (i, q] 朱世杰合并
+	}
+	return res % mod;
+}
+void Solve() {
+	int n; ll x; cin >> n >> x;
+	vector<ll> a(n); for (ll &v : a) cin >> v;
+	sort(all(a));
+	cout << (F(a, 2 * x) - F(a, 2 * x - 1) + mod) % mod << '\n';  // 恰好 = 不超过 2x 减不超过 2x-1
+}
+// 对拍：与官方 std、Python 暴力随机 3000 组一致
+		\end{minted}
+
 		\subsection{斯特林数与球盒模型}
 
 		\textbf{第二类斯特林数} $S(n,k)$（也写作 $\left\{{n\atop k}\right\}$）：把 $n$ 个\textbf{不同}的球放进 $k$ 个\textbf{相同}的盒子、每盒非空的方案数。
