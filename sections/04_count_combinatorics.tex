@@ -337,7 +337,10 @@ inline ll CC(ll n, ll k) {
 			      偶数中心对 $i<j$：$\sum_r\binom{i}{r}\binom{n-1-j}{r}=\binom{i+n-1-j}{i}$，条件 $a_i+a_j\le Y$。
 			\item \textbf{双指针 + 朱世杰}：$i$ 增大时最大合法 $j$（记 $q$）单调不增；一整段 $j\in(i,q]$ 合并为
 			      \[
-			      	\sum_{j=i+1}^{q}\binom{i+n-1-j}{i}=\binom{n-1}{i+1}-\binom{i+n-q-1}{i+1}.
+			      	\begin{aligned}
+			      		&\sum_{j=i+1}^{q}\binom{i+n-1-j}{i}\\
+			      		={}&\binom{n-1}{i+1}-\binom{i+n-q-1}{i+1}.
+			      	\end{aligned}
 			      \]
 		\end{enumerate}
 		总复杂度 $O(n\log n)$（排序）。
@@ -478,7 +481,31 @@ void Solve() {
 			        \sum_{i}i^{2}\binom{n}{i} = n(n+1)2^{n-2};
 			      \]
 			\item 上指标求和即朱世杰恒等式（见上文）；
-			\item 平方和即范德蒙德卷积：$\sum_i\binom{n}{i}^2 = \binom{2n}{n}$。
+			\item 平方和即范德蒙德卷积：$\sum_i\binom{n}{i}^2 = \binom{2n}{n}$
+			      （「左右各选 $r$ 个」与平移版见范德蒙德卷积一节）；
+			\item 奇偶项和：$\sum_i\binom{n}{2i} = \sum_i\binom{n}{2i+1} = 2^{n-1}$（$n\ge1$）；
+			\item 行前缀和 $S(n,k)=\sum_{i\le k}\binom{n}{i}$ 没有封闭式，但能 $O(1)$ 移动：
+			      \[
+			        \begin{aligned}
+			        	S(n+1,k) &= 2S(n,k)-\binom{n}{k},\\
+			        	S(n,k+1) &= S(n,k)+\binom{n}{k+1},
+			        \end{aligned}
+			      \]
+			      多组询问 $(n,k)$ 用莫队；
+			\item 交错前缀和：$\sum_{i\le k}(-1)^i\binom{n}{i} = (-1)^k\binom{n-1}{k}$；
+			\item 三项式换位：$\binom{n}{k}\binom{k}{m} = \binom{n}{m}\binom{n-m}{k-m}$
+			      ——「先选 $k$ 个再从中挑 $m$ 个」交换求和顺序时用；
+			\item 上指标卷积：$\sum_{k}\binom{k}{a}\binom{n-k}{b} = \binom{n+1}{a+b+1}$
+			      （枚举第 $a+1$ 个被选元素的位置）；
+			\item 斜线和：$\sum_i\binom{n-i}{i} = F_{n+1}$（$F_1=F_2=1$，即 $1\times2$ 骨牌铺 $1\times n$）；
+			\item 多重集排列 $\dfrac{n!}{\prod a_i!}$，环排列 $(n-1)!$（项链可翻转再 $\div 2$，$n\ge3$）；
+			\item 有上界的插板：$x_1+\cdots+x_k=n$，$0\le x_i\le c$ 的解数，容斥钦定 $j$ 个超界：
+			      \[
+			        \sum_{j:\,j(c+1)\le n}(-1)^j\binom{k}{j}\binom{n-j(c+1)+k-1}{k-1};
+			      \]
+			\item 格路反射：$(0,0)\to(n,m)$ 只走右 / 上、\textbf{不碰}直线 $y=x+t+1$（$m\le n+t$）的路径数
+			      $\binom{n+m}{n}-\binom{n+m}{n+t+1}$（起点关于该直线反射到 $(-t-1,t+1)$）；$t=0,\,m=n$ 即 Catalan；
+			\item 错排递推：$D_n=(n-1)(D_{n-1}+D_{n-2})$，$D_1=0,\ D_2=1$。
 		\end{itemize}
 
 		\subsection{Hook-length 公式（树版本）：递增标号计数}
