@@ -12,7 +12,8 @@ TemporaryPrint/
 ├── string-hash/           ← 字符串哈希精简版（2026-10-04）
 ├── dsu/                   ← 并查集 DSU 精简版（2026-10-07）
 ├── vandermonde/           ← 范德蒙德卷积（含中位数例题）+ 常用组合恒等式（2026-10-08）
-└── bit-functions/         ← 位运算辅助函数（GNU 与 C++20，2026-10-12）
+├── bit-functions/         ← 位运算辅助函数（GNU 与 C++20，2026-10-12）
+└── make-formatter/        ← 自定义类型 formatter 宏与用法（2026-10-12）
 ```
 
 每个子文件夹固定这几样：

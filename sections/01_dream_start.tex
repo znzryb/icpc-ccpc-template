@@ -52,6 +52,15 @@ struct GRID {
 #define SZ(a) ((long long)a.size())
 #define fsp(x) fixed << setprecision(x)
 #define pct(x) __builtin_popcountll(x)
+#define MAKE_FORMATTER(T, fmt, ...) \
+template <> struct std::formatter<T> { \
+    constexpr auto parse(std::format_parse_context& ctx) { \
+        return ctx.begin(); \
+    } \
+    auto format(const T& x, auto& ctx) const { \
+        return std::format_to(ctx.out(), fmt, __VA_ARGS__); \
+    } \
+};
 #define debug(x) println(stderr, "{}:{}", #x, x)
 #define cend cerr << "\n---------------------------------------------------\n"
 #define cEnd cerr << "\n***************************************************\n"
@@ -101,8 +110,63 @@ signed main() {
 */
 	\end{minted}
 
-	这个 \texttt{debug(x)} 走 C++23 的 \texttt{println(stderr, ...)}，\textbf{需要 \texttt{-std=c++23}}（\texttt{<print>} 已被 \texttt{bits/stdc++.h} 带上）。只要 \texttt{x} 能被 \texttt{std::format} 格式化就能打：基本类型、\texttt{string}、\texttt{vector} / \texttt{set} / \texttt{map} 等容器、\texttt{pair} / \texttt{tuple} 以及它们的任意嵌套，例如 \texttt{debug(a)} 输出 \texttt{a:[1, 2, 3]}，\texttt{debug(mp)} 输出 \texttt{mp:\{1: "one", 2: "two"\}}；\texttt{x} 也可以是表达式（\texttt{debug(a[1] + n)} 输出 \texttt{a[1] + n:7}）。自定义结构体先用 STL 章的 \texttt{FMT\_STRUCT} 宏注册一下即可。不做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，介意的话提交前把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL}。
+	这个 \texttt{debug(x)} 走 C++23 的 \texttt{println(stderr, ...)}，\textbf{需要 \texttt{-std=c++23}}（\texttt{<print>} 已被 \texttt{bits/stdc++.h} 带上）。只要 \texttt{x} 能被 \texttt{std::format} 格式化就能打：基本类型、\texttt{string}、\texttt{vector} / \texttt{set} / \texttt{map} 等容器、\texttt{pair} / \texttt{tuple} 以及它们的任意嵌套，例如 \texttt{debug(a)} 输出 \texttt{a:[1, 2, 3]}，\texttt{debug(mp)} 输出 \texttt{mp:\{1: "one", 2: "two"\}}；\texttt{x} 也可以是表达式（\texttt{debug(a[1] + n)} 输出 \texttt{a[1] + n:7}）。自定义结构体先用初始化模板里的 \texttt{MAKE\_FORMATTER} 注册，即可自行指定输出格式；STL 章的 \texttt{FMT\_STRUCT} 则按成员顺序输出 tuple。不做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，介意的话提交前把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL}。
 
+	\subsection{MAKE\_FORMATTER：自定义类型打印}
+	
+	给自定义类型注册 \texttt{std::formatter<T>}，让它能用于
+	\texttt{std::format}、\texttt{std::println} 和初始化模板的 \texttt{debug(x)}。
+	宏定义放在初始化模板；\textbf{注册放在类型定义之后、首次打印之前的全局作用域}。
+	宏本身需要 C++20 的 \texttt{<format>}，本页的 \texttt{println}、容器打印需要
+	C++23 的 \texttt{<print>} 与相应标准库支持（\texttt{-std=c++23}）。
+	
+	\begin{minted}{cpp}
+	#define MAKE_FORMATTER(T, fmt, ...) \
+	template <> struct std::formatter<T> { \
+	    constexpr auto parse(std::format_parse_context& ctx) { \
+	        return ctx.begin(); \
+	    } \
+	    auto format(const T& x, auto& ctx) const { \
+	        return std::format_to(ctx.out(), fmt, __VA_ARGS__); \
+	    } \
+	};
+	\end{minted}
+	
+	\textbf{三个参数：}\texttt{T} 是类型，\texttt{fmt} 是格式字符串字面量，
+	后面的参数是从 \texttt{const T\& x} 取出的成员或表达式。
+	例如 \texttt{x.a}、\texttt{x.b}、\texttt{x.a + x.b}，顺序对应字符串里的占位符。
+	
+	\begin{minted}{cpp}
+	#include <bits/stdc++.h>
+	using namespace std;
+	// 上面先放 MAKE_FORMATTER 宏定义
+	struct Point { int a, b; };
+	MAKE_FORMATTER(Point, "({}, {})", x.a, x.b)
+	// 这一句已生成整个 formatter 特化，不用再补分号
+	
+	int main() {
+	    Point p{3, 4};
+	    println("p = {}", p);                // p = (3, 4)
+	    println("{}", vector<Point>{{3, 4}, {5, 6}});
+	    // [(3, 4), (5, 6)]
+	    println(stderr, "{}:{}", "p", p);     // p:(3, 4)，同 debug(p)
+	}
+	\end{minted}
+	
+	\textbf{内部怎么工作：}\texttt{parse} 负责解析冒号后面的格式说明；
+	这里直接返回 \texttt{ctx.begin()}，表示不消费任何说明，只支持空格式
+	（\texttt{\{\}} 或 \texttt{\{:\}}）。\texttt{format} 接收对象 \texttt{x}，
+	通过 \texttt{ctx.out()} 取得输出迭代器，把成员按 \texttt{fmt} 写入目标，
+	最后返回写完后的迭代器。无须先构造临时字符串。
+	
+	\textbf{记住这几个边界：}
+	\texttt{\{:>10\}}、\texttt{\{:.2f\}} 等外层格式不支持；要控制成员格式，
+	直接把注册字符串写成 \texttt{"(\{:.2f\}, \{:.2f\})"}（成员为浮点数）。
+	格式串里的字面花括号写成 \texttt{\{\{} 和 \texttt{\}\}}。
+	同一类型只注册一次，不要再同时使用 \texttt{FMT\_STRUCT}。
+	带逗号的模板类型先用 \texttt{using} 起别名；仅为自己的类型注册，
+	不要覆盖标准库已有的 formatter。这一版按原宏保留，至少传一个格式化参数。
+	
 	\subsection{CMake 配置}
 
 	\subsubsection{Sanitizer 小技巧}
