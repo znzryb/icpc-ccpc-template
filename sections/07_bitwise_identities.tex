@@ -6,6 +6,90 @@
 
 		在处理位运算相关的数学推导时，往往需要从其本质意义出发来理解其与四则运算的关系。为了书写清晰，以下使用 $\oplus$ 表示按位异或，使用 $\mathbin{\&}$（即 \texttt{\&}）表示按位与，使用 $\mathbin{|}$（即 \texttt{|}）表示按位或，使用 $\operatorname{NOT}$ 表示按位取反。
 
+\subsection{位运算辅助函数（GNU 与 C++20）}
+
+\textbf{先分清「个数」「下标」「位数」}：二进制下标从右往左、从 $0$ 开始。
+例如 $40=(101000)_2$，有 $2$ 个 $1$，最低位 $1$ 的下标为 $3$，最高位 $1$ 的下标为 $5$，表示它需要 $6$ 位。
+若存成 $32$ 位无符号数，高位补 $26$ 个 $0$；\texttt{clz} 数的是这些前导 $0$，不是最高位下标。
+
+\subsubsection{GNU 常用函数：popcount、clz、ctz、\texorpdfstring{\texttt{\_\_lg}}{\_\_lg}}
+
+\texttt{\_\_builtin\_} 系列是 GCC / Clang 的编译器扩展；\texttt{std::\_\_lg} 是 libstdc++ 的内部辅助函数，通常由 \texttt{<algorithm>} 或 \texttt{<bits/stdc++.h>} 引入，\textbf{不是标准 C++ 接口}。
+以下按竞赛常见的 \texttt{unsigned int} 为 $32$ 位、\texttt{unsigned long long} 为 $64$ 位说明。
+
+\begin{minted}{cpp}
+unsigned x = 40;                     // 0b101000
+__builtin_popcount(x);                // 2：二进制中 1 的个数
+__builtin_clz(x);                     // 26：从最高位开始连续的 0
+__builtin_ctz(x);                     // 3：从最低位开始连续的 0
+std::__lg(x);                        // 5：floor(log2(x))，最高位 1 的下标
+// x > 0 时：最高位下标 = 31 - clz(x)，位数 = 32 - clz(x)
+unsigned long long y = 1ULL << 40;
+__builtin_popcountll(y);              // 1
+__builtin_clzll(y);                   // 23，最高位下标 = 63 - clzll(y)
+__builtin_ctzll(y);                   // 40
+std::__lg(y);                        // 40：按参数类型选重载
+\end{minted}
+
+\textbf{参数宽度不能靠赋值后的结果类型补救}：无后缀版本吃 \texttt{unsigned int}，后缀 \texttt{ll} 吃 \texttt{unsigned long long}，后缀 \texttt{l} 吃 \texttt{unsigned long}（宽度随平台变化）。
+把 $64$ 位的 \texttt{y} 传给 \texttt{\_\_builtin\_popcount(y)} 会先截成 $32$ 位，可能丢掉高位；\texttt{clz/ctz} 也一样，甚至截成 $0$ 后触发未定义行为。
+
+\textbf{零值与用途}：\texttt{popcount(0)} 返回 $0$；GNU 的 \texttt{clz(0)}、\texttt{ctz(0)} 是未定义行为（UB），\texttt{\_\_lg} 也必须保证输入为正。
+\texttt{ctz(x)} 在 $x>0$ 时就是最低位 $1$ 的下标，也就是 \texttt{\_\_lg(lowbit(x))}；常用于逐个取出集合元素。
+\texttt{\_\_lg(n)} 常用于 ST 表选层，避免浮点 \texttt{log2} 的舍入误差。
+
+\subsubsection{C++20：\texorpdfstring{\texttt{<bit>}}{<bit>} 的标准接口}
+
+加 \texttt{\#include <bit>}，编译选 \texttt{-std=c++20}。
+\textbf{下面这些整数位操作只接受无符号整数}：用 \texttt{40u}、\texttt{40ULL}，或先转换到对应无符号类型；\texttt{std::popcount(40)} 的 \texttt{int} 参数不能匹配。
+返回的计数是 \texttt{int}，幂取整和旋转的返回类型与参数相同。
+
+\begin{minted}{cpp}
+#include <bit>
+#include <cstdint>
+unsigned x = 40;                      // 0b101000，按 32 位计算
+std::popcount(x);                     // 2：1 的总个数
+std::countl_zero(x);                  // 26：前导 0（对应 clz）
+std::countr_zero(x);                  // 3：尾随 0（对应 ctz）
+std::countl_one(x);                   // 0：从最高位开始连续的 1
+std::countr_one(7u);                  // 3：...000111，尾随 1
+std::bit_width(x);                    // 6：表示 x 所需位数
+std::has_single_bit(x);               // false：是否恰有一个 1，即为 2 的幂
+std::has_single_bit(32u);             // true
+std::bit_floor(x);                    // 32：不大于 x 的最大 2 的幂
+std::bit_ceil(x);                     // 64：不小于 x 的最小 2 的幂
+std::bit_ceil(32u);                   // 32：已是 2 的幂就保持原值
+std::rotl(std::uint8_t{0b10000001}, 1);// 0b00000011：循环左移
+std::rotr(std::uint8_t{0b10000001}, 1);// 0b11000000：循环右移
+\end{minted}
+
+\textbf{C++20 对 $0$ 有定义}：\texttt{popcount(0u)} 返回 $0$；\texttt{countl\_zero(0u)} 和 \texttt{countr\_zero(0u)} 均返回 $32$，$64$ 位参数则返回 $64$；\texttt{countl\_one(0u)} 和 \texttt{countr\_one(0u)} 均返回 $0$。
+\texttt{bit\_width(0u)} 和 \texttt{bit\_floor(0u)} 均返回 $0$；\texttt{bit\_ceil(0u)} 返回 $1$；\texttt{has\_single\_bit(0u)} 返回 \texttt{false}。
+全 $1$ 的无符号数，连续 $1$ 计数返回类型位宽。
+不过 $0$ 没有最低 / 最高位 $1$，\textbf{不能把这些零值结果直接当有效下标}。
+
+\textbf{幂取整与旋转的边界}：\texttt{bit\_ceil(x)} 的结果必须能被参数类型表示，否则是 UB。
+例如 $32$ 位无符号数的 $x>2^{31}$、$64$ 位无符号数的 $x>2^{63}$ 都越界；增大接收变量的类型无效，须在调用前扩大参数类型。
+\texttt{rotl/rotr} 移出去的位会绕回另一端，按\textbf{参数类型的整个位宽}旋转，次数对位宽取模，负数次数表示反向旋转；并非只在有效位或自定义的低 $k$ 位内转。
+
+\subsubsection{竞赛中直接套用的写法}
+\begin{minted}{cpp}
+unsigned long long mask = 40;
+int cnt = std::popcount(mask);        // 集合大小
+int hi = mask ? std::bit_width(mask) - 1 : -1;
+int lo = mask ? std::countr_zero(mask) : -1;
+for (auto rem = mask; rem; rem &= rem - 1) {
+    int i = std::countr_zero(rem);    // 按下标递增枚举所有 1
+    // 使用元素 i；此时 rem != 0
+}
+// NTT 等补齐到 2 的幂：先转 64 位，保证结果能表示
+unsigned n = 1000;
+auto len = std::bit_ceil(static_cast<unsigned long long>(n)); // 1024
+\end{minted}
+
+\textbf{记忆法}：\texttt{pop} 数总数；\texttt{l/r} 表示从左 / 右端开始数；\texttt{width} 是位数，最高位下标要减 $1$；\texttt{floor/ceil} 是向下 / 向上取 $2$ 的幂。
+功能定义参见 \href{https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html}{GCC 位操作文档}与 \href{https://eel.is/c++draft/bit}{C++ 标准草案 <bit>}。
+
 		\subsection{加法与位运算转换}
 		$$a + b = (a \oplus b) + 2 \times (a \mathbin{\&} b)$$
 		\textbf{意义解释}：\textbf{$a \oplus b$ 本质上是“不进位加法”}，它计算了每一位上独立相加的结果；而 \textbf{$a \mathbin{\&} b$ 则找出了所有产生进位的位}。\textbf{因为进位会向高位进一}（即在数值上相当于\textbf{乘以 $2$}），所以真实加法等于不进位加法加上两倍的进位值。
