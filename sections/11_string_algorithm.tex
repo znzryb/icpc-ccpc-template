@@ -185,12 +185,16 @@ const ull B = mt19937_64(chrono::steady_clock::now().time_since_epoch().count())
 // 越前面越高位; h[i] = s[0..i) 的哈希, p[i] = B^i
 struct HS {
 	vector<ull> h{0}, p{1};
-	HS(const string &s) { for (char c : s) push(c); }
+	HS(const string &s) {
+		reserve(SZ(s));
+		for (char c : s) push(c);
+	}
 	void push(unsigned char c) {
 		h.push_back((mul(h.back(), B) + c) % M);
 		p.push_back(mul(p.back(), B));
 	}
 	void pop() { h.pop_back(); p.pop_back(); }
+	void reserve(ll n) { h.reserve(n + 1); p.reserve(n + 1); }
 	ull get(int l, int r) { return (h[r + 1] + M - mul(h[l], p[r - l + 1])) % M; } // s[l..r], 0-based
 };
 // 子串计数: t 在 s 中出现几次
