@@ -9,7 +9,7 @@
 TemporaryPrint/
 ├── README.md              ← 本文件（顶层只放它，不散放 tex）
 ├── mcmf/                  ← 最小费用最大流（2026-08-29）
-├── string-hash/           ← 字符串哈希精简版（mod / minus / reserve，2026-10-13 更新）
+├── string-hash/           ← 字符串哈希精简版（mod / subtract / reserve，2026-10-13 更新）
 ├── dsu/                   ← 并查集 DSU 精简版（2026-10-07）
 ├── vandermonde/           ← 范德蒙德卷积（含中位数例题）+ 常用组合恒等式（2026-10-08）
 ├── bit-functions/         ← 位运算辅助函数（GNU 与 C++20，2026-10-12）
