@@ -167,7 +167,7 @@ void Solve() {
 
 		\subsection[\tochl{字符串哈希（mod $2^{61}-1$ 版本）}]{字符串哈希（mod $2^{61}-1$ 版本）}
 
-		用 Mersenne 素数 $2^{61}-1$ 作模，乘法走 \verb|__uint128_t| 中转，做一次「低 61 位 + 高位」折叠后至多减一次 $M$ 就归约到 $[0, M)$；base 运行时随机，防离线构造碰撞。为了赛场手敲快，\textbf{不用自动取模类}，哈希值直接是 \verb|ull|；\verb|mod(x)| 只用于 $0 \le x < 2M$，一次条件减法即可取模。
+		用 Mersenne 素数 $2^{61}-1$ 作模，乘法走 \verb|__uint128_t| 中转，做一次「低 61 位 + 高位」折叠后至多减一次 $M$ 就归约到 $[0, M)$；base 运行时随机，防离线构造碰撞。为了赛场手敲快，\textbf{不用自动取模类}，哈希值直接是 \verb|ull|；\verb|mod(x)| 只用于 $0 \le x < 2M$，一次条件减法即可取模。\verb|::minus(a, b)| 返回 $(a-b)\bmod M$，要求 $0 \le a,b < M$；加 \verb|::| 避免与 \verb|std::minus| 同名。
 
 		\textbf{接口}：\verb|get(l, r)| 取 $s[l..r]$（0-based 闭区间，不做越界检查）；\verb|push(c)| / \verb|pop()| 在末尾增删字符；整串哈希 $=$ \verb|h.back()|。约定越前面越高位（和写数字一样），所以两段拼接 $\mathrm{hash}(XY) = \mathrm{hash}(X) \cdot B^{|Y|} + \mathrm{hash}(Y)$。子串计数这类需求在外面写一个循环即可（见代码末尾注释）。
 
@@ -176,6 +176,8 @@ void Solve() {
 // AC https://www.luogu.com.cn/record/245201000 push / pop
 const ull M = (1ULL << 61) - 1;
 ull mod(ull x) { return x >= M ? x - M : x; } // 要求 x < 2M
+// 调用 ::minus(a, b)，避免与 std::minus 同名
+ull minus(ull a, ull b) { return a >= b ? a - b : a + M - b; } // a,b < M
 ull mul(ull a, ull b) {
 	__uint128_t t = (__uint128_t) a * b;
 	ull s = (t & M) + (t >> 61); // 一次折叠, 至多减一次 M
@@ -196,7 +198,7 @@ struct HS {
 	}
 	void pop() { h.pop_back(); p.pop_back(); }
 	void reserve(ll n) { h.reserve(n + 1); p.reserve(n + 1); }
-	ull get(int l, int r) { return mod(h[r + 1] + M - mul(h[l], p[r - l + 1])); } // s[l..r], 0-based
+	ull get(int l, int r) { return ::minus(h[r + 1], mul(h[l], p[r - l + 1])); } // s[l..r], 0-based
 };
 // 子串计数: t 在 s 中出现几次
 // HS hs(s), ht(t); int m = SZ(t), cnt = 0;
