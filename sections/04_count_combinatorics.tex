@@ -279,25 +279,40 @@ inline ll CC(ll n, ll k) {
 		\[
 			\sum_{i}\binom{m}{i}\binom{n}{k-i} = \binom{m+n}{k}.
 		\]
-		组合意义：从 $m$ 男 $n$ 女里选 $k$ 人，按选了几个男的分类。两个常用变体：
+		\textbf{多项式解释}：由二项式定理，比较
+		\[
+			(1+x)^m(1+x)^n=(1+x)^{m+n}
+		\]
+		两边 $x^k$ 的系数。左边要凑出 $x^k$，就从第一个因子取 $x^i$、
+		第二个因子取 $x^{k-i}$，对应系数相乘，再枚举 $i$ 求和：
+		\[
+			[x^k]\bigl((1+x)^m(1+x)^n\bigr)
+			=\sum_i\binom{m}{i}\binom{n}{k-i}.
+		\]
+		右边 $x^k$ 的系数为 $\binom{m+n}{k}$，故两者相等。
+		这里 $[x^k]$ 表示取 $x^k$ 的系数，组合数下标越界时视为 $0$。
+		两个常用变体：
 		\[
 			\sum_{i}\binom{m}{i}\binom{n}{i} = \binom{m+n}{m},
 			\qquad
 			\sum_{i}\binom{n}{i}^{2} = \binom{2n}{n}.
 		\]
-		（第一式把 $\binom{n}{i}$ 换成 $\binom{n}{n-i}$ 即可。）
+		第一式取 $k=n$，再用 $\binom{n}{n-i}=\binom{n}{i}$ 和
+		$\binom{m+n}{n}=\binom{m+n}{m}$；第二式再令 $m=n$。
 		见到「两个组合数相乘再对下标求和」就应该先试着往这里凑。
 
 		\textbf{「左右各选 $r$ 个」式}：左边 $a$ 个、右边 $b$ 个，两边选\textbf{一样多}的方案总数
 		\[
 			\sum_{r}\binom{a}{r}\binom{b}{r} = \binom{a+b}{a}.
 		\]
-		一一对应：「左边选中的」并上「右边\textbf{没}选中的」恰好是 $a$ 个，反过来也唯一还原。
+		将 $\binom{a}{r}$ 写成 $\binom{a}{a-r}$，乘积的两项次数为
+		$(a-r)+r=a$，所以求和就是 $(1+x)^a(1+x)^b$ 的 $x^a$ 系数。
 		典型场景：数组排序后\textbf{固定中位数所在位置}，两侧必须等量选。
 		两侧数量差恰好为 $d$ 时同理（平移版）：
 		\[
 			\sum_{r}\binom{a}{r}\binom{b}{r+d} = \binom{a+b}{a+d}.
 		\]
+		此时两项次数为 $(a-r)+(r+d)=a+d$，取 $x^{a+d}$ 的系数即可。
 
 		\subsubsection{例：中位数为 X（2026 CCPC 网络赛 M）}
 
