@@ -43,15 +43,15 @@ for (int i = 0; i < N; i ++ )
 
 		增加了这个如果传入参数有误（比如说顺序错了），输出报错信息的功能。
 
-		\textcolor{red}{\textbf{Comb(x)初始化不能够传入 mod}}，最大传入 \verb|Comb(mod-1)|，传入 mod 会导致 \verb|frac[mod] = 0|，进而导致所有的 \verb|infrac| 变成 0。
+		\textcolor{red}{\textbf{Comb(x)初始化不能够传入 MOD}}，最大传入 \verb|Comb(MOD-1)|，传入 MOD 会导致 \verb|frac[MOD] = 0|，进而导致所有的 \verb|infrac| 变成 0。
 
 		关于阶乘逆元的递推求法：由阶乘的定义可知：
 		$$
 		frac_{i+1} = frac_i \times (i+1)
 		$$
-		在模 $mod$ 意义下，等式两边同乘 $infrac_{i+1} \times infrac_i$ 进行化简，直接可得递推式：
+		在模 $MOD$ 意义下，等式两边同乘 $infrac_{i+1} \times infrac_i$ 进行化简，直接可得递推式：
 		$$
-		infrac_i \equiv infrac_{i+1} \times (i+1) \pmod{mod}
+		infrac_i \equiv infrac_{i+1} \times (i+1) \pmod{MOD}
 		$$
 		因此，只需要用费马小定理先算出最大项 $n!$ 的逆元，便可 $O(n)$ 倒推算出所有的阶乘逆元。
 
@@ -63,10 +63,10 @@ namespace Comb{    // 组合数加逆元，依赖于这个MAXN（初始化）
 	// 在 k=0或者更小的时候 return 1
 	inline ll binpow(ll a, ll k) {
 		ll res = 1;
-		a %= mod;
+		a %= MOD;
 		while (k > 0) {
-			if (k & 1) res = (res * a) % mod;
-			a = (a * a) % mod;
+			if (k & 1) res = (res * a) % MOD;
+			a = (a * a) % MOD;
 			k >>= 1;
 		}
 		return res;
@@ -77,11 +77,11 @@ namespace Comb{    // 组合数加逆元，依赖于这个MAXN（初始化）
 		frac.assign(n + 5, 1);
 		infrac.assign(n + 5, 1);
 		for (int i = 1; i <= ln; ++i) {
-			frac[i] = (frac[i - 1] * i) % mod;
+			frac[i] = (frac[i - 1] * i) % MOD;
 		}
-		infrac[ln] = binpow(frac[ln], mod - 2);
+		infrac[ln] = binpow(frac[ln], MOD - 2);
 		for (int i = ln - 1; i >= 0; --i) {
-			infrac[i] = (infrac[i + 1] * (i + 1)) % mod;
+			infrac[i] = (infrac[i + 1] * (i + 1)) % MOD;
 		}
 	}
 
@@ -97,8 +97,8 @@ namespace Comb{    // 组合数加逆元，依赖于这个MAXN（初始化）
 			initialized=true;
 		}
 		ll res = frac[n];
-		res = (res * infrac[n - k]) % mod;
-		res = (res * infrac[k]) % mod;
+		res = (res * infrac[n - k]) % MOD;
+		res = (res * infrac[k]) % MOD;
 		return res;
 	}
 
@@ -114,7 +114,7 @@ namespace Comb{    // 组合数加逆元，依赖于这个MAXN（初始化）
 			initialized=true;
 		}
 		ll res = frac[n] * infrac[n - k];
-		res %= mod;
+		res %= MOD;
 		return res;
 	}
 }
@@ -148,29 +148,29 @@ using namespace Comb;
 		代码实现如下：
 
 		\begin{minted}{cpp}
-// Lucas 定理递归求解，依赖于上方的组合数模板 CC 以及全局 mod
+// Lucas 定理递归求解，依赖于上方的组合数模板 CC 以及全局 MOD
 inline ll lucas(ll a, ll b) {
-	// 如果 a, b 都小于 mod，直接通过预处理的 CC 求解组合数
-	if (a < mod && b < mod) return CC(a, b);
+	// 如果 a, b 都小于 MOD，直接通过预处理的 CC 求解组合数
+	if (a < MOD && b < MOD) return CC(a, b);
 	// 否则，根据 Lucas 定理递归求解
-	return CC(a % mod, b % mod) * lucas(a / mod, b / mod) % mod;
+	return CC(a % MOD, b % MOD) * lucas(a / MOD, b / MOD) % MOD;
 }
 		\end{minted}
 
-		注意，在解决 Lucas定理 的时候，余数最大为 mod-1，所以只用预处理到 mod-1。\textcolor{red}{\textbf{绝对不能预处理到 mod}}，否则 \verb|frac[mod] = 0|，会导致所有的 \verb|infrac| 变成 0。
+		注意，在解决 Lucas定理 的时候，余数最大为 MOD-1，所以只用预处理到 MOD-1。\textcolor{red}{\textbf{绝对不能预处理到 MOD}}，否则 \verb|frac[MOD] = 0|，会导致所有的 \verb|infrac| 变成 0。
 
 		\begin{minted}{cpp}
 inline ll CC(ll n, ll k) {
 	if (k < 0 || k > n) return 0;
 	if(!initialized){
-		// 【核心细节】：Lucas定理的余数最大为 mod-1，所以只用预处理到 mod-1。
-		// 绝对不能预处理到 mod，否则 frac[mod] = 0，会导致所有的 infrac 变成 0。
-		Comb(mod - 1);
+		// 【核心细节】：Lucas定理的余数最大为 MOD-1，所以只用预处理到 MOD-1。
+		// 绝对不能预处理到 MOD，否则 frac[MOD] = 0，会导致所有的 infrac 变成 0。
+		Comb(MOD - 1);
 		initialized = true;
 	}
 	ll res = frac[n];
-	res = (res * infrac[n - k]) % mod;
-	res = (res * infrac[k]) % mod;
+	res = (res * infrac[n - k]) % MOD;
+	res = (res * infrac[k]) % MOD;
 	return res;
 }
 		\end{minted}
@@ -346,7 +346,7 @@ inline ll CC(ll n, ll k) {
 		总复杂度 $O(n\log n)$（排序）。
 
 		\begin{minted}{cpp}
-// 依赖上文 namespace Comb（CC），mod = 998244353，MAXN >= n
+// 依赖上文 namespace Comb（CC），MOD = 998244353，MAXN >= n
 // F(Y) = 「2·中位数 <= Y」的非空下标集合数，a 已排序
 ll F(const vector<ll> &a, ll Y) {
 	int n = SZ(a); ll res = 0;
@@ -355,15 +355,15 @@ ll F(const vector<ll> &a, ll Y) {
 	for (int i = 0, q = n - 1; i < n; i++) {  // 偶数：中心对 i<j，q 单调左移
 		while (q > i && a[i] + a[q] > Y) q--;
 		if (q <= i) break;
-		res += CC(n - 1, i + 1) - CC(i + n - q - 1, i + 1) + mod; // j in (i, q] 朱世杰合并
+		res += CC(n - 1, i + 1) - CC(i + n - q - 1, i + 1) + MOD; // j in (i, q] 朱世杰合并
 	}
-	return res % mod;
+	return res % MOD;
 }
 void Solve() {
 	int n; ll x; cin >> n >> x;
 	vector<ll> a(n); for (ll &v : a) cin >> v;
 	sort(all(a));
-	cout << (F(a, 2 * x) - F(a, 2 * x - 1) + mod) % mod << '\n';  // 恰好 = 不超过 2x 减不超过 2x-1
+	cout << (F(a, 2 * x) - F(a, 2 * x - 1) + MOD) % MOD << '\n';  // 恰好 = 不超过 2x 减不超过 2x-1
 }
 // 对拍：与官方 std、Python 暴力随机 3000 组一致
 		\end{minted}
