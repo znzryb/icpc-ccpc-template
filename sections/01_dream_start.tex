@@ -61,7 +61,7 @@ template <> struct std::formatter<T> { \
         return std::format_to(ctx.out(), fmt, __VA_ARGS__); \
     } \
 };
-#define debug(x) println(stderr, "{}:{}", #x, x)
+#define debug23(x) println(stderr, "{}:{}", #x, x)
 #define cend cerr << "\n---------------------------------------------------\n"
 #define cEnd cerr << "\n***************************************************\n"
 
@@ -110,12 +110,75 @@ signed main() {
 */
 	\end{minted}
 
-	这个 \texttt{debug(x)} 走 C++23 的 \texttt{println(stderr, ...)}，\textbf{需要 \texttt{-std=c++23}}（\texttt{<print>} 已被 \texttt{bits/stdc++.h} 带上）。只要 \texttt{x} 能被 \texttt{std::format} 格式化就能打：基本类型、\texttt{string}、\texttt{vector} / \texttt{set} / \texttt{map} 等容器、\texttt{pair} / \texttt{tuple} 以及它们的任意嵌套，例如 \texttt{debug(a)} 输出 \texttt{a:[1, 2, 3]}，\texttt{debug(mp)} 输出 \texttt{mp:\{1: "one", 2: "two"\}}；\texttt{x} 也可以是表达式（\texttt{debug(a[1] + n)} 输出 \texttt{a[1] + n:7}）。自定义结构体先用初始化模板里的 \texttt{MAKE\_FORMATTER} 注册，即可自行指定输出格式；STL 章的 \texttt{FMT\_STRUCT} 则按成员顺序输出 tuple。不做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，介意的话提交前把 \texttt{debug(...)} 行删了或包成 \texttt{\#ifdef LOCAL}。
+	这个 \texttt{debug23(x)} 走 C++23 的 \texttt{println(stderr, ...)}，\textbf{需要 \texttt{-std=c++23}}（\texttt{<print>} 已被 \texttt{bits/stdc++.h} 带上）。只要 \texttt{x} 能被 \texttt{std::format} 格式化就能打：基本类型、\texttt{string}、\texttt{vector} / \texttt{set} / \texttt{map} 等容器、\texttt{pair} / \texttt{tuple} 以及它们的任意嵌套，例如 \texttt{debug23(a)} 输出 \texttt{a:[1, 2, 3]}，\texttt{debug23(mp)} 输出 \texttt{mp:\{1: "one", 2: "two"\}}；\texttt{x} 也可以是表达式（\texttt{debug23(a[1] + n)} 输出 \texttt{a[1] + n:7}）。自定义结构体先用初始化模板里的 \texttt{MAKE\_FORMATTER} 注册，即可自行指定输出格式；STL 章的 \texttt{FMT\_STRUCT} 则按成员顺序输出 tuple。不做 \texttt{LOCAL/非 LOCAL} 切换——OJ 上 stderr 通常不影响判分，介意的话提交前把 \texttt{debug23(...)} 行删了或包成 \texttt{\#ifdef LOCAL}。
+
+	\subsection{递归调试：DEBUG 与 debug}
+
+	\textbf{现场记三步：pair 拆两半，容器遍历递归，其余直接 cerr。}
+	需要 C++20（\texttt{-std=c++20}），放在 \texttt{using namespace std;} 后。
+	\texttt{DEBUG} 负责递归，平时只调用 \texttt{debug(x)}。
+
+	\begin{minted}{cpp}
+void DEBUG(const auto& x) {
+    if constexpr (requires { x.first; x.second; }) {
+        cerr << '(';
+        DEBUG(x.first), cerr << ", ", DEBUG(x.second);
+        cerr << ')';
+    } else if constexpr (requires { begin(x); end(x); }
+        && !is_convertible_v<decltype(x), string_view>) {
+        cerr << '[';
+        const char* sep = "";
+        for (const auto& v : x)
+            cerr << sep, DEBUG(v), sep = ", ";
+        cerr << ']';
+    } else {
+        cerr << x;
+    }
+}
+
+#if defined(LOCAL) && 1
+#define debug(x) do { cerr << #x << ":"; \
+    DEBUG(x); cerr << '\n'; } while (0)
+#else
+#define debug(x)
+#endif
+	\end{minted}
+
+	支持 \texttt{vector / array / set / map / deque / list}、原生数组、
+	\texttt{pair} 及其嵌套；字符串按整串输出。
+	\texttt{tuple / stack / queue / priority\_queue} 不直接支持。
+
+	\begin{minted}{cpp}
+vector<vector<int>> a = {{1, 2}, {3, 4}};
+map<int, vector<int>> mp = {{1, {2, 3}}};
+debug(a);   // a:[[1, 2], [3, 4]]
+debug(mp);  // mp:[(1, [2, 3])]
+debug("hello"); // "hello":hello
+	\end{minted}
+
+	\textbf{本地编译加 \texttt{-DLOCAL}，提交时不加。}
+	非 \texttt{LOCAL} 时，\texttt{debug(a);} 只剩一个空语句，参数也不求值；
+	把条件末尾的 \texttt{1} 改成 \texttt{0} 可以临时关闭调试。
+	\texttt{DEBUG} 返回 \texttt{void}，所以必须单独调用，不能接在 \texttt{<<} 后。
+
+	\subsubsection{自定义类型：重载输出运算符}
+
+	\texttt{const Point\&} 避免复制；写入并返回 \texttt{os}，支持连续使用 \texttt{<<}。
+	重载放在首次打印之前，\texttt{DEBUG} 会自动调用它。
+
+	\begin{minted}{cpp}
+struct Point { int x, y; };
+ostream& operator<<(ostream& os, const Point& p) {
+    return os << '(' << p.x << ", " << p.y << ')';
+}
+Point p{1, 2};
+debug(p);  // p:(1, 2)
+	\end{minted}
 
 	\subsection{MAKE\_FORMATTER：自定义类型打印}
 	
 	给自定义类型注册 \texttt{std::formatter<T>}，让它能用于
-	\texttt{std::format}、\texttt{std::println} 和初始化模板的 \texttt{debug(x)}。
+	\texttt{std::format}、\texttt{std::println} 和初始化模板的 \texttt{debug23(x)}。
 	宏定义放在初始化模板；\textbf{注册放在类型定义之后、首次打印之前的全局作用域}。
 	宏本身需要 C++20 的 \texttt{<format>}，本页的 \texttt{println}、容器打印需要
 	C++23 的 \texttt{<print>} 与相应标准库支持（\texttt{-std=c++23}）。
@@ -149,7 +212,7 @@ signed main() {
 	    println("p = {}", p);                // p = (3, 4)
 	    println("{}", vector<Point>{{3, 4}, {5, 6}});
 	    // [(3, 4), (5, 6)]
-	    println(stderr, "{}:{}", "p", p);     // p:(3, 4)，同 debug(p)
+	    println(stderr, "{}:{}", "p", p);     // p:(3, 4)，同 debug23(p)
 	}
 	\end{minted}
 	

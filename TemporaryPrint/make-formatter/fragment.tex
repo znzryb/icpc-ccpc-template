@@ -1,7 +1,7 @@
 \subsection{MAKE\_FORMATTER：自定义类型打印}
 
 给自定义类型注册 \texttt{std::formatter<T>}，让它能用于
-\texttt{std::format}、\texttt{std::println} 和初始化模板的 \texttt{debug(x)}。
+\texttt{std::format}、\texttt{std::println} 和初始化模板的 \texttt{debug23(x)}。
 宏定义放在初始化模板；\textbf{注册放在类型定义之后、首次打印之前的全局作用域}。
 宏本身需要 C++20 的 \texttt{<format>}，本页的 \texttt{println}、容器打印需要
 C++23 的 \texttt{<print>} 与相应标准库支持（\texttt{-std=c++23}）。
@@ -35,7 +35,7 @@ int main() {
     println("p = {}", p);                // p = (3, 4)
     println("{}", vector<Point>{{3, 4}, {5, 6}});
     // [(3, 4), (5, 6)]
-    println(stderr, "{}:{}", "p", p);     // p:(3, 4)，同 debug(p)
+    println(stderr, "{}:{}", "p", p);     // p:(3, 4)，同 debug23(p)
 }
 \end{minted}
 

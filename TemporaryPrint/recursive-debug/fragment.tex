@@ -1,0 +1,63 @@
+	\subsection{递归调试：DEBUG 与 debug}
+
+	\textbf{现场记三步：pair 拆两半，容器遍历递归，其余直接 cerr。}
+	需要 C++20（\texttt{-std=c++20}），放在 \texttt{using namespace std;} 后。
+	\texttt{DEBUG} 负责递归，平时只调用 \texttt{debug(x)}。
+
+	\begin{minted}{cpp}
+void DEBUG(const auto& x) {
+    if constexpr (requires { x.first; x.second; }) {
+        cerr << '(';
+        DEBUG(x.first), cerr << ", ", DEBUG(x.second);
+        cerr << ')';
+    } else if constexpr (requires { begin(x); end(x); }
+        && !is_convertible_v<decltype(x), string_view>) {
+        cerr << '[';
+        const char* sep = "";
+        for (const auto& v : x)
+            cerr << sep, DEBUG(v), sep = ", ";
+        cerr << ']';
+    } else {
+        cerr << x;
+    }
+}
+
+#if defined(LOCAL) && 1
+#define debug(x) do { cerr << #x << ":"; \
+    DEBUG(x); cerr << '\n'; } while (0)
+#else
+#define debug(x)
+#endif
+	\end{minted}
+
+	支持 \texttt{vector / array / set / map / deque / list}、原生数组、
+	\texttt{pair} 及其嵌套；字符串按整串输出。
+	\texttt{tuple / stack / queue / priority\_queue} 不直接支持。
+
+	\begin{minted}{cpp}
+vector<vector<int>> a = {{1, 2}, {3, 4}};
+map<int, vector<int>> mp = {{1, {2, 3}}};
+debug(a);   // a:[[1, 2], [3, 4]]
+debug(mp);  // mp:[(1, [2, 3])]
+debug("hello"); // "hello":hello
+	\end{minted}
+
+	\textbf{本地编译加 \texttt{-DLOCAL}，提交时不加。}
+	非 \texttt{LOCAL} 时，\texttt{debug(a);} 只剩一个空语句，参数也不求值；
+	把条件末尾的 \texttt{1} 改成 \texttt{0} 可以临时关闭调试。
+	\texttt{DEBUG} 返回 \texttt{void}，所以必须单独调用，不能接在 \texttt{<<} 后。
+
+	\subsubsection{自定义类型：重载输出运算符}
+
+	\texttt{const Point\&} 避免复制；写入并返回 \texttt{os}，支持连续使用 \texttt{<<}。
+	重载放在首次打印之前，\texttt{DEBUG} 会自动调用它。
+
+	\begin{minted}{cpp}
+struct Point { int x, y; };
+ostream& operator<<(ostream& os, const Point& p) {
+    return os << '(' << p.x << ", " << p.y << ')';
+}
+Point p{1, 2};
+debug(p);  // p:(1, 2)
+	\end{minted}
+
