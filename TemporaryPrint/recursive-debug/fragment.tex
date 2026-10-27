@@ -34,13 +34,63 @@ void DEBUG(const auto& x) {
 	\texttt{pair} 及其嵌套；字符串按整串输出。
 	\texttt{tuple / stack / queue / priority\_queue} 不直接支持。
 
+	\textbf{常见类型打印效果}（g++ / clang + libstdc++ 实测，注释即 stderr 输出）：
+
 	\begin{minted}{cpp}
-vector<vector<int>> a = {{1, 2}, {3, 4}};
-map<int, vector<int>> mp = {{1, {2, 3}}};
-debug(a);   // a:[[1, 2], [3, 4]]
-debug(mp);  // mp:[(1, [2, 3])]
-debug("hello"); // "hello":hello
+// 标量：串和 char 不带引号，bool 打 1/0，
+// double 默认 6 位有效数字
+int n = 5; double d = 1.0 / 3;
+char c = 'a'; bool ok = true;
+string s = "abc";
+debug(n);          // n:5
+debug(d);          // d:0.333333
+debug(c);          // c:a
+debug(ok);         // ok:1
+debug(s);          // s:abc
+debug("hi");       // "hi":hi
+debug(n * 2 + 1);  // n * 2 + 1:11
+// 一维容器：set / multiset 按排序后顺序
+vector<int> v = {3, 1, 2}, e;
+vector<bool> vb = {1, 0, 1};
+vector<char> vc = {'x', 'y'};
+int arr[3] = {7, 8, 9};
+array<int, 3> ar = {4, 5, 6};
+set<int> st = {3, 1, 2};
+multiset<int> ms = {1, 1, 2};
+debug(v);          // v:[3, 1, 2]
+debug(e);          // e:[]
+debug(vb);         // vb:[1, 0, 1]
+debug(vc);         // vc:[x, y]
+debug(arr);        // arr:[7, 8, 9]
+debug(ar);         // ar:[4, 5, 6]
+debug(st);         // st:[1, 2, 3]
+debug(ms);         // ms:[1, 1, 2]
+// 二维：string 当整体，字符网格一行一个串
+vector<vector<int>> g = {{1, 2}, {3}};
+int a2[2][2] = {{1, 2}, {3, 4}};
+vector<string> grid = {"#.", ".#"};
+debug(g);          // g:[[1, 2], [3]]
+debug(a2);         // a2:[[1, 2], [3, 4]]
+debug(grid);       // grid:[#., .#]
+// pair 与 map：map 的元素就是 pair
+pair<int, int> p = {1, 2};
+vector<pair<int, int>> vp = {{1, 2}, {3, 4}};
+map<string, int> mp = {{"a", 1}, {"b", 2}};
+map<int, vector<int>> adj = {{1, {2, 3}}};
+debug(p);          // p:(1, 2)
+debug(vp);         // vp:[(1, 2), (3, 4)]
+debug(mp);         // mp:[(a, 1), (b, 2)]
+debug(adj);        // adj:[(1, [2, 3])]
+// 其余走 cerr <<：bitset 高位在左
+bitset<4> bs(5);
+debug(bs);         // bs:0101
+debug(v[0]);       // v[0]:3
+debug(v.size());   // v.size():3
 	\end{minted}
+
+	\textbf{坑：}\texttt{\_\_int128}、\texttt{tuple} 没有 \texttt{<<} 会编译失败；
+	\texttt{stack / queue / priority\_queue} 不能遍历，先拷出来弹成 \texttt{vector} 再打；
+	\texttt{"1"} 与 \texttt{1} 打出来一样，类型不确定时别靠输出判断。
 
 	\textbf{本地编译加 \texttt{-DLOCAL}，提交时不加。}
 	非 \texttt{LOCAL} 时，\texttt{debug(a);} 只剩一个空语句，参数也不求值；
