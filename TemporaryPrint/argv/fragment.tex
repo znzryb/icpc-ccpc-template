@@ -1,0 +1,62 @@
+	\subsection{命令行参数 \texttt{argc} / \texttt{argv}}
+
+	\texttt{main} 写成 \texttt{main(int argc, char **argv)}，就能拿到命令行上跟在程序名后面的那些词。
+	\textbf{\texttt{argv[0]} 是程序自己，真正的参数从 \texttt{argv[1]} 开始；\texttt{argc} 把 \texttt{argv[0]} 也算在内}：
+
+	\begin{minted}{cpp}
+// show.cpp：把收到的参数逐个打出来
+int main(int argc, char **argv) {
+	for (int i = 0; i < argc; ++i)
+		std::cerr << i << ": " << argv[i] << "\n";
+}
+// $ ./show test.in 42 < data.txt > res.txt
+// 0: ./show   1: test.in   2: 42      (argc == 3)
+// "< data.txt" "> res.txt" 是重定向, 被 shell 吃掉, 不算参数
+	\end{minted}
+
+	\begin{itemize}
+		\item 每个 \texttt{argv[i]} 都是 C 字符串：转整数用 \texttt{atoi} / \texttt{atoll} / \texttt{stoll}，转 \texttt{string} 用 \texttt{string(argv[1])}。
+		\item 读 \texttt{argv[i]} 之前先保证 \texttt{i < argc}，越界就是野指针；可选参数靠 \texttt{argc} 判断有没有传。
+		\item 对拍主程序里 \texttt{system("./check test.in a.out")} 和在终端敲这一行完全一样；参数要带变量就先拼成 \texttt{string} 再 \texttt{.c\_str()}。
+		\item CLion 单独调试：参数填进 Run Configuration 的 \textbf{Program arguments}，\textbf{Working directory} 设成 \texttt{test.in} 所在目录。
+	\end{itemize}
+
+	\textbf{checker：用 \texttt{argv} 接文件名}。对拍里 \texttt{system("./check test.in a.out")}，
+	于是 \texttt{argv[1]} = \texttt{test.in}、\texttt{argv[2]} = \texttt{a.out}，\textbf{顺序和 \texttt{system} 里写的一致}：
+
+	\begin{minted}{cpp}
+signed main(int argc, char **argv) {
+	std::ifstream in(argv[1]);  // 输入数据
+	std::ifstream out(argv[2]); // smart 输出 (待验)
+	// ifstream ref(argv[3]);   // (可选) brute 输出
+	in >> N;                    // ifstream 用法和 cin 一样
+	ll p;
+	if (!(out >> p)) {          // 读失败 = smart 输出的数不够
+		std::cerr << "too short\n";
+		return 1;
+	}
+	if (argc > 3) {             // 传了第 3 个参数才去读 brute 输出
+		std::ifstream ref(argv[3]);
+		ll best; ref >> best;   // ... 比较最优值
+	}
+	return 0;                   // 0 = 通过; 非 0 => system() 非 0 => 对拍停下
+}
+	\end{minted}
+
+	\begin{itemize}
+		\item checker 里\textbf{不写 \texttt{using namespace std}}：手滑写成 \texttt{cin >> N} 会直接编译报错；否则它能编过，运行时等键盘输入，对拍卡死不动。
+		\item \texttt{return -1} 的退出码其实是 $255$，照样非 $0$，对拍一样会停。
+	\end{itemize}
+
+	\textbf{生成器：用 \texttt{argv} 传种子}。把第几轮当种子传进去，抓到反例时（比如第 17 轮）\texttt{./gen 17 > test.in} 能原样复现；
+	也避开了 \texttt{time(0)} 一秒内不变、连着几十轮生成同一份数据的问题：
+
+	\begin{minted}{cpp}
+// gen.cpp: ./gen 种子 > test.in
+int main(int argc, char **argv) {
+	unsigned seed = argc > 1 ? atoi(argv[1]) : time(0);
+	mt19937 rng(seed);
+	int n = rng() % 10 + 1; // ...
+}
+system(("./gen " + to_string(idx) + " > test.in").c_str()); // 对拍主程序里这样调
+	\end{minted}
